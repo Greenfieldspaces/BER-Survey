@@ -169,9 +169,6 @@ textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
 .img figcaption{font-weight:600;font-size:14px}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px;align-items:start}
 </style>
-</head>
-<body>
-
 
 <header class="top">
   <div class="top-row">
@@ -578,7 +575,7 @@ function renderSummary(){
   const s=cur(),S=summarise(s);
   const box=el('div',{class:'stack'});
   box.append(checksEl(s));
-  box.append(el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>copyReport(s)},'Copy whole survey'),el('span',{class:'note'},'Pastes as tables into email or Word, and as lined-up text into Notes. Includes tick boxes and any open items for the desk.')));
+  box.append(el('div',{class:'row'},el('button',{class:'btn primary',onclick:e=>sharePDF(s,e.currentTarget)},'Share PDF report'),el('button',{class:'btn',onclick:()=>copyReport(s)},'Copy as text'),el('span',{class:'note'},'Share PDF report makes a neat A4 sheet with tick boxes, open items and your sketches. Pick Mail to send it to the desk.')));
   box.append(reportEl(s));
   const tc=el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Wall types for this survey'),el('p',{class:'note',style:'margin:0'},'Rename these to match the wall types you set up in DEAP. Walls using a renamed type follow the new name.'));
   const list=el('div',{class:'types'});
@@ -753,6 +750,96 @@ async function copyReport(s){
     if(window.ClipboardItem&&navigator.clipboard.write){await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([reportHTML(s)],{type:'text/html'}),'text/plain':new Blob([txt],{type:'text/plain'})})]);toast('Copied with tables');return}
     throw 0;
   }catch(e){copy(txt)}
+}
+
+// ---- PDF report sheet for the desk: built on the device, shared straight into Mail ----
+function loadScript(srcs){return srcs.reduce((p,src)=>p.catch(()=>new Promise((res,rej)=>{const sc=document.createElement('script');sc.src=src;sc.onload=res;sc.onerror=()=>{sc.remove();rej()};document.head.append(sc)})),Promise.reject())}
+async function pdfLibs(){
+  if(!(window.jspdf&&window.jspdf.jsPDF))await loadScript(['jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js']);
+  const probe=new window.jspdf.jsPDF();
+  if(!probe.autoTable)await loadScript(['jspdf.plugin.autotable.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js']);
+  return window.jspdf.jsPDF;
+}
+// the built-in PDF fonts only cover Western European characters
+const PDFOK='–—‘’“”•…€›‹';
+const pdfTxt=v=>String(v==null?'':v).replace(/[≥≤✓☐×]/g,c=>({'≥':'>=','≤':'<=','✓':'Yes','☐':'','×':'x'}[c])).replace(/[^\x00-\xff]/g,c=>PDFOK.includes(c)?c:'');
+function pdfName(s){const d=s.data.details||{};return ('BER survey - '+(s.name||'Untitled')+(d.date?' - '+d.date:'')).replace(/[\\/:*?"<>|]+/g,'-')+'.pdf'}
+async function buildPDF(s){
+  const jsPDF=await pdfLibs();
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),M=14,GREEN=[11,122,69],SOFT=[232,239,235],INK=[22,35,29],MUTED=[90,107,99],WARN=[181,71,8];
+  let y=M;
+  const room=h=>{if(y+h>H-16){doc.addPage();y=M}};
+  const box=(x,yy,sz)=>{doc.setDrawColor(...MUTED);doc.setLineWidth(0.3);doc.rect(x,yy,sz,sz)};
+  const TBL={theme:'grid',margin:{left:M,right:M,bottom:16},styles:{font:'helvetica',fontSize:9,cellPadding:1.6,textColor:INK,lineColor:[201,211,206],lineWidth:0.2,overflow:'linebreak',valign:'top'},headStyles:{fillColor:SOFT,textColor:INK,fontStyle:'bold',fontSize:8.5}};
+  const after=()=>{y=doc.lastAutoTable.finalY+4};
+  // tick column: an empty square the desk person ticks when the line is in DEAP
+  const tickCell=d=>{if(d.section==='body'&&d.column.index===0&&!d.cell.raw?.noTick)box(d.cell.x+(d.cell.width-3.4)/2,d.cell.y+1.4,3.4)};
+  const kvTable=(kv,tick=true)=>{doc.autoTable(Object.assign({},TBL,{startY:y,body:kv.map(([k,v])=>(tick?['']:[]).concat([pdfTxt(k),pdfTxt(v)])),
+    columnStyles:tick?{0:{cellWidth:7},1:{cellWidth:62,fontStyle:'bold'}}:{0:{cellWidth:40,fontStyle:'bold'}},didDrawCell:tick?tickCell:null}));after()};
+  const dataTable=t=>{
+    if(t.title){room(14);doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(...INK);doc.text(pdfTxt(t.title),M,y+3.5);y+=6}
+    const tick=!t.record,last=t.rows.length-1;
+    const body=t.rows.map((r,ri)=>(tick?[t.total&&ri===last?{content:'',noTick:true}:'']:[]).concat(r.map(pdfTxt)));
+    const cs={};t.num.forEach((nm,i)=>{if(nm)cs[i+(tick?1:0)]={halign:'right'}});if(tick)cs[0]={cellWidth:7};
+    doc.autoTable(Object.assign({},TBL,{startY:y,head:[(tick?['']:[]).concat(t.head.map(pdfTxt))],body,columnStyles:cs,
+      styles:Object.assign({},TBL.styles,{fontSize:t.head.length>9?7.5:9}),
+      didParseCell:d=>{if(t.total&&d.section==='body'&&d.row.index===last){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=SOFT}},
+      didDrawCell:tick?tickCell:null}));after()};
+  // title band
+  doc.setFillColor(...GREEN);doc.rect(0,0,W,24,'F');
+  const bands=[[0,166,81],[80,184,72],[190,214,48],[255,242,0],[253,185,19],[243,112,33],[237,28,36]];
+  bands.forEach((c,i)=>{doc.setFillColor(...c);doc.rect(M+i*2.6,8,2.2,8,'F')});
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('BER survey',M+22,15);
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text(pdfTxt(s.name||'Untitled'),W-M,15,{align:'right'});
+  y=30;
+  kvTable(reportHead(s),false);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...MUTED);
+  doc.text('Tick each box once the line is entered in DEAP.',M+5.5,y+2.6);box(M,y,3.4);y+=8;
+  const oc=siteChecks(s);
+  if(oc.length){
+    room(16);doc.setFillColor(253,235,217);doc.rect(M,y,W-2*M,7,'F');doc.setTextColor(...WARN);doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.text('Open items from site ('+oc.length+')',M+2,y+4.8);y+=8;
+    doc.autoTable(Object.assign({},TBL,{startY:y,body:oc.map(x=>[x.lvl==='miss'?'Missing':'Check',pdfTxt(x.t),pdfTxt(secName(x.tab,x.sub))]),
+      columnStyles:{0:{cellWidth:18,fontStyle:'bold',textColor:WARN},2:{cellWidth:52,textColor:MUTED}}}));after();y+=2}
+  const ims=(s.images||[]).filter(m=>imgGet(m.id));
+  if(ims.length){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...MUTED);doc.text(ims.length+' sketch'+(ims.length>1?'es/photos':'/photo')+' at the end of this report.',M,y+3);y+=7}
+  reportModel(s).forEach(sec=>{
+    room(34);y+=2;
+    doc.setFillColor(...GREEN);doc.rect(M,y,W-2*M,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text(pdfTxt(sec.title),M+2.5,y+5.6);y+=11;
+    sec.subs.forEach(sub=>{
+      if(sub.title){room(16);doc.setTextColor(...GREEN);doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.text(pdfTxt(sub.title),M,y+3.6);doc.setDrawColor(...GREEN);doc.setLineWidth(0.3);doc.line(M,y+5.2,W-M,y+5.2);y+=8}
+      if(!sub.parts.length){doc.setTextColor(...MUTED);doc.setFont('helvetica','italic');doc.setFontSize(9);doc.text('Nothing entered',M,y+3);y+=7;return}
+      sub.parts.forEach(p=>{
+        if(p.sub){room(12);doc.setTextColor(...INK);doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.text(pdfTxt(p.sub),M,y+3.5);y+=6}
+        else if(p.kv)kvTable(p.kv);else dataTable(p.table);
+      });
+    });
+  });
+  // sketches and photos, each as large as the page allows
+  for(const [i,m] of ims.entries()){
+    const src=imgGet(m.id),im=new Image();im.src=src;try{await im.decode()}catch(e){continue}
+    const maxW=W-2*M,maxH=H-2*M-26,k=Math.min(maxW/im.width,maxH/im.height),w=im.width*k,h=im.height*k;
+    if(i===0||y+h+12>H-16){doc.addPage();y=M}
+    if(i===0){doc.setFillColor(...GREEN);doc.rect(M,y,W-2*M,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Sketches & photos',M+2.5,y+5.6);y+=11}
+    doc.addImage(src,'JPEG',M,y,w,h);doc.setDrawColor(201,211,206);doc.rect(M,y,w,h);
+    doc.setTextColor(...INK);doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.text(pdfTxt(m.cap||'Sketch '+(i+1)),M,y+h+5);y+=h+10;
+  }
+  const np=doc.getNumberOfPages();
+  for(let i=1;i<=np;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...MUTED);
+    doc.text(pdfTxt((s.name||'BER survey')),M,H-8);doc.text('Page '+i+' of '+np,W-M,H-8,{align:'right'})}
+  return doc;
+}
+async function sharePDF(s,btn){
+  const lbl=btn&&btn.textContent;if(btn){btn.disabled=true;btn.textContent='Making PDF…'}
+  try{
+    const doc=await buildPDF(s),name=pdfName(s),blob=doc.output('blob'),file=new File([blob],name,{type:'application/pdf'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:name.replace(/\.pdf$/,'')})}catch(e){if(e&&e.name!=='AbortError')throw e}
+    }else{
+      const url=URL.createObjectURL(blob),a=el('a',{href:url,download:name});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('PDF saved')
+    }
+  }catch(e){toast(window.jspdf?'Could not make the PDF':'Open the app once with internet to set up PDFs')}
+  finally{if(btn){btn.disabled=false;btn.textContent=lbl}}
 }
 
 // ---- site checks: missing inputs and figures that don't add up ----
