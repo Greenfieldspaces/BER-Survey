@@ -1,0 +1,1049 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BER Survey">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0b7a45">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>BER Site Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<style>
+/* Layout: sticky header + six DEAP section tabs; form groups in a two-up grid; walls column with a sticky DEAP totals panel beside it on iPad, stacked on phone */
+:root{
+  --bg:#eef2f0; --surface:#ffffff; --sunk:#e3e9e6; --line:#c9d3ce;
+  --ink:#16231d; --muted:#5a6b63; --accent:#0b7a45; --accent-ink:#ffffff; --accent-soft:#d6ede1;
+  --warn:#b54708; --warn-soft:#fdebd9; --danger:#b42318;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101714; --surface:#18221d; --sunk:#0c120f; --line:#2c3a33;
+  --ink:#e4ece8; --muted:#94a69d; --accent:#3cc47f; --accent-ink:#06170e; --accent-soft:#173828;
+  --warn:#f59e4b; --warn-soft:#3a2413; --danger:#f0776b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101714; --surface:#18221d; --sunk:#0c120f; --line:#2c3a33;
+  --ink:#e4ece8; --muted:#94a69d; --accent:#3cc47f; --accent-ink:#06170e; --accent-soft:#173828;
+  --warn:#f59e4b; --warn-soft:#3a2413; --danger:#f0776b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.4 var(--f-body);-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+.num,input[inputmode=decimal],input[inputmode=numeric]{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:.01em}
+.label{font-family:var(--f-display);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px 0}
+.top-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:1200px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:8px;margin-right:auto}
+.bands{display:flex;height:22px}
+.bands i{width:6px}
+.brand h1{font-size:22px}
+.survey-pick{display:flex;gap:8px;align-items:center}
+.survey-pick select{max-width:230px}
+@media (max-width:520px){.survey-pick{width:100%}.survey-pick select{flex:1;max-width:none}}
+.tabs{display:flex;gap:4px;max-width:1200px;margin:8px auto 0;overflow-x:auto}
+.tab{border:0;background:none;padding:10px 14px;font-family:var(--f-display);font-weight:600;font-size:16px;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .soon{font-size:11px;color:var(--muted);margin-left:4px}
+
+main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+input[type=text],input[type=date],input:not([type]),input[inputmode],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-height:44px;width:100%;min-width:0}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;white-space:nowrap}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn.danger{color:var(--danger)}
+.btn.armed{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn.small{min-height:36px;padding:0 10px;font-size:14px}
+
+.intro{background:var(--accent-soft);border-radius:var(--r);padding:12px 14px;font-size:15px}
+.intro b{font-weight:600}
+
+.wall{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
+.wall-head{display:grid;grid-template-columns:minmax(0,1.4fr) 92px minmax(0,1.2fr);gap:8px}
+@media (max-width:520px){.wall-head{grid-template-columns:1fr 92px}.wall-head .wtype{grid-column:1/-1}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.seg{display:inline-flex;background:var(--sunk);border-radius:8px;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:6px;min-height:36px;cursor:pointer;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.dims{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end}
+.gross{display:flex;flex-direction:column;justify-content:center;min-height:44px}
+.gross .v{font-family:var(--f-num);font-size:17px}
+
+.ops{display:flex;flex-direction:column;gap:6px}
+.op{display:grid;grid-template-columns:100px minmax(0,1fr) 72px 72px 84px 52px 70px 40px;gap:6px;align-items:center}
+.op-h{font-size:11px;letter-spacing:.04em}
+.op .area{font-family:var(--f-num);text-align:right;font-size:15px}
+.op input.dimmed{opacity:.4}
+@media (max-width:640px){
+  .op{grid-template-columns:1fr 1fr 1fr 1fr;row-gap:6px;padding:8px;background:var(--sunk);border-radius:8px}
+  .op .k{grid-column:1/3}.op .nm{grid-column:3/5}
+  .op .area{grid-column:1/4;text-align:left}
+  .op .x{justify-self:end}
+  .op-h{background:none!important;padding:0 8px!important;row-gap:0!important}.op-h .k,.op-h .nm,.op-h .hide-sm{display:none}
+}
+.op-add{display:flex;gap:8px;flex-wrap:wrap}
+.x{min-height:40px;width:40px;border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer;border-radius:8px}
+
+.wall-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:12px}
+.net{margin-right:auto;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.net .v{font-family:var(--f-num);font-size:26px;color:var(--accent)}
+.net .calc{font-size:14px;color:var(--muted);font-family:var(--f-num)}
+.warn{background:var(--warn-soft);color:var(--warn);padding:6px 10px;border-radius:8px;font-size:14px}
+
+aside.panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 110px);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:14px}
+@media (max-width:860px){aside.panel{position:static}}
+.totals{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.totals div{background:var(--sunk);border-radius:8px;padding:8px 10px}
+.totals .v{font-family:var(--f-num);font-size:20px;display:block}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+th{font-family:var(--f-display);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td.n,th.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+tr.tot td{font-weight:600;border-bottom:0}
+.muted{color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.types{display:flex;flex-direction:column;gap:6px}
+.types .row input{flex:1}
+.note{font-size:14px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:600;z-index:10}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:10px;max-width:760px}
+textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
+@media (prefers-reduced-motion:no-preference){.wall{transition:border-color .2s}}
+.tab .cnt{font-family:var(--f-num);font-size:11px;background:var(--accent-soft);color:var(--accent);border-radius:9px;padding:1px 6px;margin-left:5px;vertical-align:2px}
+.subnav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.subnav button{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:0 14px;min-height:38px;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--muted)}
+.subnav button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.group{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.group h3{font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;align-items:start}
+.grid .wide{grid-column:1/-1}
+.seg.yn button{min-width:56px}
+.multi{display:flex;flex-wrap:wrap;gap:6px}
+.multi label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:0 12px;min-height:44px;cursor:pointer;background:var(--surface)}
+.multi input{width:20px;height:20px;accent-color:var(--accent)}
+.lrow{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--bg)}
+.lrow .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));align-items:end}
+.lrow-h{display:flex;align-items:center;justify-content:space-between}
+.fcalc{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-family:var(--f-num);font-size:15px}
+.hint{font-size:13px;color:var(--muted)}
+.report{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.rhead h2{font-size:26px;margin-bottom:6px}
+.rsec{display:flex;flex-direction:column;gap:8px;padding-top:14px;min-width:0}
+.rsec h3{font-size:21px;border-bottom:2px solid var(--accent);padding-bottom:4px}
+.rsec h4{font-family:var(--f-display);font-size:16px;font-weight:700;color:var(--accent);margin:6px 0 0;text-transform:uppercase;letter-spacing:.06em}
+.rkv{display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:4px 18px;margin:0}
+.rkv dt{color:var(--muted)}.rkv dd{margin:0;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.rcap{font-weight:600;margin-top:4px}
+.rpart{display:flex;flex-direction:column;gap:4px;min-width:0}
+.rtbl{font-size:14px;width:auto;min-width:min(100%,420px)}.rtbl td,.rtbl th{padding:5px 8px;white-space:nowrap}
+.rtbl tbody tr:nth-child(even){background:var(--sunk)}
+.rnone{margin:0;color:var(--muted);font-style:italic}
+.checks{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:10px}
+.chip{font-weight:600;font-size:14px;padding:4px 10px;border-radius:14px}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}.chip.bad{background:var(--warn-soft);color:var(--warn)}
+.chk-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.chk-list li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.chk-list .dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--danger)}
+.chk-list li.check .dot{background:var(--warn)}
+.chk-list .ct{flex:1;min-width:0;display:flex;flex-direction:column}
+.chk-list .cs{font-size:13px;color:var(--muted)}
+.imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.img{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+.img img{width:100%;max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff}
+.img figcaption{font-weight:600;font-size:14px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px;align-items:start}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <div class="bands" aria-hidden="true"><i style="background:#00a651"></i><i style="background:#50b848"></i><i style="background:#bed630"></i><i style="background:#fff200"></i><i style="background:#fdb913"></i><i style="background:#f37021"></i><i style="background:#ed1c24"></i></div>
+      <h1>BER Site Survey</h1>
+    </div>
+    <div class="survey-pick">
+      <select id="surveySel" aria-label="Current survey"></select>
+      <button class="btn" id="newSurvey">New survey</button>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+</header>
+
+<main id="main"></main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const KEY='ber-survey-v1';
+const ORIENTS=['N','NE','E','SE','S','SW','W','NW'];
+const DEFAULT_TYPES=['Cavity wall','Solid wall','Timber frame','Hollow block','Semi-exposed wall'];
+// ---- DEAP survey schema ----
+const YN={type:'yn'};
+const OVERSHADE=['None or very little','Modest','Significant','Heavy'];
+const FUELS=['Heating oil','Mains gas','Bulk LPG','Bottled LPG','Electricity','Wood pellets (bags)','Wood pellets (bulk)','Wood logs','Wood chips','Coal','Anthracite','Smokeless fuel','Solid multi-fuel','Peat briquettes','Sod peat','None'];
+const F=(id,label,o)=>Object.assign({id,label,type:'text'},o||{});
+const N=(id,label,o)=>F(id,label,Object.assign({type:'num'},o));
+const S_=(id,label,options,o)=>F(id,label,Object.assign({type:'select',options},o));
+const B=(id,label,o)=>F(id,label,Object.assign({type:'yn'},o));
+const NOTES=id=>({title:'Notes',fields:[F(id||'notes','Notes',{type:'textarea',wide:1})]});
+const is=(k,...v)=>d=>v.includes(d[k]);
+
+const EVID=['Measured on site','Photo taken','Receipt / cert','Homeowner info','Assumed / default'];
+const WALL_FIELDS=[
+  S_('cons','Construction',['Cavity, unfilled','Cavity, filled','Solid masonry','Hollow block','Stone','Timber frame','Steel frame','Other']),
+  N('thick','Thickness mm',{int:1}),
+  S_('ins','Added insulation',['None','Cavity fill (pumped bead / fibre)','Internal dry-lining','External insulation','Built-in insulation (new build)']),
+  N('insmm','Insulation mm',{int:1,show:d=>d.ins&&d.ins!=='None'}),
+  F('year','Year built'),N('u','U-value (if known)'),S_('ev','Evidence',EVID)];
+
+const WIN_FIELDS=[
+  S_('glazing','Glazing type',['Single','Double','Double low-E','Triple','Triple low-E','Secondary glazing']),
+  S_('frame','Frame',['PVC','Wood','Metal','Metal with thermal break','Composite']),
+  S_('gap','Gap',['6 mm','12 mm','16 mm or more'],{show:d=>d.glazing!=='Single'}),S_('fill','Gas fill',['Air','Argon','Unknown'],{show:d=>d.glazing!=='Single'}),
+  N('win_u','U-value (if certified)'),S_('win_u_src','U-value evidence',['Cert / datasheet on file','Label seen on window','None, use DEAP default']),F('win_year','Year installed')];
+const DOOR_FIELDS=[S_('doortype','Door type',['Solid wood','Half glazed','Fully glazed','PVC','Composite','Insulated steel']),N('door_u','U-value (if certified)'),S_('door_u_src','U-value evidence',['Cert / datasheet on file','None, use DEAP default'])];
+// Tab and field order follow the DEAP software tabs as listed in SEAI's DEAP Survey Guide
+const PART=S_('part','Part of house',['Original','Extension 1','Extension 2','Extension 3']);
+const SECTIONS=[
+  {id:'details',name:'Dwelling details',groups:[
+    {title:'Property',fields:[
+      N('mprn','MPRN',{int:1}),
+      F('_name','Property address',{wide:1}),
+      F('eircode','Eircode'),F('county','County'),
+      S_('dtype','Dwelling type',['Ground-floor apartment','Mid-floor apartment','Top-floor apartment','End of terrace house','Mid-terrace house','Semi-detached house','Detached house','Maisonette','Basement apartment']),
+      N('year','Dwelling age (year built)',{int:1}),
+      B('ext','Is there an extension?'),F('extyear','Extension age (year built)',{show:is('ext','Yes'),hint:'List each, e.g. 1995, 2008'}),
+      N('storeys','No. of storeys',{int:1}),N('rooms','No. of habitable rooms',{int:1})]},
+    {title:'Rating',fields:[
+      S_('purpose','Purpose of rating',['Sale','Letting','Grant support','New dwelling for owner occupation','Other']),
+      S_('rtype','Type of rating',['Existing','Provisional','New final']),
+      F('date','Date of survey',{type:'date'}),F('client','Client'),F('client_tel','Client phone'),
+      F('planning','Planning ref (new dwellings)')]},
+    {title:'Sketches & photos',custom:'images'},
+    {title:'Comment box',fields:[F('notes','Comments',{type:'textarea',wide:1})]}]},
+  {id:'building',name:'Building',subs:[
+    {id:'dims',name:'Floors',groups:[
+      {title:'Storey heights and floor areas',hint:'Internal dimensions per storey. Room height is floor to ceiling. Enter room in roof as its own storey.',fields:[
+        F('storeys','Storeys',{type:'list',add:'+ Storey',cols:[S_('level','Level',['Ground floor','First floor','Second floor','Third floor','Room in roof','Basement']),N('area','Floor area m²'),N('height','Storey height m')]}),
+        F('_c','',{type:'calc',calc:'dims'})]},
+      {title:'Living area',fields:[N('living','Living area m²',{hint:'Largest public room plus any open-plan space'}),F('_c2','',{type:'calc',calc:'livingFrac'})]},
+      {title:'Heat loss floors',fields:[
+        F('floors','Heat loss floors',{type:'list',add:'+ Heat loss floor',cols:[
+          PART,S_('type','Floor type',['Solid ground floor','Suspended timber','Suspended concrete','Exposed floor (over outside air)','Semi-exposed (over garage)']),
+          N('area','Area m²'),N('perim','Exposed perimeter m'),N('ins','Insulation mm'),N('u','U-value (if known)'),S_('ev','Evidence',EVID)]})]},
+      NOTES()]},
+    {id:'roofs',name:'Roofs',groups:[
+      {title:'Heat loss roofs',fields:[
+        F('roofs','Roofs',{type:'list',add:'+ Roof',cols:[
+          PART,S_('type','Roof type',['Pitched, insulated at joists','Pitched, insulated at rafters','Flat roof','Room in roof, sloping','Room in roof, flat ceiling','Room in roof, stud wall']),
+          S_('attic','Attic space',['Ventilated','Unventilated','No attic']),
+          N('area','Area m²'),N('ins','Insulation mm'),S_('mat','Insulation type',['Mineral wool','PIR / PUR board','EPS','Sheep wool','Unknown']),N('u','U-value (if known)'),S_('ev','Evidence',EVID)]})]},
+      NOTES()]},
+    {id:'walls',name:'Walls',walls:true},
+    {id:'openings',name:'Windows & doors',groups:[
+      {title:'Default for all windows',hint:'Set what most windows are. Change individual windows below only where they differ.',fields:WIN_FIELDS.concat([S_('shading','Window overshading',OVERSHADE)])},
+      {title:'Default for all doors',fields:DOOR_FIELDS},
+      {title:'Windows/doors draught stripping',fields:[
+        N('op_total','Total windows & doors',{int:1,phFn:()=>'('+wallOpCount()+' on walls)',hint:'Leave blank to use the count from your walls'}),
+        N('op_strip','No. draught stripped',{int:1}),
+        F('_c','',{type:'calc',calc:'drstrip'})]},
+      {title:'Each window and door',custom:'oplist'},
+      {title:'Roof lights',fields:[
+        F('rooflights','Roof lights',{type:'list',add:'+ Roof light',cols:[N('w','Width m'),N('h','Height m'),N('qty','Qty',{int:1}),S_('orient','Faces',['Horizontal'].concat(ORIENTS)),N('pitch','Pitch °')]})]},
+      NOTES()]},
+    {id:'fabric',name:'Rooms & global factors',groups:[
+      {title:'Thermal bridging',fields:[
+        S_('tb','Thermal bridging factor',['Default 0.15','Acceptable Construction Details 0.08','Calculated value']),
+        N('y','y-value W/m²K',{show:is('tb','Calculated value')})]},
+      {title:'Thermal mass',fields:[S_('mass','Thermal mass category',['Low','Medium-low','Medium','Medium-high','High'])]},
+      NOTES()]}
+  ]},
+  {id:'vent',name:'Ventilation',groups:[
+    {title:'Infiltration due to openings',fields:[
+      N('chimneys','Chimneys',{int:1}),N('flues','Open flues',{int:1}),N('fans','Intermittent fans',{int:1}),
+      N('vents','Background / passive vents',{int:1}),N('flueless','Flueless combustion room heaters',{int:1}),
+      B('lobby','Draught lobby')]},
+    {title:'Structural air tightness',fields:[
+      B('tested','Pressure test done'),
+      N('q50','Result m³/(h·m²) at 50 Pa',{show:is('tested','Yes')}),F('testcert','Test cert ref',{show:is('tested','Yes')}),
+      S_('structure','Structure type',['Masonry','Timber frame or steel frame'],{show:d=>d.tested!=='Yes'}),
+      S_('susfloor','Ground floor',['Solid','Suspended, sealed','Suspended, unsealed'],{show:d=>d.tested!=='Yes'}),
+      N('hatches','Attic hatches',{int:1,show:d=>d.tested!=='Yes'}),N('hatches_ds','Attic hatches draught stripped',{int:1,show:d=>d.tested!=='Yes'}),
+      S_('sheltered','Sheltered sides',['0','1','2','3','4'])]},
+    {title:'Ventilation method',fields:[
+      S_('mech','Ventilation method',['Natural ventilation','Positive input from loft','Positive input from outside','Whole-house extract','Balanced, with heat recovery (MVHR)','Balanced, no heat recovery']),
+      F('mv_model','Make & model',{show:d=>d.mech&&d.mech!=='Natural ventilation'}),
+      N('sfp','Specific fan power W/(l/s)',{show:d=>d.mech&&d.mech!=='Natural ventilation'}),
+      N('hre','Heat recovery efficiency %',{show:is('mech','Balanced, with heat recovery (MVHR)')}),
+      S_('ducts','Ducting',['Rigid','Flexible','Rigid and flexible'],{show:d=>d.mech&&d.mech!=='Natural ventilation'}),
+      S_('ductins','Ducts insulated',['Yes','No','Not applicable'],{show:is('mech','Balanced, with heat recovery (MVHR)')})]},
+    NOTES()]},
+  {id:'heat',name:'Space heating',groups:[
+    {title:'Main space and water heating system',fields:[
+      S_('src','Heat source',['Oil boiler','Gas boiler','LPG boiler','Solid fuel boiler','Biomass boiler','Heat pump, air to water','Heat pump, ground to water','Heat pump, exhaust air','Electric storage heaters','Direct electric heaters','Solid fuel stove with back boiler','Range cooker boiler','Group heating scheme','District heating scheme','CHP','None']),
+      S_('fuel','Fuel',FUELS),F('make','Make & model',{hint:'For HARP database lookup'}),
+      N('eff','Efficiency % / SPF'),S_('eff_src','Efficiency evidence',['HARP database','Manufacturer datasheet','Commissioning cert','DEAP default']),F('harp','HARP reference'),F('hyear','Year installed'),
+      B('cond','Condensing',{show:d=>/boiler/i.test(d.src||'')}),
+      S_('flue','Flue type',['Open','Balanced','Fan assisted'],{show:d=>/boiler/i.test(d.src||'')}),
+      B('inside','Boiler in heated space',{show:d=>/boiler/i.test(d.src||'')}),
+      N('flow','Design flow temp °C',{show:d=>/heat pump/i.test(d.src||'')}),
+      N('dlf','Distribution loss factor',{show:is('src','Group heating scheme','District heating scheme')})]},
+    {title:'Controls and responsiveness',fields:[
+      S_('emit','Heat emitters',['Radiators','Underfloor heating','Radiators and underfloor','Fan coil units','Storage heaters','Room heaters','Warm air']),
+      F('controls','Controls present',{type:'multi',wide:1,options:['Programmer','Time switch','Room thermostat','Programmable room thermostat','Cylinder thermostat','TRVs','Boiler interlock','Time and temperature zone control','Weather compensator','Load compensator','Delayed start thermostat','Flow switch','Bypass','Boiler energy manager']})]},
+    {title:'Pumps and fans',fields:[
+      B('pump','Central heating pump'),B('pump_in','Pump in heated space',{show:is('pump','Yes')}),
+      B('oilpump_in','Oil boiler fuel pump inside',{show:is('fuel','Heating oil')}),
+      B('fluefan','Gas boiler flue fan',{show:d=>/Mains gas|LPG/.test(d.fuel||'')}),
+      B('warmair','Warm air heating or fan coil radiators')]},
+    {title:'Secondary heating system',fields:[
+      S_('sec','Secondary system',['None','Open fire','Open fire with back boiler','Closed stove','Gas fire','Electric heater','Flueless gas heater','Other']),
+      S_('secfuel','Fuel',FUELS,{show:d=>d.sec&&d.sec!=='None'}),N('seceff','Efficiency %',{show:d=>d.sec&&d.sec!=='None'})]},
+    NOTES()]},
+  {id:'water',name:'Water heating',groups:[
+    {title:'Options',fields:[
+      S_('src','Water heat source',['Same as main space heating','Secondary heating system','Electric immersion only','Instantaneous electric','Heat pump','Group heating scheme','Other']),
+      B('combi','Combi boiler'),
+      B('distloss','Distribution losses'),B('storeloss','Storage losses'),
+      B('summer_imm','Supplementary electric water heating in summer'),
+      S_('imm','Immersion',['None','Single','Dual'])]},
+    {title:'Storage',fields:[
+      B('cyl','Hot water cylinder'),
+      N('vol','Water storage volume L',{show:is('cyl','Yes')}),
+      S_('cylins','Insulation type',['Factory insulated','Loose jacket','None'],{show:is('cyl','Yes')}),
+      N('cylmm','Insulation thickness mm',{show:is('cyl','Yes')}),
+      B('indoors','Storage indoors',{show:is('cyl','Yes')}),
+      B('cylstat','Cylinder thermostat',{show:is('cyl','Yes')}),
+      S_('primins','Primary pipework insulated',['None','First 1 m from cylinder','All accessible pipework','Fully insulated'],{show:is('cyl','Yes')}),
+      S_('primcirc','Primary circuit',['Pumped','Gravity'],{show:is('cyl','Yes')}),
+      B('septime','Water separately timed',{show:is('cyl','Yes')})]},
+    {title:'Showers and baths',fields:[
+      F('showers','Showers',{type:'list',add:'+ Shower',cols:[S_('type','Shower type',['Vented mixer','Electric','Pumped / power','Mains pressure mixer']),N('flow','Flow l/min'),S_('restrict','Flow restrictor',['No','Yes']),S_('wwhr','WWHR',['No','Yes'])]}),
+      N('baths','Baths',{int:1})]},
+    {title:'Solar',fields:[
+      B('solar','Solar thermal panels'),
+      S_('coll','Collector type',['Flat plate','Evacuated tube'],{show:is('solar','Yes')}),
+      N('aper','Aperture area m²',{show:is('solar','Yes')}),
+      N('eta0','Zero loss collector efficiency',{show:is('solar','Yes')}),N('a1','Collector heat loss coefficient',{show:is('solar','Yes')}),
+      S_('sorient','Orientation',ORIENTS,{show:is('solar','Yes')}),N('spitch','Tilt °',{show:is('solar','Yes')}),
+      S_('sshade','Overshading',OVERSHADE,{show:is('solar','Yes')}),
+      N('svol','Dedicated solar storage L',{show:is('solar','Yes')}),F('smodel','Make & model',{show:is('solar','Yes')})]},
+    NOTES()]},
+  {id:'gen',name:'Renewables',groups:[
+    {title:'Solar PV',fields:[
+      F('pv','PV arrays',{type:'list',add:'+ PV array',cols:[N('kwp','Peak power kWp'),S_('orient','Orientation',ORIENTS),N('pitch','Tilt °'),S_('shade','Overshading',OVERSHADE),S_('ev','Evidence',['Cert / commissioning report','Panel label','Estimated'])]}),
+      N('battery','Battery kWh'),F('pvmodel','Panels / inverter make')]},
+    {title:'Wind',fields:[B('wind','Wind turbine'),N('windkw','Rated output kW',{show:is('wind','Yes')}),N('hub','Hub height m',{show:is('wind','Yes')})]},
+    {title:'Micro-CHP',fields:[B('chp','Micro-CHP'),F('chpmodel','Make & model',{show:is('chp','Yes')}),N('chpeff','Electrical efficiency %',{show:is('chp','Yes')})]},
+    NOTES()]},
+  {id:'summary',name:'DEAP summary',util:true},
+  {id:'backup',name:'Backup',util:true}
+];
+const BSUBS=SECTIONS[1].subs;
+const uid=()=>Math.random().toString(36).slice(2,9);
+const n=v=>{const x=parseFloat(String(v).replace(',','.'));return isFinite(x)?x:0};
+const f2=v=>(Math.round(v*100)/100).toFixed(2);
+
+function blankWall(o){return Object.assign({id:uid(),name:'',orient:'S',type:DEFAULT_TYPES[0],shape:'rect',L:'',H:'',apex:'',area:'',ops:[]},o||{})}
+function blankOp(kind,o){return Object.assign({id:uid(),kind:kind,name:'',w:'',h:'',qty:'1'},o||{})}
+function newSurvey(name){return {id:uid(),name:name||'New survey',created:Date.now(),types:DEFAULT_TYPES.slice(),walls:[blankWall({name:'Front'})],data:{}}}
+function exampleSurvey(){
+  const s=newSurvey('Example: 2-storey semi');
+  s.example=true;
+  s.data={details:{dtype:'Semi-detached house',year:'1998',storeys:'2'},dims:{storeys:[{level:'Ground floor',area:'48.5',height:'2.40'},{level:'First floor',area:'48.5',height:'2.45'}],living:'16.2'},walltypes:{'Cavity wall':{cons:'Cavity, filled',thick:'300',ins:'Cavity fill (pumped bead / fibre)',insmm:'100',year:'1998',ev:'Photo taken'}},openings:{glazing:'Double',frame:'PVC',gap:'16 mm or more',doortype:'Composite'}};
+  s.walls=[
+    blankWall({name:'Front',orient:'S',L:'7.20',H:'5.10',ops:[blankOp('window',{name:'Living',w:'1.80',h:'1.20'}),blankOp('window',{name:'Bedrooms',w:'1.20',h:'1.20',qty:'2'}),blankOp('door',{name:'Front door',w:'0.90',h:'2.10'})]}),
+    blankWall({name:'Gable',orient:'E',shape:'gable',L:'8.40',H:'5.10',apex:'2.60',ops:[blankOp('window',{name:'Landing',w:'0.60',h:'1.05'})]}),
+    blankWall({name:'Rear',orient:'N',L:'7.20',H:'5.10',ops:[blankOp('window',{name:'Kitchen',w:'1.50',h:'1.10',g:{glazing:'Single',frame:'Wood'}}),blankOp('window',{name:'Patio (glazed)',w:'1.80',h:'2.10'})]}),
+    blankWall({name:'Party to garage',orient:'W',type:'Semi-exposed wall',L:'3.00',H:'2.40'})
+  ];
+  return s;
+}
+
+let db;
+function load(){
+  try{db=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){db=null}
+  if(!db||!db.surveys||!Object.keys(db.surveys).length){const s=exampleSurvey();db={surveys:{[s.id]:s},current:s.id,tab:'walls'}}
+  if(!db.surveys[db.current])db.current=Object.keys(db.surveys)[0];
+  Object.values(db.surveys).forEach(s=>{s.data=s.data||{};delete s.dwelling;const d=s.data;
+    // v6: heat loss floors live on the Floors tab; draught stripping moved to Windows & doors; water source renamed
+    if(d.floors&&d.floors.floors){d.dims=d.dims||{};if(!d.dims.floors)d.dims.floors=d.floors.floors;delete d.floors}
+    if(d.vent&&(d.vent.op_total||d.vent.op_strip)){d.openings=d.openings||{};['op_total','op_strip'].forEach(k=>{if(d.vent[k]&&!d.openings[k])d.openings[k]=d.vent[k];delete d.vent[k]})}
+    if(d.water&&d.water.src==='Main space heating system')d.water.src='Same as main space heating';
+    if(d.water&&d.water.src==='Combi boiler'){d.water.src='Same as main space heating';d.water.combi='Yes'}
+    if(d.details&&d.details.extyear&&!d.details.ext)d.details.ext='Yes'});
+  if(db.tab==='walls'){db.tab='building';db.sub='walls'}
+  if(!SECTIONS.some(x=>x.id===db.tab))db.tab='details';
+  db.sub=db.sub||'dims';
+}
+let saveT;
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){toast('Could not save on this device')}},250)}
+const cur=()=>db.surveys[db.current];
+
+// ---- geometry ----
+function gross(w){
+  if(w.shape==='area')return n(w.area);
+  const r=n(w.L)*n(w.H);
+  return w.shape==='gable'?r+0.5*n(w.L)*n(w.apex):r;
+}
+// an area typed in directly wins over width × height
+const opEach=o=>hasVal(o.a)?n(o.a):n(o.w)*n(o.h);
+const opArea=o=>opEach(o)*Math.max(0,Math.round(n(o.qty)||0));
+const opSize=o=>hasVal(o.a)?f2(n(o.a))+' m² each':f2(n(o.w))+' × '+f2(n(o.h));
+const opsArea=w=>w.ops.reduce((a,o)=>a+opArea(o),0);
+const net=w=>gross(w)-opsArea(w);
+
+// ---- ui helpers ----
+const $=s=>document.querySelector(s);
+function el(tag,attrs,...kids){const e=document.createElement(tag);for(const k in attrs||{}){const v=attrs[k];if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v)}for(const c of kids.flat()){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(c))}return e}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,1800)}
+function numInput(id,val,label,oninput){return el('input',{id,inputmode:'decimal',value:val,placeholder:'0.00','aria-label':label,autocomplete:'off',oninput})}
+function armButton(label,onConfirm,cls){
+  const b=el('button',{class:'btn small danger '+(cls||'')},label);
+  b.addEventListener('click',()=>{if(b.dataset.armed){onConfirm()}else{b.dataset.armed='1';b.classList.add('armed');b.textContent='Tap again to delete';setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.classList.remove('armed');b.textContent=label}},3000)}});
+  return b;
+}
+async function copy(text,ta){
+  try{await navigator.clipboard.writeText(text);toast('Copied')}
+  catch(e){if(ta){ta.focus();ta.select();toast('Select all and copy')}else toast('Copy not available here')}
+}
+
+// ---- header ----
+function renderHeader(){
+  const sel=$('#surveySel');sel.innerHTML='';
+  Object.values(db.surveys).sort((a,b)=>b.created-a.created).forEach(s=>sel.append(el('option',{value:s.id,selected:s.id===db.current},s.name||'Untitled')));
+  const tabs=$('#tabs');tabs.innerHTML='';
+  SECTIONS.forEach(sec=>{const c=sec.util?0:filled(sec);tabs.append(el('button',{class:'tab',role:'tab','aria-selected':String(db.tab===sec.id),onclick:()=>{db.tab=sec.id;save();render();scrollTo(0,0)}},sec.name,c?el('span',{class:'cnt'},c):null))});
+}
+$('#surveySel').addEventListener('change',e=>{db.current=e.target.value;save();render()});
+$('#newSurvey').addEventListener('click',()=>{const s=newSurvey('Survey '+new Date().toLocaleDateString('en-IE'));s.data.details={date:new Date().toISOString().slice(0,10)};db.surveys[s.id]=s;db.current=s.id;db.tab='details';save();render();setTimeout(()=>{const i=$('#svName');i&&i.focus();i&&i.select()},50)});
+
+// ---- walls ----
+function renderWalls(){
+  const s=cur();
+  const col=el('div',{class:'stack'});
+  if(s.example)col.append(exampleNote());
+  s.walls.forEach((w,i)=>col.append(wallCard(w,i)));
+  col.append(el('div',{class:'row'},
+    el('button',{class:'btn primary',onclick:()=>{const last=s.walls[s.walls.length-1];s.walls.push(blankWall({H:last?last.H:'',type:last?last.type:s.types[0],orient:last?ORIENTS[(ORIENTS.indexOf(last.orient)+2)%8]:'S'}));save();render();setTimeout(()=>{const c=document.querySelectorAll('.wall');const l=c[c.length-1];l&&l.scrollIntoView({behavior:'smooth',block:'start'});const i=l&&l.querySelector('input');i&&i.focus()},50)}},'+ Add wall')));
+  col.append(wallTypesEl());
+  const wrap=el('div',{class:'layout'},col,summaryPanel(true));
+  return wrap;
+}
+// construction details are recorded once per wall type in use (DEAP takes a U-value per wall type)
+const usedTypes=s=>[...new Set(s.walls.filter(w=>gross(w)>0||w.ops.length).map(w=>w.type))];
+const wtData=t=>{const d=dataFor('walltypes');return d[t]||(d[t]={})};
+function wallTypesEl(){
+  const s=cur(),types=usedTypes(s);
+  const card=el('section',{class:'group'},el('h3',null,'Wall construction'),
+    el('p',{class:'hint',style:'margin:0'},'Fill this in once for each wall type used above. DEAP needs the construction and insulation to set the U-value.'));
+  if(!types.length){card.append(el('p',{class:'muted',style:'margin:0'},'Add a wall first.'));return card}
+  types.forEach(t=>{
+    const d=wtData(t),g=el('div',{class:'grid'});
+    WALL_FIELDS.filter(f=>!f.show||f.show(d)).forEach(f=>g.append(fieldEl(f,d,'wt'+t.replace(/\W/g,''))));
+    const area=s.walls.filter(w=>w.type===t).reduce((a,w)=>a+net(w),0);
+    card.append(el('div',{class:'lrow'},el('div',{class:'lrow-h'},el('b',null,t),el('span',{class:'num muted',style:'font-size:14px'},f2(area)+' m² net')),g));
+  });
+  return card;
+}
+let addingType=null;
+function wallCard(w,i){
+  const s=cur();
+  const card=el('section',{class:'wall','data-wall':w.id});
+  const tsel=el('select',{id:'wt-'+w.id,onchange:e=>{if(e.target.value==='__new'){addingType=w.id}else{w.type=e.target.value;addingType=null}save();render()}});
+  const types=s.types.includes(w.type)?s.types:s.types.concat(w.type);
+  types.forEach(t=>tsel.append(el('option',{value:t,selected:t===w.type&&addingType!==w.id},t)));
+  tsel.append(el('option',{value:'__new',selected:addingType===w.id},'+ New wall type…'));
+  const osel=el('select',{id:'wo-'+w.id,onchange:e=>{w.orient=e.target.value;save();refresh()}});
+  ORIENTS.forEach(o=>osel.append(el('option',{value:o,selected:o===w.orient},o)));
+  card.append(el('div',{class:'wall-head'},
+    el('div',{class:'field'},el('label',{class:'label',for:'wn-'+w.id},'Wall '+(i+1)),el('input',{id:'wn-'+w.id,value:w.name,placeholder:'e.g. Front, Rear, Gable',oninput:e=>{w.name=e.target.value;save();refresh()}})),
+    el('div',{class:'field'},el('label',{class:'label',for:'wo-'+w.id},'Faces'),osel),
+    el('div',{class:'field wtype'},el('label',{class:'label',for:'wt-'+w.id},'Wall type'),tsel)));
+  if(addingType===w.id){
+    const ni=el('input',{id:'nt-'+w.id,value:'',placeholder:'e.g. Extension cavity wall 2005'});
+    const addT=()=>{const v=ni.value.trim();if(!v)return;if(!s.types.includes(v))s.types.push(v);w.type=v;addingType=null;save();render();toast('Wall type added. Fill in its construction and year below')};
+    ni.addEventListener('keydown',e=>{if(e.key==='Enter')addT()});
+    card.append(el('div',{class:'intro',style:'display:flex;flex-direction:column;gap:8px'},el('label',{for:'nt-'+w.id,style:'font-weight:600'},'Name the new wall type'),
+      el('span',{class:'hint'},'Use a separate type for an extension or any wall built differently, so it gets its own year and construction.'),
+      el('div',{class:'row'},ni,el('button',{class:'btn primary',onclick:addT},'Add'),el('button',{class:'btn ghost',onclick:()=>{addingType=null;render()}},'Cancel'))));
+    setTimeout(()=>{const x=document.getElementById('nt-'+w.id);x&&x.focus()},30);
+  }
+
+  const seg=el('div',{class:'seg',role:'group','aria-label':'Wall shape'});
+  [['rect','Rectangle'],['gable','Gable'],['area','Area']].forEach(([k,lab])=>seg.append(el('button',{'aria-pressed':String(w.shape===k),onclick:()=>{w.shape=k;save();render()}},lab)));
+  const dims=el('div',{class:'dims'});
+  const upd=k=>e=>{w[k]=e.target.value;save();refresh()};
+  if(w.shape==='area'){
+    dims.append(el('div',{class:'field'},el('label',{class:'label',for:'wa-'+w.id},'Gross area m²'),numInput('wa-'+w.id,w.area,'Gross area',upd('area'))));
+  }else{
+    dims.append(el('div',{class:'field'},el('label',{class:'label',for:'wl-'+w.id},'Length m'),numInput('wl-'+w.id,w.L,'Length',upd('L'))));
+    dims.append(el('div',{class:'field'},el('label',{class:'label',for:'wh-'+w.id},w.shape==='gable'?'Eaves height m':'Height m'),numInput('wh-'+w.id,w.H,'Height',upd('H'))));
+    if(w.shape==='gable')dims.append(el('div',{class:'field'},el('label',{class:'label',for:'wp-'+w.id},'Eaves to apex m'),numInput('wp-'+w.id,w.apex,'Eaves to apex',upd('apex'))));
+  }
+  dims.append(el('div',{class:'gross'},el('span',{class:'label'},'Gross'),el('span',{class:'v','data-gross':1},f2(gross(w))+' m²')));
+  card.append(el('div',{class:'row'},seg),dims);
+
+  const ops=el('div',{class:'ops'});
+  if(w.ops.length)ops.append(el('div',{class:'op op-h label'},el('span',{class:'k'},'Type'),el('span',{class:'nm'},'Label'),el('span',null,'Width m'),el('span',null,'Height m'),el('span',null,'Or area'),el('span',null,'Qty'),el('span',{class:'area hide-sm',style:'text-align:right'},'Total'),el('span',{class:'hide-sm'})));
+  w.ops.forEach(o=>{
+    const ksel=el('select',{class:'k','aria-label':'Opening type',onchange:e=>{o.kind=e.target.value;save();refresh()}});
+    [['window','Window'],['door','Door']].forEach(([k,l])=>ksel.append(el('option',{value:k,selected:o.kind===k},l)));
+    const u=k=>e=>{o[k]=e.target.value;save();refresh()};
+    ops.append(el('div',{class:'op','data-op':o.id},ksel,
+      el('input',{class:'nm',value:o.name,placeholder:'Label','aria-label':'Opening label',oninput:u('name')}),
+      numInput('ow-'+o.id,o.w,'Width',u('w')),numInput('oh-'+o.id,o.h,'Height',u('h')),
+      el('input',{id:'oa-'+o.id,inputmode:'decimal',value:o.a||'','aria-label':'Area of each opening, instead of width and height',placeholder:n(o.w)*n(o.h)?f2(n(o.w)*n(o.h)):'m²','data-opeach':1,autocomplete:'off',oninput:u('a')}),
+      el('input',{id:'oq-'+o.id,inputmode:'numeric',value:o.qty,'aria-label':'Quantity',oninput:u('qty')}),
+      el('span',{class:'area','data-oparea':1},f2(opArea(o))+' m²'),
+      el('button',{class:'x','aria-label':'Remove opening',onclick:()=>{w.ops=w.ops.filter(x=>x!==o);save();render()}},'×')));
+  });
+  const addOp=kind=>()=>{w.ops.push(blankOp(kind));save();render();setTimeout(()=>{const r=document.querySelector('[data-wall="'+w.id+'"] .op:last-of-type input[inputmode=decimal]');r&&r.focus()},30)};
+  ops.append(el('div',{class:'op-add'},el('button',{class:'btn small',onclick:addOp('window')},'+ Window'),el('button',{class:'btn small',onclick:addOp('door')},'+ Door')));
+  card.append(el('div',{class:'label'},'Openings in this wall'),ops);
+
+  card.append(el('div',{class:'wall-foot'},
+    el('div',{class:'net'},el('span',{class:'label'},'Net wall'),el('span',{class:'v','data-net':1},f2(net(w))+' m²'),el('span',{class:'calc','data-calc':1},calcText(w))),
+    el('div',{class:'warn','data-warn':1,hidden:net(w)>=0},'Openings exceed gross area'),
+    el('button',{class:'btn small',onclick:()=>{const c=JSON.parse(JSON.stringify(w));c.id=uid();c.name=(w.name||'Wall')+' copy';c.ops.forEach(o=>o.id=uid());s.walls.splice(i+1,0,c);save();render()}},'Duplicate'),
+    armButton('Delete',()=>{s.walls=s.walls.filter(x=>x!==w);save();render()})));
+  return card;
+}
+const calcText=w=>'= '+f2(gross(w))+' − '+f2(opsArea(w));
+
+// ---- summary ----
+function summarise(s){
+  const byType={},byOrient={};
+  let g=0,o=0,win=0,door=0;
+  s.walls.forEach(w=>{
+    const t=byType[w.type]||(byType[w.type]={gross:0,ops:0,net:0});
+    t.gross+=gross(w);t.ops+=opsArea(w);t.net+=net(w);g+=gross(w);o+=opsArea(w);
+    w.ops.forEach(op=>{const a=opArea(op);const r=byOrient[w.orient]||(byOrient[w.orient]={window:0,door:0,items:[]});r[op.kind]+=a;r.items.push({wall:w.name,op,a});if(op.kind==='window')win+=a;else door+=a});
+  });
+  return {byType,byOrient,g,o,net:g-o,win,door};
+}
+function summaryPanel(side){
+  const s=cur(),S=summarise(s);
+  const p=el(side?'aside':'div',{class:side?'panel':'card',id:side?'panel':null});
+  p.append(el('h2',{style:'font-size:20px'},'For DEAP'));
+  p.append(el('div',{class:'totals'},
+    el('div',null,el('span',{class:'label'},'Net walls'),el('span',{class:'v'},f2(S.net)+' m²')),
+    el('div',null,el('span',{class:'label'},'Openings'),el('span',{class:'v'},f2(S.o)+' m²'))));
+  const t1=el('table',null,el('thead',null,el('tr',null,el('th',null,'Wall type'),el('th',{class:'n'},'Gross'),el('th',{class:'n'},'Net m²'))));
+  const tb=el('tbody');
+  Object.entries(S.byType).forEach(([k,v])=>tb.append(el('tr',null,el('td',null,k),el('td',{class:'n muted'},f2(v.gross)),el('td',{class:'n'},f2(v.net)))));
+  tb.append(el('tr',{class:'tot'},el('td',null,'Total'),el('td',{class:'n muted'},f2(S.g)),el('td',{class:'n'},f2(S.net))));
+  t1.append(tb);p.append(el('div',{class:'tbl-wrap'},t1));
+  const t2=el('table',null,el('thead',null,el('tr',null,el('th',null,'Faces'),el('th',{class:'n'},'Windows'),el('th',{class:'n'},'Doors'))));
+  const tb2=el('tbody');
+  ORIENTS.filter(o=>S.byOrient[o]).forEach(o=>tb2.append(el('tr',null,el('td',null,o),el('td',{class:'n'},f2(S.byOrient[o].window)),el('td',{class:'n'},f2(S.byOrient[o].door)))));
+  if(!tb2.children.length)tb2.append(el('tr',null,el('td',{colspan:3,class:'muted'},'No openings yet')));
+  else tb2.append(el('tr',{class:'tot'},el('td',null,'Total'),el('td',{class:'n'},f2(S.win)),el('td',{class:'n'},f2(S.door))));
+  t2.append(tb2);p.append(el('div',{class:'tbl-wrap'},t2));
+  p.append(el('div',{class:'row'},el('button',{class:'btn',onclick:()=>copy(summaryText(s))},'Copy walls'),side?el('button',{class:'btn ghost',onclick:()=>{db.tab='summary';save();render()}},'Full summary'):null));
+  return p;
+}
+function summaryText(s){
+  const S=summarise(s),L=[];
+  L.push('BER survey: '+(s.name||'Untitled'),'');
+  L.push('NET WALL AREA BY TYPE (m²)');
+  Object.entries(S.byType).forEach(([k,v])=>L.push('  '+k+': '+f2(v.net)+'  (gross '+f2(v.gross)+', openings '+f2(v.ops)+')'));
+  L.push('  Total: '+f2(S.net),'');
+  L.push('OPENINGS BY ORIENTATION (m²)');
+  ORIENTS.filter(o=>S.byOrient[o]).forEach(o=>{const r=S.byOrient[o];L.push('  '+o+': windows '+f2(r.window)+', doors '+f2(r.door));r.items.forEach(it=>L.push('     - '+(it.wall||'Wall')+' / '+(it.op.name||it.op.kind)+': '+opSize(it.op)+(n(it.op.qty)>1?' x'+it.op.qty:'')+' = '+f2(it.a)))});
+  L.push('','WALLS');
+  s.walls.forEach(w=>L.push('  '+(w.name||'Wall')+' ['+w.orient+', '+w.type+']: gross '+f2(gross(w))+', openings '+f2(opsArea(w))+', net '+f2(net(w))));
+  return L.join('\n');
+}
+function renderSummary(){
+  const s=cur(),S=summarise(s);
+  const box=el('div',{class:'stack'});
+  box.append(checksEl(s));
+  box.append(el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>copyReport(s)},'Copy whole survey'),el('span',{class:'note'},'Pastes as tables into email or Word, and as lined-up text into Notes. Includes tick boxes and any open items for the desk.')));
+  box.append(reportEl(s));
+  const tc=el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Wall types for this survey'),el('p',{class:'note',style:'margin:0'},'Rename these to match the wall types you set up in DEAP. Walls using a renamed type follow the new name.'));
+  const list=el('div',{class:'types'});
+  s.types.forEach((t,i)=>list.append(el('div',{class:'row'},
+    el('input',{id:'ty-'+i,value:t,'aria-label':'Wall type name',onchange:e=>{const nv=e.target.value.trim()||t;s.walls.forEach(w=>{if(w.type===t)w.type=nv});const wtd=s.data.walltypes;if(wtd&&wtd[t]&&nv!==t){wtd[nv]=wtd[t];delete wtd[t]}s.types[i]=nv;save();render()}}),
+    s.walls.some(w=>w.type===t)?el('span',{class:'note'},'in use'):el('button',{class:'x','aria-label':'Remove type',onclick:()=>{s.types.splice(i,1);save();render()}},'×'))));
+  const ni=el('input',{id:'newType',placeholder:'Add a wall type, e.g. Stone wall'});
+  list.append(el('div',{class:'row'},ni,el('button',{class:'btn',onclick:()=>{const v=ni.value.trim();if(v&&!s.types.includes(v)){s.types.push(v);save();render()}}},'Add')));
+  tc.append(list);box.append(tc);
+  return box;
+}
+
+// ---- desk report: one model, rendered as HTML on screen and as aligned plain text for copying ----
+const REPORT_CALCS={
+  dims:()=>{const r=storeyRows();const a=r.reduce((t,x)=>t+n(x.area),0),v=r.reduce((t,x)=>t+n(x.area)*n(x.height),0);return a?[['Total floor area',f2(a)+' m²'],['Volume',f2(v)+' m³']]:[]},
+  livingFrac:()=>{const a=storeyRows().reduce((t,x)=>t+n(x.area),0),l=n(dataFor('dims').living);return a&&l?[['Living area fraction',(l/a).toFixed(3)]]:[]},
+  drstrip:()=>{const d=dataFor('openings');if(!hasVal(d.op_strip))return [];const tot=hasVal(d.op_total)?Math.round(n(d.op_total)):wallOpCount(),st=Math.round(n(d.op_strip));return tot?[['Draught stripped',st+' of '+tot+' ('+Math.round(st/tot*100)+'%)']]:[]},
+  openings:()=>[]
+};
+function groupParts(groups,key){
+  const d=cur().data[key]||{},parts=[];
+  groups.forEach(g=>{
+    if(g.custom)return;
+    let kv=[];
+    const flush=()=>{if(kv.length){parts.push({kv});kv=[]}};
+    (g.fields||[]).forEach(f=>{
+      if(f.id==='_name'||(f.show&&!f.show(d)))return;
+      if(f.type==='calc'){kv.push(...REPORT_CALCS[f.calc]());return}
+      const v=d[f.id];if(!hasVal(v))return;
+      if(f.type==='list'){flush();const cols=f.cols.filter(c=>v.some(r=>hasVal(r[c.id])));parts.push({table:{title:f.label,head:cols.map(c=>c.label),num:cols.map(c=>c.type==='num'),rows:v.map(r=>cols.map(c=>r[c.id]||''))}});return}
+      kv.push([f.id==='notes'?'Notes':f.label.replace(' (if certified)','').replace(' (if known)',''),fmtVal(f,v)]);
+    });
+    flush();
+    if(parts.length&&!parts[parts.length-1].title&&g.title&&!/^Notes$/.test(g.title)){}
+  });
+  return parts;
+}
+function wallsParts(s){
+  const S=summarise(s),parts=[];
+  if(!s.walls.some(w=>gross(w)>0))return parts;
+  const tr=Object.entries(S.byType).map(([k,v])=>[k,f2(v.gross),f2(v.ops),f2(v.net)]);
+  tr.push(['Total',f2(S.g),f2(S.o),f2(S.net)]);
+  parts.push({table:{title:'Net wall area by type (for DEAP)',head:['Wall type','Gross m²','Openings m²','Net m²'],num:[0,1,1,1],rows:tr,total:true}});
+  const types=usedTypes(s),wt=s.data.walltypes||{};
+  const crow=types.map(t=>{const d=wt[t]||{};return [t,d.cons||'',d.thick||'',d.ins&&d.ins!=='None'?d.ins+(d.insmm?' '+d.insmm+' mm':''):(d.ins||''),d.year||'',d.u||'',d.ev||'']});
+  if(crow.length){const head=['Wall type','Construction','Thickness mm','Insulation','Year built','U-value','Evidence'],num=[0,0,1,0,0,1,0];const keep=head.map((h,i)=>i<2||crow.some(r=>hasVal(r[i])));parts.push({table:{title:'Wall construction (for DEAP)',head:head.filter((h,i)=>keep[i]),num:num.filter((x,i)=>keep[i]),rows:crow.map(r=>r.filter((x,i)=>keep[i]))}})}
+  parts.push({table:{title:'Walls measured (site record)',record:true,head:['Wall','Faces','Type','Size','Gross m²','Openings m²','Net m²'],num:[0,0,0,0,1,1,1],
+    rows:s.walls.map(w=>[w.name||'Wall',w.orient,w.type,w.shape==='area'?'area entered':f2(n(w.L))+' × '+f2(n(w.H))+(w.shape==='gable'?' + gable '+f2(n(w.apex)):''),f2(gross(w)),f2(opsArea(w)),f2(net(w))])}});
+  return parts;
+}
+function openingParts(s){
+  const S=summarise(s),parts=[],wins=[],doors=[];
+  s.walls.forEach(w=>w.ops.forEach(o=>{
+    const base=[w.orient,w.name||'Wall',o.name||'',opSize(o),String(Math.max(0,Math.round(n(o.qty)||0))),f2(opArea(o))];
+    if(o.kind==='door')doors.push(base.concat([opEff(o,'doortype'),opEff(o,'door_u')+(opEff(o,'door_u_src')?' ('+opEff(o,'door_u_src')+')':'')]));
+    else{const single=opEff(o,'glazing')==='Single';wins.push(base.concat([opEff(o,'glazing'),opEff(o,'frame'),single?'':opEff(o,'gap'),single?'':opEff(o,'fill'),opEff(o,'win_u'),opEff(o,'win_u_src'),opEff(o,'win_year')]))}
+  }));
+  const ord=r=>ORIENTS.indexOf(r[0]);
+  const trim=(head,num,rows)=>{const keep=head.map((h,i)=>i<6||rows.some(r=>hasVal(r[i])));return {head:head.filter((h,i)=>keep[i]),num:num.filter((x,i)=>keep[i]),rows:rows.map(r=>r.filter((x,i)=>keep[i]))}};
+  const ot=ORIENTS.filter(o=>S.byOrient[o]).map(o=>[o,f2(S.byOrient[o].window),f2(S.byOrient[o].door)]);
+  if(ot.length){ot.push(['Total',f2(S.win),f2(S.door)]);parts.push({table:{title:'Openings by orientation (for DEAP)',head:['Faces','Windows m²','Doors m²'],num:[0,1,1],rows:ot,total:true}})}
+  // DEAP lines: windows with the same orientation and glazing combined into one row
+  const grp=(rows,keyIdx)=>{const m=new Map();rows.forEach(r=>{const k=keyIdx.map(i=>r[i]).join('|');const g=m.get(k)||{key:keyIdx.map(i=>r[i]),count:0,area:0};g.count+=n(r[4]);g.area+=n(r[5]);m.set(k,g)});return [...m.values()]};
+  const trim2=(head,num,rows,fixed)=>{const keep=head.map((h,i)=>fixed.includes(i)||rows.some(r=>hasVal(r[i])));return {head:head.filter((h,i)=>keep[i]),num:num.filter((x,i)=>keep[i]),rows:rows.map(r=>r.filter((x,i)=>keep[i]))}};
+  if(wins.length){
+    const g=grp(wins,[0,6,7,8,9,10,11]).sort((a,b)=>ORIENTS.indexOf(a.key[0])-ORIENTS.indexOf(b.key[0]));
+    const rows=g.map(x=>x.key.concat([String(x.count),f2(x.area)]));
+    const tot=g.reduce((a,x)=>a+x.area,0),cnt=g.reduce((a,x)=>a+x.count,0);
+    const t=trim2(['Faces','Glazing','Frame','Gap','Gas','U-value','U-value evidence','No.','Total area m²'],[0,0,0,0,0,1,0,1,1],rows,[0,1,7,8]);
+    t.rows.push(t.head.map((h,i)=>i===0?'Total':h==='No.'?String(cnt):h==='Total area m²'?f2(tot):''));
+    parts.push({table:Object.assign({title:'Windows for DEAP (matching windows combined)',total:true},t)});
+  }
+  if(doors.length){
+    const g=grp(doors,[6,7]);
+    const t=trim2(['Door type','U-value','No.','Total area m²'],[0,1,1,1],g.map(x=>x.key.concat([String(x.count),f2(x.area)])),[0,2,3]);
+    parts.push({table:Object.assign({title:'Doors for DEAP (matching doors combined)'},t)});
+  }
+  if(wins.length)parts.push({table:Object.assign({title:'Every window (site record)',record:true},trim(['Faces','Wall','Label','Size m','Qty','Area m²','Glazing','Frame','Gap','Gas','U-value','U-value evidence','Year'],[0,0,0,1,1,1,0,0,0,0,1,0,0],wins.sort((a,b)=>ord(a)-ord(b))))});
+  if(doors.length)parts.push({table:Object.assign({title:'Every door (site record)',record:true},trim(['Faces','Wall','Label','Size m','Qty','Area m²','Door type','U-value'],[0,0,0,1,1,1,0,1],doors.sort((a,b)=>ord(a)-ord(b))))});
+  return parts;
+}
+function reportModel(s){
+  const secs=[];
+  SECTIONS.filter(x=>!x.util).forEach(sec=>{
+    const subs=[];
+    if(sec.subs)sec.subs.forEach(sb=>{
+      let parts=sb.walls?wallsParts(s):groupParts(sb.groups,sb.id);
+      if(sb.id==='openings')parts=openingParts(s).concat(parts.length?[{sub:'Defaults and other details'}].concat(parts):[]);
+      subs.push({title:sb.name,parts});
+    });
+    else subs.push({title:null,parts:groupParts(sec.groups,sec.id)});
+    secs.push({title:sec.name,subs});
+  });
+  return secs;
+}
+function reportHead(s){const d=s.data.details||{};return [['Survey',s.name||'Untitled'],['Eircode',d.eircode],['MPRN',d.mprn],['Survey date',d.date]].filter(x=>hasVal(x[1]))}
+// HTML
+function tableEl(t){
+  const tb=el('table',{class:'rtbl'},el('thead',null,el('tr',null,t.head.map((h,i)=>el('th',{class:t.num[i]?'n':null},h)))));
+  const body=el('tbody');
+  t.rows.forEach((r,ri)=>body.append(el('tr',{class:t.total&&ri===t.rows.length-1?'tot':null},r.map((c,i)=>el('td',{class:t.num[i]?'n':null},c)))));
+  tb.append(body);
+  return el('div',{class:'rpart'},t.title?el('div',{class:'rcap'},t.title):null,el('div',{class:'tbl-wrap'},tb));
+}
+function kvEl(kv){return el('dl',{class:'rkv'},kv.flatMap(([k,v])=>[el('dt',null,k),el('dd',{style:k==='Notes'?'white-space:pre-wrap':null},v)]))}
+function reportEl(s){
+  const box=el('article',{class:'report'});
+  box.append(el('header',{class:'rhead'},el('h2',null,'BER survey'),kvEl(reportHead(s))));
+  const ims=(s.images||[]).filter(m=>imgGet(m.id));
+  if(ims.length)box.append(el('section',{class:'rsec'},el('h3',null,'Sketches & photos'),el('div',{class:'imgs'},ims.map((m,i)=>el('figure',{class:'img'},el('img',{src:imgGet(m.id),alt:m.cap||'Sketch '+(i+1)}),el('figcaption',null,m.cap||'Sketch '+(i+1)))))));
+  reportModel(s).forEach(sec=>{
+    const sb=el('section',{class:'rsec'},el('h3',null,sec.title));
+    let any=false;
+    sec.subs.forEach(sub=>{
+      if(sub.title)sb.append(el('h4',null,sub.title));
+      if(!sub.parts.length){sb.append(el('p',{class:'rnone'},'Nothing entered'));return}
+      any=true;
+      sub.parts.forEach(p=>sb.append(p.sub?el('div',{class:'rcap'},p.sub):p.kv?kvEl(p.kv):tableEl(p.table)));
+    });
+    box.append(sb);
+  });
+  return box;
+}
+// plain text
+const DISP=v=>String(v).length;
+function textTable(t,ind){
+  const w=t.head.map((h,i)=>Math.max(DISP(h),...t.rows.map(r=>DISP(r[i]))));
+  const line=(r,b)=>ind+(b||'    ')+r.map((c,i)=>t.num[i]?String(c).padStart(w[i]):String(c).padEnd(w[i])).join('  ').replace(/\s+$/,'');
+  const out=[];if(t.title)out.push(ind+t.title+':');
+  const rule=ind+'    '+w.map(x=>'-'.repeat(x)).join('  ');
+  out.push(line(t.head),rule);
+  t.rows.forEach((r,i)=>{const tot=t.total&&i===t.rows.length-1;if(tot)out.push(rule);out.push(line(r,tot||t.record?'    ':'[ ] '))});
+  return out;
+}
+function textKv(kv,ind){const w=30;return kv.map(([k,v])=>ind+'[ ] '+(k+' ').padEnd(w+2,'.')+' '+String(v).replace(/\n/g,'\n'+ind+' '.repeat(w+7)))}
+function fullText(s){
+  const L=[],hd='BER SURVEY';
+  L.push(hd,'='.repeat(hd.length),...textKv(reportHead(s),'').map(x=>x.replace('[ ] ','')),'','Tick [ ] each line once it is entered in DEAP.','');
+  const ni=(s.images||[]).length;if(ni)L.push(ni+' sketch'+(ni>1?'es/photos':'/photo')+' taken on site: '+(s.images.map((m,i)=>m.cap||'Sketch '+(i+1)).join(', '))+'. Copy them from the tool separately if they did not paste in.','');
+  const oc=siteChecks(s);if(oc.length){L.push('OPEN ITEMS FROM SITE','--------------------');oc.forEach(x=>L.push('  '+(x.lvl==='miss'?'Missing: ':'Check: ')+x.t+' ('+secName(x.tab,x.sub)+')'));L.push('')}
+  reportModel(s).forEach(sec=>{
+    L.push('',sec.title.toUpperCase(),'='.repeat(sec.title.length));
+    sec.subs.forEach(sub=>{
+      if(sub.title)L.push('',sub.title,'-'.repeat(sub.title.length));
+      if(!sub.parts.length){L.push('  Nothing entered');return}
+      sub.parts.forEach((p,i)=>{if(i&&!sub.parts[i-1].sub)L.push('');if(p.sub)L.push('  '+p.sub+':');else if(p.kv)L.push(...textKv(p.kv,'  '));else L.push(...textTable(p.table,'  '))});
+    });
+  });
+  return L.join('\n')+'\n';
+}
+function reportHTML(s){
+  const esc=v=>String(v).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const td='style="border:1px solid #ccc;padding:4px 8px;font:13px Arial,sans-serif"',th='style="border:1px solid #ccc;padding:4px 8px;background:#e8efeb;font:bold 12px Arial,sans-serif;text-align:left"';
+  const kv=k=>'<table style="border-collapse:collapse;margin:4px 0 10px">'+k.map(([a,b])=>'<tr><td '+td+'>☐</td><td '+td+'><b>'+esc(a)+'</b></td><td '+td+'>'+esc(b).replace(/\n/g,'<br>')+'</td></tr>').join('')+'</table>';
+  const tb=t=>(t.title?'<p style="font:bold 13px Arial,sans-serif;margin:8px 0 4px">'+esc(t.title)+'</p>':'')+'<table style="border-collapse:collapse;margin-bottom:10px"><tr>'+(t.record?'':'<th '+th+'>✓</th>')+t.head.map(h=>'<th '+th+'>'+esc(h)+'</th>').join('')+'</tr>'+t.rows.map((r,ri)=>'<tr>'+(t.record?'':'<td '+td+'>'+(t.total&&ri===t.rows.length-1?'':'☐')+'</td>')+r.map((c,i)=>'<td '+td.replace('"','"'+(t.num[i]?'text-align:right;':'')+(t.total&&ri===t.rows.length-1?'font-weight:bold;':''))+'>'+esc(c)+'</td>').join('')+'</tr>').join('')+'</table>';
+  let h='<div style="font:14px Arial,sans-serif"><h2 style="font:bold 20px Arial,sans-serif">BER survey</h2>'+kv(reportHead(s)).replace(/<td[^>]*>☐<\/td>/g,'')+'<p style="color:#555">Tick ☐ each line once it is entered in DEAP.</p>';
+  const ims=(s.images||[]).filter(m=>imgGet(m.id));if(ims.length)h+='<h3 style="font:bold 17px Arial,sans-serif;border-bottom:2px solid #0b7a45;padding-bottom:3px;margin:18px 0 6px">Sketches &amp; photos</h3>'+ims.map((m,i)=>'<p style="margin:6px 0"><img src="'+imgGet(m.id)+'" width="640" style="max-width:100%;border:1px solid #ccc"><br><b>'+esc(m.cap||'Sketch '+(i+1))+'</b></p>').join('');
+  const oc=siteChecks(s);if(oc.length)h+='<h3 style="font:bold 16px Arial,sans-serif;color:#b54708;margin:14px 0 4px">Open items from site</h3><ul>'+oc.map(x=>'<li>'+(x.lvl==='miss'?'<b>Missing:</b> ':'<b>Check:</b> ')+esc(x.t)+' <span style="color:#777">('+esc(secName(x.tab,x.sub))+')</span></li>').join('')+'</ul>';
+  reportModel(s).forEach(sec=>{
+    h+='<h3 style="font:bold 17px Arial,sans-serif;border-bottom:2px solid #0b7a45;padding-bottom:3px;margin:18px 0 6px">'+esc(sec.title)+'</h3>';
+    sec.subs.forEach(sub=>{
+      if(sub.title)h+='<h4 style="font:bold 14px Arial,sans-serif;margin:10px 0 4px;color:#0b7a45">'+esc(sub.title)+'</h4>';
+      if(!sub.parts.length){h+='<p style="color:#777;margin:2px 0">Nothing entered</p>';return}
+      sub.parts.forEach(p=>{h+=p.sub?'<p style="font:bold 13px Arial,sans-serif;margin:8px 0 4px">'+esc(p.sub)+'</p>':p.kv?kv(p.kv):tb(p.table)});
+    });
+  });
+  return h+'</div>';
+}
+async function copyReport(s){
+  const txt=fullText(s);
+  try{
+    if(window.ClipboardItem&&navigator.clipboard.write){await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([reportHTML(s)],{type:'text/html'}),'text/plain':new Blob([txt],{type:'text/plain'})})]);toast('Copied with tables');return}
+    throw 0;
+  }catch(e){copy(txt)}
+}
+
+// ---- site checks: missing inputs and figures that don't add up ----
+function siteChecks(s){
+  const out=[],D=k=>s.data[k]||{},add=(lvl,t,tab,sub)=>out.push({lvl,t,tab,sub});
+  const det=D('details'),dims=D('dims'),vent=D('vent'),heat=D('heat'),water=D('water'),gen=D('gen'),ops=D('openings');
+  const apt=/apartment/i.test(det.dtype||''),noRoof=/Ground-floor|Mid-floor|Basement/.test(det.dtype||''),noFloor=/Mid-floor|Top-floor/.test(det.dtype||'');
+  if(!hasVal(det.dtype))add('miss','Dwelling type','details');
+  if(!hasVal(det.year))add('miss','Dwelling age','details');if(!hasVal(det.ext))add('miss','Is there an extension? (yes or no)','details');
+  if(!hasVal(det.date))add('miss','Date of survey','details');
+  if(!hasVal(det.eircode)&&!hasVal(det.mprn))add('miss','Eircode or MPRN','details');
+  const st=dims.storeys||[];
+  const totA=st.reduce((a,x)=>a+n(x.area),0);
+  if(!st.length)add('miss','Floor areas and room heights','building','dims');
+  st.forEach((x,i)=>{if(!n(x.area)||!n(x.height))add('miss','Storey '+(i+1)+' is missing its floor area or room height','building','dims');if(n(x.height)&&(n(x.height)<1.8||n(x.height)>4))add('check','Storey '+(i+1)+' room height of '+x.height+' m looks unusual','building','dims')});
+  if(!hasVal(dims.living))add('miss','Living area','building','dims');
+  else if(totA&&n(dims.living)>totA*0.6)add('check','Living area is over 60% of the total floor area','building','dims');
+  if(!s.walls.some(w=>gross(w)>0))add('miss','Wall measurements','building','walls');
+  usedTypes(s).forEach(t=>{const d=(s.data.walltypes||{})[t]||{};if(!hasVal(d.cons))add('miss',t+': construction not recorded','building','walls');else if(!hasVal(d.ins)&&!hasVal(d.u))add('miss',t+': insulation or U-value not recorded','building','walls')});
+  s.walls.forEach((w,i)=>{const nm=w.name||'Wall '+(i+1);
+    if(!(gross(w)>0))add('miss',nm+' has no dimensions','building','walls');
+    else if(net(w)<0)add('check',nm+': openings are bigger than the wall','building','walls');
+    w.ops.forEach(o=>{if(!(opArea(o)>0))add('miss',nm+': a '+o.kind+' has no size','building','walls')})});
+  const roofs=D('roofs').roofs||[],floors=D('dims').floors||[];
+  if(!roofs.length&&!noRoof)add('miss','Roof details','building','roofs');
+  roofs.forEach((r,i)=>{if(!n(r.area))add('miss','Roof '+(i+1)+' has no area','building','roofs');if(!hasVal(r.ins)&&!hasVal(r.u))add('miss','Roof '+(i+1)+' has no insulation thickness or U-value','building','roofs')});
+  if(!floors.length&&!noFloor)add('miss','Heat loss floors','building','dims');
+  floors.forEach((r,i)=>{if(!n(r.area))add('miss','Floor '+(i+1)+' has no area','building','dims');if(/Solid|Suspended/.test(r.type||'')&&!n(r.perim))add('miss','Floor '+(i+1)+' has no exposed perimeter','building','dims')});
+  const gf=st.find(x=>/Ground/.test(x.level||'')),top=st[st.length-1];
+  const fA=floors.reduce((a,x)=>a+n(x.area),0),rA=roofs.reduce((a,x)=>a+n(x.area),0);
+  if(gf&&n(gf.area)&&fA&&Math.abs(fA-n(gf.area))/n(gf.area)>0.15)add('check','Floor area ('+f2(fA)+' m²) differs from the ground floor area ('+f2(n(gf.area))+' m²) by more than 15%','building','dims');
+  if(top&&n(top.area)&&rA&&rA<n(top.area)*0.85)add('check','Roof area ('+f2(rA)+' m²) is smaller than the top floor area ('+f2(n(top.area))+' m²)','building','roofs');
+  let noGlaz=0,noDoor=0;s.walls.forEach(w=>w.ops.forEach(o=>{if(o.kind==='door'){if(!opEff(o,'doortype'))noDoor++}else if(!opEff(o,'glazing'))noGlaz++}));
+  if(noGlaz)add('miss',noGlaz+' window'+(noGlaz>1?'s have':' has')+' no glazing type','building','openings');
+  if(noDoor)add('miss',noDoor+' door'+(noDoor>1?'s have':' has')+' no door type','building','openings');
+  if(!hasVal(ops.shading)&&s.walls.some(w=>w.ops.length))add('miss','Window overshading','building','openings');
+  if(!hasVal(D('fabric').tb))add('miss','Thermal bridging factor','building','fabric');
+  if(!hasVal(D('fabric').mass))add('miss','Thermal mass category','building','fabric');
+  if(['chimneys','flues','fans','vents','flueless'].every(k=>!hasVal(vent[k])))add('miss','Chimneys, flues, fans and vents (enter 0 where there are none)','vent');
+  if(vent.tested!=='Yes'){if(!hasVal(vent.structure))add('miss','Structure type','vent');if(!hasVal(vent.susfloor))add('miss','Ground floor (solid or suspended)','vent');if(!hasVal(vent.hatches))add('miss','Attic hatches (enter 0 if none)','vent')}
+  if(!hasVal(ops.op_strip))add('miss','Number of windows and doors draught stripped','building','openings');
+  if(!hasVal(vent.lobby))add('miss','Draught lobby','vent');
+  if(!hasVal(vent.sheltered))add('miss','Sheltered sides','vent');
+  if(!hasVal(vent.mech))add('miss','Ventilation method','vent');
+  if(vent.tested==='Yes'&&!hasVal(vent.q50))add('miss','Air tightness test result','vent');
+  if(!hasVal(heat.src))add('miss','Main heating system','heat');
+  else if(heat.src!=='None'){
+    if(!hasVal(heat.fuel))add('miss','Main heating fuel','heat');
+    if(!hasVal(heat.eff)&&!hasVal(heat.harp))add('miss','Heating efficiency or HARP reference','heat');
+    if(!hasVal(heat.emit))add('miss','Heat emitters','heat');
+    if(!(heat.controls||[]).length)add('check','No heating controls ticked. Confirm there are none','heat');
+  }
+  if(!hasVal(heat.sec))add('miss','Secondary heating (choose None if there is none)','heat');
+  if(!hasVal(water.src))add('miss','Water heating source','water');
+  if(!hasVal(water.cyl))add('miss','Hot water cylinder (yes or no)','water');['distloss','storeloss','summer_imm'].forEach(k=>{if(!hasVal(water[k]))add('miss',{distloss:'Distribution losses',storeloss:'Storage losses',summer_imm:'Supplementary electric water heating in summer'}[k]+' (yes or no)','water')});
+  if(water.solar==='Yes'&&!hasVal(water.aper))add('miss','Solar aperture area','water');if(water.cyl==='Yes'){if(!hasVal(water.vol))add('miss','Cylinder volume','water');if(!hasVal(water.cylins))add('miss','Cylinder insulation','water')}
+  if(!(water.showers||[]).length)add('check','No showers entered','water');
+  if(!hasVal(water.solar))add('miss','Solar thermal panels (yes or no)','water');
+  if(!(gen.pv||[]).length&&!hasVal(gen.wind)&&!hasVal(gen.chp))add('check','Renewables left blank. Add PV or answer No to wind and CHP','gen');
+  (gen.pv||[]).forEach((p,i)=>{if(!n(p.kwp))add('miss','PV array '+(i+1)+' has no kWp','gen')});
+  return out;
+}
+const secName=(tab,sub)=>{const sec=SECTIONS.find(x=>x.id===tab);if(!sec)return '';const sb=sub&&sec.subs?sec.subs.find(x=>x.id===sub):null;return sec.name+(sb?' › '+sb.name:'')};
+function checksEl(s){
+  const list=siteChecks(s),miss=list.filter(x=>x.lvl==='miss'),chk=list.filter(x=>x.lvl==='check');
+  const card=el('section',{class:'checks'});
+  card.append(el('div',{class:'row',style:'justify-content:space-between'},el('h2',{style:'font-size:20px'},'Before you leave site'),
+    el('span',{class:'chip '+(list.length?'bad':'ok')},list.length?miss.length+' missing · '+chk.length+' to check':'All complete')));
+  if(!list.length){card.append(el('p',{class:'note',style:'margin:0'},'Everything DEAP needs looks to be filled in.'));return card}
+  const ul=el('ul',{class:'chk-list'});
+  chk.concat(miss).forEach(x=>ul.append(el('li',{class:x.lvl},el('span',{class:'dot'}),el('span',{class:'ct'},x.t,el('span',{class:'cs'},secName(x.tab,x.sub))),
+    el('button',{class:'btn small',onclick:()=>{db.tab=x.tab;if(x.sub)db.sub=x.sub;save();render();scrollTo(0,0)}},'Go'))));
+  card.append(ul);
+  return card;
+}
+
+// ---- sketches & photos: resized JPEGs, each in its own storage slot so typing doesn't rewrite them ----
+const IMGK=id=>'ber-img-'+id;
+const imgGet=id=>{try{return localStorage.getItem(IMGK(id))}catch(e){return null}};
+const imgSet=(id,d)=>{try{localStorage.setItem(IMGK(id),d);return true}catch(e){return false}};
+const imgDel=id=>{try{localStorage.removeItem(IMGK(id))}catch(e){}};
+function shrink(file){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=rej;r.onload=()=>{const im=new Image();im.onerror=rej;im.onload=()=>{const k=Math.min(1,1600/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.72))};im.src=r.result};r.readAsDataURL(file)})}
+async function addImages(files){
+  const s=cur();s.images=s.images||[];let fail=0;
+  for(const f of files){try{const d=await shrink(f);const id=uid();if(imgSet(id,d))s.images.push({id,cap:''});else fail++}catch(e){fail++}}
+  save();render();
+  if(fail)toast('Storage is full on this device. Delete old surveys or photos to add more');else toast(files.length>1?files.length+' images added':'Image added');
+}
+async function copyImage(id){
+  try{const d=imgGet(id);const im=new Image();im.src=d;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);
+    const blob=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('Image copied')}
+  catch(e){toast('Copying images is not available here')}
+}
+function imagesEl(){
+  const s=cur();s.images=s.images||[];
+  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,'Sketches & photos'),
+    el('p',{class:'hint',style:'margin:0'},'Take a photo of your notepad sketch or pick one from your photos. It goes into the report for the desk.'));
+  const fi=el('input',{type:'file',accept:'image/*',multiple:true,id:'imgIn',hidden:true,onchange:e=>{const f=[...e.target.files];e.target.value='';if(f.length)addImages(f)}});
+  card.append(fi,el('div',null,el('button',{class:'btn primary',onclick:()=>fi.click()},'+ Add sketch or photo')));
+  if(s.images.length){
+    const g=el('div',{class:'imgs'});
+    s.images.forEach((m,i)=>{const d=imgGet(m.id);g.append(el('figure',{class:'img'},
+      d?el('img',{src:d,alt:m.cap||'Sketch '+(i+1)}):el('div',{class:'muted'},'Image missing on this device'),
+      el('input',{id:'cap-'+m.id,value:m.cap,placeholder:'Caption, e.g. Ground floor plan',oninput:e=>{m.cap=e.target.value;save()}}),
+      el('div',{class:'row'},el('button',{class:'btn small',onclick:()=>copyImage(m.id)},'Copy image'),armButton('Delete',()=>{imgDel(m.id);s.images.splice(i,1);save();render()}))))});
+    card.append(g);
+  }
+  return card;
+}
+
+// ---- backup ----
+function renderBackup(){
+  const s=cur();
+  const box=el('div',{class:'stack'});
+  const bk=Object.assign({},s,{imageData:Object.fromEntries((s.images||[]).map(m=>[m.id,imgGet(m.id)]).filter(x=>x[1]))});const ta=el('textarea',{id:'bkOut',readonly:true},JSON.stringify(bk));
+  box.append(el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Back up this survey'),
+    el('p',{class:'note',style:'margin:0'},'Surveys are saved on this device only. Copy this text into Notes or an email to keep a copy or move it to another device.'),
+    ta,el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>copy(ta.value,ta)},'Copy backup'))));
+  const inp=el('textarea',{id:'bkIn',placeholder:'Paste a backup here'});
+  const msg=el('p',{class:'note',style:'margin:0'});
+  box.append(el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Restore a survey'),inp,
+    el('div',{class:'row'},el('button',{class:'btn',onclick:()=>{try{const d=JSON.parse(inp.value);if(!d||!Array.isArray(d.walls))throw 0;d.id=uid();d.created=Date.now();d.types=d.types||DEFAULT_TYPES.slice();d.data=d.data||{};if(d.imageData){(d.images||[]).forEach(m=>{const nid=uid();if(d.imageData[m.id]&&imgSet(nid,d.imageData[m.id]))m.id=nid});delete d.imageData}db.surveys[d.id]=d;db.current=d.id;db.tab='details';save();render();toast('Survey restored')}catch(e){msg.textContent='That text is not a survey backup. Paste the whole backup, starting with {'}}},'Restore as new survey')),msg));
+  box.append(el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Delete this survey'),el('p',{class:'note',style:'margin:0'},'Removes "'+(s.name||'Untitled')+'" from this device.'),
+    el('div',{class:'row'},armButton('Delete survey',()=>{(s.images||[]).forEach(m=>imgDel(m.id));delete db.surveys[s.id];if(!Object.keys(db.surveys).length){const n2=newSurvey();db.surveys[n2.id]=n2}db.current=Object.keys(db.surveys)[0];db.tab='details';save();render()}))));
+  return box;
+}
+// ---- generic DEAP sections ----
+function exampleNote(){return el('div',{class:'intro'},el('b',null,'This is an example survey.'),' Tap New survey in the top bar to start a real job. Everything you enter saves on this device as you type.')}
+const dataFor=id=>{const s=cur();return s.data[id]||(s.data[id]={})};
+const hasVal=v=>Array.isArray(v)?v.length>0:v!=null&&String(v).trim()!=='';
+function filled(sec){
+  const s=cur();
+  const count=id=>Object.entries(s.data[id]||{}).filter(([k,v])=>hasVal(v)).length;
+  if(sec.subs)return sec.subs.reduce((a,sb)=>a+(sb.walls?s.walls.filter(w=>gross(w)>0).length:count(sb.id)),0);
+  return count(sec.id);
+}
+const storeyRows=()=>(dataFor('dims').storeys||[]);
+const wallOpCount=()=>cur().walls.reduce((a,w)=>a+w.ops.reduce((b,o)=>b+Math.max(0,Math.round(n(o.qty)||0)),0),0)+(dataFor('openings').rooflights||[]).reduce((a,r)=>a+Math.max(1,Math.round(n(r.qty)||0)),0);
+const CALCS={
+  drstrip:()=>{const d=dataFor('openings');const tot=hasVal(d.op_total)?Math.round(n(d.op_total)):wallOpCount(),st=Math.round(n(d.op_strip));if(!hasVal(d.op_strip))return 'Draught stripped: enter how many are stripped';if(!tot)return 'Draught stripped: enter the total openings';return 'Draught stripped: '+st+' of '+tot+' = '+Math.round(st/tot*100)+'%'+(st>tot?'  (more stripped than total, check)':'')},
+  dims:()=>{const r=storeyRows();const a=r.reduce((t,x)=>t+n(x.area),0),v=r.reduce((t,x)=>t+n(x.area)*n(x.height),0);return 'Total floor area '+f2(a)+' m²   Volume '+f2(v)+' m³'},
+  livingFrac:()=>{const a=storeyRows().reduce((t,x)=>t+n(x.area),0),l=n(dataFor('dims').living);return a&&l?'Living area fraction '+(l/a).toFixed(3):'Living area fraction shows once floor areas are in'},
+  openings:()=>{const S=summarise(cur());const o=ORIENTS.filter(k=>S.byOrient[k]);return o.length?o.map(k=>k+': windows '+f2(S.byOrient[k].window)+' m², doors '+f2(S.byOrient[k].door)+' m²').join('\n'):'No windows or doors yet. Add them to each wall on the Walls & openings tab.'}
+};
+function fieldEl(f,d,key){
+  const id=key+'-'+f.id;
+  if(f.type==='calc'){const c=el('div',{class:'fcalc wide','data-fcalc':f.calc,style:'white-space:pre-line'},CALCS[f.calc]());return c}
+  if(f.type==='list')return listEl(f,d,key);
+  const wrap=el('div',{class:'field'+(f.wide||f.type==='multi'||f.type==='textarea'?' wide':'')});
+  let lab=el('label',{class:'label',for:id},f.label);
+  const set=v=>{d[f.id]=v;save()};
+  if(f.id==='_name'){
+    const s=cur();wrap.append(lab,el('input',{id,value:s.name,oninput:e=>{s.name=e.target.value;delete s.example;save();const o=$('#surveySel option[value="'+s.id+'"]');if(o)o.textContent=s.name||'Untitled'}}));return wrap;
+  }
+  let inp;
+  if(f.type==='select'){
+    inp=el('select',{id,onchange:e=>{set(e.target.value);render()}},el('option',{value:''},f.ph||'Select…'));
+    f.options.forEach(o=>inp.append(el('option',{value:o,selected:d[f.id]===o},o)));
+  }else if(f.type==='yn'){
+    inp=el('div',{class:'seg yn',role:'group','aria-label':f.label,id});
+    ['Yes','No'].forEach(o=>inp.append(el('button',{'aria-pressed':String(d[f.id]===o),onclick:()=>{set(d[f.id]===o?'':o);render()}},o)));
+    lab=el('span',{class:'label'},f.label);
+  }else if(f.type==='multi'){
+    const cur_=Array.isArray(d[f.id])?d[f.id]:[];
+    inp=el('div',{class:'multi',id});
+    f.options.forEach((o,i)=>{const cb=el('input',{type:'checkbox',checked:cur_.includes(o),onchange:e=>{const a=(Array.isArray(d[f.id])?d[f.id]:[]).filter(x=>x!==o);if(e.target.checked)a.push(o);set(a);renderHeader()}});inp.append(el('label',null,cb,o))});
+    lab=el('span',{class:'label'},f.label);
+  }else if(f.type==='textarea'){
+    inp=el('textarea',{id,style:'min-height:90px;font-family:var(--f-body);font-size:16px',oninput:e=>set(e.target.value)},d[f.id]||'');
+  }else{
+    const a={id,value:d[f.id]||'',autocomplete:'off',placeholder:f.phFn?f.phFn():(f.ph||null),oninput:e=>{set(e.target.value);refresh()}};
+    if(f.type==='num'){a.inputmode=f.int?'numeric':'decimal'}
+    if(f.type==='date')a.type='date';
+    inp=el('input',a);
+  }
+  wrap.append(lab,inp);
+  if(f.hint)wrap.append(el('span',{class:'hint'},f.hint));
+  return wrap;
+}
+function listEl(f,d,key){
+  const rows=Array.isArray(d[f.id])?d[f.id]:(d[f.id]=[]);
+  const box=el('div',{class:'wide',style:'display:flex;flex-direction:column;gap:8px'});
+  rows.forEach((r,i)=>{
+    const g=el('div',{class:'grid'});
+    f.cols.forEach(c=>g.append(fieldEl(c,r,key+'-'+f.id+i)));
+    box.append(el('div',{class:'lrow'},el('div',{class:'lrow-h'},el('span',{class:'label'},f.label.replace(/s$/,'')+' '+(i+1)),el('button',{class:'x','aria-label':'Remove',onclick:()=>{rows.splice(i,1);save();render()}},'×')),g));
+  });
+  box.append(el('div',null,el('button',{class:'btn small',onclick:()=>{const last=rows[rows.length-1];rows.push(last&&f.id==='storeys'?{height:last.height}:{});save();render()}},f.add)));
+  return box;
+}
+function groupsEl(groups,key){
+  const d=dataFor(key);
+  const box=el('div',{class:'two'});
+  groups.forEach(g=>{
+    if(g.custom){box.append(g.custom==='images'?imagesEl():opListEl());return}
+    const vis=g.fields.filter(f=>!f.show||f.show(d));
+    const grid=el('div',{class:'grid'});
+    vis.forEach(f=>grid.append(fieldEl(f,d,key)));
+    const card=el('section',{class:'group'},el('h3',null,g.title));
+    if(g.hint)card.append(el('p',{class:'hint',style:'margin:0'},g.hint));
+    card.append(grid);box.append(card);
+  });
+  return box;
+}
+function renderSection(sec){
+  const s=cur(),box=el('div',{class:'stack'});
+  if(s.example)box.append(exampleNote());
+  box.append(el('h2',{style:'font-size:24px'},sec.name));
+  if(sec.subs){
+    const nav=el('div',{class:'subnav'});
+    sec.subs.forEach(sb=>nav.append(el('button',{'aria-pressed':String(db.sub===sb.id),onclick:()=>{db.sub=sb.id;save();render()}},sb.name)));
+    box.append(nav);
+    const sb=sec.subs.find(x=>x.id===db.sub)||sec.subs[0];
+    box.append(sb.walls?renderWalls():groupsEl(sb.groups,sb.id));
+  }else box.append(groupsEl(sec.groups,sec.id));
+  const i=SECTIONS.indexOf(sec),nx=SECTIONS[i+1];
+  if(nx&&!nx.util)box.append(el('div',null,el('button',{class:'btn',onclick:()=>{db.tab=nx.id;save();render();scrollTo(0,0)}},'Next: '+nx.name+' →')));
+  return box;
+}
+// per-opening glazing: values on o.g override the defaults on the Windows & doors tab
+const opFields=o=>o.kind==='door'?DOOR_FIELDS:WIN_FIELDS.filter(f=>!(opEff(o,'glazing')==='Single'&&(f.id==='gap'||f.id==='fill')));
+const opEff=(o,k)=>(o.g&&hasVal(o.g[k]))?o.g[k]:(dataFor('openings')[k]||'');
+function opListEl(){
+  const s=cur(),def=dataFor('openings');
+  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,'Each window and door'),
+    el('p',{class:'hint',style:'margin:0'},'These come from the openings on each wall. A value in brackets is the default from above. Only change the boxes where this window is different.'));
+  let any=false;
+  s.walls.forEach(w=>{
+    if(!w.ops.length)return;any=true;
+    card.append(el('div',{class:'label',style:'margin-top:4px'},(w.name||'Wall')+' · faces '+w.orient));
+    w.ops.forEach(o=>{
+      o.g=o.g||{};
+      const g=el('div',{class:'grid'});
+      opFields(o).forEach(f=>{const dv=def[f.id];g.append(fieldEl(Object.assign({},f,{ph:hasVal(dv)?'('+dv+')':'(not set)'}),o.g,'g'+o.id))});
+      const diff=Object.values(o.g).some(hasVal);
+      card.append(el('div',{class:'lrow'},el('div',{class:'lrow-h'},
+        el('span',null,el('b',null,(o.kind==='door'?'Door':'Window')+(o.name?': '+o.name:'')),' ',el('span',{class:'num muted',style:'font-size:14px'},opSize(o)+(n(o.qty)>1?' × '+o.qty:'')+' = '+f2(opArea(o))+' m²')),
+        diff?el('button',{class:'btn small ghost',onclick:()=>{o.g={};save();render()}},'Reset to default'):null),g));
+    });
+  });
+  if(!any)card.append(el('div',{class:'row'},el('span',{class:'muted'},'No windows or doors yet. Add them to each wall first.'),el('button',{class:'btn small',onclick:()=>{db.sub='walls';save();render()}},'Go to walls')));
+  return card;
+}
+function opText(L){
+  cur().walls.forEach(w=>w.ops.forEach(o=>{
+    const d=opFields(o).map(f=>[f.label,opEff(o,f.id)]).filter(x=>hasVal(x[1])).map(x=>x[0].replace(' (if certified)','')+' '+x[1]).join(', ');
+    L.push('  '+(w.name||'Wall')+' ['+w.orient+'] '+(o.kind==='door'?'Door':'Window')+(o.name?' '+o.name:'')+': '+opSize(o)+(n(o.qty)>1?' x'+o.qty:'')+' = '+f2(opArea(o))+' m²'+(d?' | '+d:''));
+  }));
+}
+function fmtVal(f,v){return Array.isArray(v)?v.join(', '):v}
+function sectionText(groups,key,L){
+  const d=cur().data[key]||{};
+  groups.forEach(g=>(g.fields||[]).forEach(f=>{
+    if(f.show&&!f.show(d))return;
+    if(f.type==='calc'){if(f.calc==='openings')return;L.push('  '+CALCS[f.calc]().replace(/\n/g,'\n  '));return}
+    if(f.id==='_name')return;
+    const v=d[f.id];if(!hasVal(v))return;
+    if(f.type==='list'){L.push('  '+f.label+':');v.forEach((r,i)=>L.push('    '+(i+1)+'. '+f.cols.filter(c=>hasVal(r[c.id])).map(c=>c.label+' '+r[c.id]).join(', ')))}
+    else L.push('  '+f.label+': '+fmtVal(f,v));
+  }));
+}
+
+// live refresh without losing focus
+function refresh(){
+  const s=cur();
+  s.walls.forEach(w=>{
+    const c=document.querySelector('[data-wall="'+w.id+'"]');if(!c)return;
+    c.querySelector('[data-gross]').textContent=f2(gross(w))+' m²';
+    c.querySelector('[data-net]').textContent=f2(net(w))+' m²';
+    c.querySelector('[data-calc]').textContent=calcText(w);
+    c.querySelector('[data-warn]').hidden=net(w)>=0;
+    w.ops.forEach(o=>{const row=c.querySelector('[data-op="'+o.id+'"]');if(!row)return;row.querySelector('[data-oparea]').textContent=f2(opArea(o))+' m²';const ea=row.querySelector('[data-opeach]');ea.placeholder=n(o.w)*n(o.h)?f2(n(o.w)*n(o.h)):'m²';const dim=hasVal(o.a);row.querySelectorAll('#ow-'+o.id+',#oh-'+o.id).forEach(i=>i.classList.toggle('dimmed',dim))});
+  });
+  const p=$('#panel');if(p)p.replaceWith(summaryPanel(true));
+  document.querySelectorAll('[data-fcalc]').forEach(e=>{const fn=CALCS[e.dataset.fcalc];if(fn)e.textContent=fn()});
+}
+function render(){
+  // keep the page where it is: build the new view first, then swap it in one step
+  const y=scrollY,tl=$('#tabs').scrollLeft;
+  renderHeader();
+  const tabs=$('#tabs'),at=tabs.querySelector('.tab[aria-selected=true]');
+  tabs.scrollLeft=tl;
+  if(at&&(at.offsetLeft<tabs.scrollLeft||at.offsetLeft+at.offsetWidth>tabs.scrollLeft+tabs.clientWidth))tabs.scrollLeft=at.offsetLeft-16;
+  const view=db.tab==='summary'?renderSummary():db.tab==='backup'?renderBackup():renderSection(SECTIONS.find(x=>x.id===db.tab));
+  $('#main').replaceChildren(view);
+  if(scrollY!==y)scrollTo(0,y);
+}
+load();save();render();
+})();
+</script>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+</script>
+</body>
+</html>
