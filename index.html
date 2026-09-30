@@ -14,6 +14,7 @@
 <title>BER Site Survey</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>.offline-badge{font:600 12px/1 var(--f-body,system-ui);padding:5px 8px;border-radius:999px;white-space:nowrap}.offline-badge.ok{background:var(--accent-soft,#d6ede1);color:var(--accent,#0b7a45)}.offline-badge.wait{background:var(--warn-soft,#fdebd9);color:var(--warn,#b54708)}</style>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
 <style>
 /* Layout: sticky header + six DEAP section tabs; form groups in a two-up grid; walls column with a sticky DEAP totals panel beside it on iPad, stacked on phone */
@@ -177,6 +178,7 @@ textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
     <div class="brand">
       <div class="bands" aria-hidden="true"><i style="background:#00a651"></i><i style="background:#50b848"></i><i style="background:#bed630"></i><i style="background:#fff200"></i><i style="background:#fdb913"></i><i style="background:#f37021"></i><i style="background:#ed1c24"></i></div>
       <h1>BER Site Survey</h1>
+      <span class="offline-badge" id="offlineBadge" hidden></span>
     </div>
     <div class="survey-pick">
       <select id="surveySel" aria-label="Current survey"></select>
@@ -1043,7 +1045,17 @@ load();save();render();
 </script>
 
 <script>
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+// register straight away and show whether this device has the app saved for use with no signal
+(function(){
+  const b=document.getElementById('offlineBadge');
+  const show=ok=>{b.hidden=false;b.className='offline-badge '+(ok?'ok':'wait');b.textContent=ok?'✓ Works offline':'Needs internet once to save for offline'};
+  if(!('serviceWorker' in navigator)||!window.caches){return}
+  const check=()=>caches.match('index.html').then(r=>show(!!r)).catch(()=>show(false));
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  show(false);
+  navigator.serviceWorker.ready.then(()=>setTimeout(check,500));
+  check();
+})();
 </script>
 </body>
 </html>
