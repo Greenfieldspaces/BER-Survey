@@ -168,6 +168,28 @@ textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
 .img img{width:100%;max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff}
 .img figcaption{font-weight:600;font-size:14px}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px;align-items:start}
+.ent-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ent-top h2{font-size:22px;margin-right:auto}
+.prog{height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;width:100%}
+.prog i{display:block;height:100%;background:var(--accent)}
+.subnav .left{font-family:var(--f-num);font-size:12px;margin-left:6px;opacity:.75}
+.subnav button.alldone{color:var(--accent)}
+.ents{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.ent{display:grid;grid-template-columns:52px minmax(0,220px) minmax(0,1fr);gap:4px 12px;align-items:center;padding:8px 12px 8px 4px;border-bottom:1px solid var(--line)}
+.ent:last-child{border-bottom:0}
+.ent-cap{padding:12px 14px 6px;font-family:var(--f-display);font-weight:600;font-size:17px;border-bottom:1px solid var(--line);background:var(--sunk)}
+.ent-k{color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.ent-v{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.ent.done .ent-k,.ent.done .cp{opacity:.45}
+.ent.done .cp b{text-decoration:line-through}
+.ent.info{grid-template-columns:52px minmax(0,220px) minmax(0,1fr);background:var(--sunk)}
+.tick{width:44px;height:44px;border-radius:10px;border:2px solid var(--line);background:var(--surface);cursor:pointer;font-size:22px;line-height:1;color:var(--accent-ink);justify-self:center}
+.tick[aria-checked=true]{background:var(--accent);border-color:var(--accent)}
+.cp{display:inline-flex;flex-direction:column;align-items:flex-start;gap:0;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 10px;min-height:44px;justify-content:center;cursor:pointer;max-width:100%}
+.cp b{font-weight:600;overflow-wrap:anywhere;white-space:pre-wrap}
+.cp .label{font-size:11px}
+.cp:active{background:var(--accent-soft)}
+@media (max-width:600px){.ent{grid-template-columns:52px minmax(0,1fr)}.ent-v{grid-column:2}}
 </style>
 
 <header class="top">
@@ -353,6 +375,7 @@ const SECTIONS=[
     {title:'Micro-CHP',fields:[B('chp','Micro-CHP'),F('chpmodel','Make & model',{show:is('chp','Yes')}),N('chpeff','Electrical efficiency %',{show:is('chp','Yes')})]},
     NOTES()]},
   {id:'summary',name:'DEAP summary',util:true},
+  {id:'entry',name:'Enter in DEAP',util:true},
   {id:'backup',name:'Backup',util:true}
 ];
 const BSUBS=SECTIONS[1].subs;
@@ -664,10 +687,10 @@ function reportModel(s){
     if(sec.subs)sec.subs.forEach(sb=>{
       let parts=sb.walls?wallsParts(s):groupParts(sb.groups,sb.id);
       if(sb.id==='openings')parts=openingParts(s).concat(parts.length?[{sub:'Defaults and other details'}].concat(parts):[]);
-      subs.push({title:sb.name,parts});
+      subs.push({id:sb.id,title:sb.name,parts});
     });
-    else subs.push({title:null,parts:groupParts(sec.groups,sec.id)});
-    secs.push({title:sec.name,subs});
+    else subs.push({id:null,title:null,parts:groupParts(sec.groups,sec.id)});
+    secs.push({id:sec.id,title:sec.name,subs});
   });
   return secs;
 }
@@ -1102,6 +1125,65 @@ function sectionText(groups,key,L){
   }));
 }
 
+// ---- Enter in DEAP: one DEAP screen at a time; tap a value to copy it, tick the line once it is typed into DEAP ----
+// A tick is keyed on the value too, so a value changed after ticking shows up as not entered again
+const plainVal=v=>{const m=String(v).match(/^(-?\d+(?:[.,]\d+)?)\s*(m²|m³|m|mm|%|kWh|kWp|kW|°C|°|L)?$/);return m?m[1]:String(v)};
+function entryScreens(s){
+  const out=[];
+  reportModel(s).forEach(sec=>sec.subs.forEach(sub=>{
+    const scr={tab:sec.id,sub:sub.id,name:sub.title||sec.title,full:sec.title+(sub.title?' › '+sub.title:''),items:[]},K=scr.full+'|';
+    sub.parts.forEach(p=>{
+      if(p.sub){scr.items.push({cap:p.sub});return}
+      if(p.kv){p.kv.forEach(([k,v])=>scr.items.push({key:K+k+'|'+v,label:k,vals:[{v:String(v)}]}));return}
+      const t=p.table;if(t.record)return;
+      scr.items.push({cap:t.title});
+      t.rows.forEach((r,ri)=>{
+        const tot=t.total&&ri===t.rows.length-1;
+        scr.items.push({key:tot?null:K+t.title+'|'+r.join('|'),label:r[0],vals:r.slice(1).map((c,i)=>({h:t.head[i+1],v:String(c)})).filter(x=>hasVal(x.v))});
+      });
+    });
+    out.push(scr);
+  }));
+  return out;
+}
+function renderEntry(){
+  const s=cur(),done=s.entered||(s.entered={}),scrs=entryScreens(s);
+  const keys=sc=>sc.items.filter(x=>x.key).map(x=>x.key);
+  const all=scrs.flatMap(keys),nDone=all.filter(k=>done[k]).length;
+  let i=Math.min(Math.max(0,db.entryScr|0),scrs.length-1);
+  const sc=scrs[i],go=j=>{db.entryScr=j;save();render();scrollTo(0,0)};
+  const box=el('div',{class:'stack'});
+  box.append(el('div',{class:'ent-top'},el('h2',null,'Enter in DEAP'),el('span',{class:'note'},nDone+' of '+all.length+' lines entered')),
+    el('div',{class:'prog'},el('i',{style:'width:'+(all.length?Math.round(nDone/all.length*100):0)+'%'})),
+    el('p',{class:'note',style:'margin:0'},'Open the same screen in DEAP. Tap a value to copy it, paste it into DEAP, then tick the line. Numbers copy without units.'));
+  const nav=el('div',{class:'subnav'});requestAnimationFrame(()=>{const a=nav.querySelector('[aria-pressed=true]');if(a&&a.offsetLeft+a.offsetWidth>nav.clientWidth)nav.scrollLeft=a.offsetLeft-16});
+  box.append(nav);nav.append(...scrs.map((x,j)=>{const k=keys(x),left=k.filter(q=>!done[q]).length;
+    return el('button',{'aria-pressed':String(j===i),class:k.length&&!left?'alldone':null,onclick:()=>go(j)},x.name,k.length?el('span',{class:'left'},left?left+' left':'✓'):null)}));
+  const head=el('div',{class:'ent-top'},el('h3',{style:'font-size:20px;margin-right:auto'},sc.full));
+  const k=keys(sc);
+  if(k.length)head.append(el('button',{class:'btn small',onclick:()=>{const all2=k.every(q=>done[q]);k.forEach(q=>{if(all2)delete done[q];else done[q]=1});save();render()}},k.every(q=>done[q])?'Untick all':'Tick all'));
+  box.append(head);
+  const oc=siteChecks(s).filter(x=>x.tab===sc.tab&&(!sc.sub||x.sub===sc.sub));
+  oc.forEach(x=>box.append(el('div',{class:'warn'},(x.lvl==='miss'?'Missing on site: ':'Check: ')+x.t)));
+  const list=el('div',{class:'ents'});
+  sc.items.forEach(it=>{
+    if(it.cap){list.append(el('div',{class:'ent-cap'},it.cap));return}
+    const on=!!(it.key&&done[it.key]);
+    list.append(el('div',{class:'ent'+(on?' done':'')+(it.key?'':' info')},
+      it.key?el('button',{class:'tick',role:'checkbox','aria-checked':String(on),'aria-label':'Entered in DEAP: '+it.label,onclick:()=>{if(on)delete done[it.key];else done[it.key]=1;save();render()}},on?'✓':''):el('span'),
+      el('div',{class:'ent-k'},it.label),
+      el('div',{class:'ent-v'},it.vals.map(v=>el('button',{class:'cp',title:'Copy',onclick:()=>copy(plainVal(v.v))},v.h?el('span',{class:'label'},v.h):null,el('b',null,v.v))))));
+  });
+  if(!sc.items.length)list.append(el('p',{class:'note',style:'padding:14px;margin:0'},'Nothing was entered on site for this screen.'));
+  box.append(list);
+  box.append(el('div',{class:'row'},
+    i>0?el('button',{class:'btn',onclick:()=>go(i-1)},'‹ '+scrs[i-1].name):null,
+    el('span',{style:'margin-right:auto'}),
+    i<scrs.length-1?el('button',{class:'btn primary',onclick:()=>go(i+1)},'Next: '+scrs[i+1].name+' ›'):null));
+  if(nDone){const b=el('button',{class:'btn small ghost'},'Clear all ticks for this survey');b.addEventListener('click',()=>{if(b.dataset.armed){s.entered={};save();render()}else{b.dataset.armed='1';b.textContent='Tap again to clear ticks';setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent='Clear all ticks for this survey'}},3000)}});box.append(el('div',{class:'row'},b))}
+  return box;
+}
+
 // live refresh without losing focus
 function refresh(){
   const s=cur();
@@ -1123,7 +1205,7 @@ function render(){
   const tabs=$('#tabs'),at=tabs.querySelector('.tab[aria-selected=true]');
   tabs.scrollLeft=tl;
   if(at&&(at.offsetLeft<tabs.scrollLeft||at.offsetLeft+at.offsetWidth>tabs.scrollLeft+tabs.clientWidth))tabs.scrollLeft=at.offsetLeft-16;
-  const view=db.tab==='summary'?renderSummary():db.tab==='backup'?renderBackup():renderSection(SECTIONS.find(x=>x.id===db.tab));
+  const view=db.tab==='summary'?renderSummary():db.tab==='entry'?renderEntry():db.tab==='backup'?renderBackup():renderSection(SECTIONS.find(x=>x.id===db.tab));
   $('#main').replaceChildren(view);
   if(scrollY!==y)scrollTo(0,y);
 }
