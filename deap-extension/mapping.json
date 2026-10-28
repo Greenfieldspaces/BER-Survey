@@ -1,0 +1,840 @@
+{
+  "_about": "Starting guesses at how DEAP labels each survey value. Keys are the survey app's field ids. 'labels' are DEAP label texts to look for, 'selector' pins an exact DEAP field, 'values' maps a survey answer to DEAP's wording, 'skip' leaves a value out. Fields you teach in the side panel are saved on top of this file.",
+  "screens": {
+    "details": {
+      "url": "dwelling|details|general|property|assessment-details"
+    },
+    "dims": {
+      "url": "building/(floors?|dimensions)"
+    },
+    "roofs": {
+      "url": "building/roofs?"
+    },
+    "walls": {
+      "url": "building/walls?"
+    },
+    "openings": {
+      "url": "building/(windows?|doors?|openings)"
+    },
+    "fabric": {
+      "url": "building/(rooms?|global|thermal)"
+    },
+    "vent": {
+      "url": "ventilation"
+    },
+    "heat": {
+      "url": "space-?heating|heating/space"
+    },
+    "water": {
+      "url": "water-?heating|heating/water"
+    },
+    "gen": {
+      "url": "renewable|generation|pv|photovoltaic"
+    }
+  },
+  "fields": {
+    "details.address": {
+      "labels": [
+        "Address",
+        "Address line 1",
+        "Dwelling address"
+      ]
+    },
+    "details.mprn": {
+      "labels": [
+        "MPRN"
+      ]
+    },
+    "details.eircode": {
+      "labels": [
+        "Eircode",
+        "Postcode"
+      ]
+    },
+    "details.county": {
+      "labels": [
+        "County"
+      ]
+    },
+    "details.dtype": {
+      "labels": [
+        "Dwelling type",
+        "Property type"
+      ]
+    },
+    "details.year": {
+      "labels": [
+        "Year of construction",
+        "Dwelling age",
+        "Year built",
+        "Age band"
+      ]
+    },
+    "details.extyear": {
+      "labels": [
+        "Extension year of construction",
+        "Extension age"
+      ]
+    },
+    "details.storeys": {
+      "labels": [
+        "Number of storeys",
+        "No. of storeys"
+      ]
+    },
+    "details.rooms": {
+      "labels": [
+        "Number of habitable rooms",
+        "Habitable rooms"
+      ]
+    },
+    "details.purpose": {
+      "labels": [
+        "Purpose of rating",
+        "Purpose of assessment"
+      ]
+    },
+    "details.rtype": {
+      "labels": [
+        "Type of rating",
+        "Rating type"
+      ]
+    },
+    "details.date": {
+      "labels": [
+        "Date of survey",
+        "Survey date",
+        "Date of assessment",
+        "Date of site visit"
+      ]
+    },
+    "details.planning": {
+      "labels": [
+        "Planning reference",
+        "Planning permission reference"
+      ]
+    },
+    "details.notes": {
+      "skip": true
+    },
+    "dims.calc.total-floor-area": {
+      "skip": true
+    },
+    "dims.calc.volume": {
+      "skip": true
+    },
+    "dims.calc.living-area-fraction": {
+      "labels": [
+        "Living area fraction"
+      ]
+    },
+    "dims.living": {
+      "labels": [
+        "Living area",
+        "Living room area"
+      ]
+    },
+    "dims.storeys.level": {
+      "labels": [
+        "Floor",
+        "Storey",
+        "Level"
+      ]
+    },
+    "dims.storeys.area": {
+      "labels": [
+        "Floor area",
+        "Area"
+      ]
+    },
+    "dims.storeys.height": {
+      "labels": [
+        "Storey height",
+        "Room height",
+        "Height"
+      ]
+    },
+    "dims.notes": {
+      "skip": true
+    },
+    "walls.types.name": {
+      "labels": [
+        "Description",
+        "Name",
+        "Wall description"
+      ]
+    },
+    "walls.types.net": {
+      "labels": [
+        "Area",
+        "Net area",
+        "Wall area"
+      ]
+    },
+    "walls.types.cons": {
+      "labels": [
+        "Wall type",
+        "Construction type",
+        "Construction"
+      ]
+    },
+    "walls.types.thick": {
+      "labels": [
+        "Thickness",
+        "Wall thickness"
+      ]
+    },
+    "walls.types.ins": {
+      "labels": [
+        "Insulation type",
+        "Insulation"
+      ]
+    },
+    "walls.types.insmm": {
+      "labels": [
+        "Insulation thickness"
+      ]
+    },
+    "walls.types.year": {
+      "skip": true
+    },
+    "walls.types.u": {
+      "labels": [
+        "U-value",
+        "U value"
+      ]
+    },
+    "walls.types.ev": {
+      "skip": true
+    },
+    "dims.floors.type": {
+      "labels": [
+        "Floor type"
+      ]
+    },
+    "dims.floors.area": {
+      "labels": [
+        "Area",
+        "Floor area"
+      ]
+    },
+    "dims.floors.perim": {
+      "labels": [
+        "Exposed perimeter",
+        "Perimeter"
+      ]
+    },
+    "dims.floors.ins": {
+      "labels": [
+        "Insulation thickness",
+        "Insulation"
+      ]
+    },
+    "dims.floors.u": {
+      "labels": [
+        "U-value"
+      ]
+    },
+    "dims.floors.part": {
+      "skip": true
+    },
+    "dims.floors.ev": {
+      "skip": true
+    },
+    "roofs.roofs.type": {
+      "labels": [
+        "Roof type"
+      ]
+    },
+    "roofs.roofs.area": {
+      "labels": [
+        "Area",
+        "Roof area"
+      ]
+    },
+    "roofs.roofs.ins": {
+      "labels": [
+        "Insulation thickness"
+      ]
+    },
+    "roofs.roofs.u": {
+      "labels": [
+        "U-value"
+      ]
+    },
+    "roofs.roofs.part": {
+      "skip": true
+    },
+    "roofs.roofs.attic": {
+      "skip": true
+    },
+    "roofs.roofs.mat": {
+      "skip": true
+    },
+    "roofs.roofs.ev": {
+      "skip": true
+    },
+    "roofs.notes": {
+      "skip": true
+    },
+    "openings.notes": {
+      "skip": true
+    },
+    "openings.glazing": {
+      "labels": [
+        "Glazing type",
+        "Glazing"
+      ]
+    },
+    "openings.frame": {
+      "labels": [
+        "Frame type",
+        "Frame material",
+        "Frame"
+      ]
+    },
+    "openings.gap": {
+      "labels": [
+        "Gap",
+        "Air gap",
+        "Gap width"
+      ]
+    },
+    "openings.fill": {
+      "labels": [
+        "Gas fill",
+        "Gas"
+      ]
+    },
+    "openings.shading": {
+      "labels": [
+        "Overshading",
+        "Window overshading"
+      ]
+    },
+    "openings.doortype": {
+      "labels": [
+        "Door type"
+      ]
+    },
+    "openings.op_total": {
+      "labels": [
+        "Total number of windows and doors",
+        "Number of windows and doors"
+      ]
+    },
+    "openings.op_strip": {
+      "labels": [
+        "Number draught stripped",
+        "Draught stripped windows and doors",
+        "Number of windows and doors draught stripped"
+      ]
+    },
+    "openings.calc.draught-stripped": {
+      "skip": true
+    },
+    "openings.openings-by-orientation": {
+      "skip": true
+    },
+    "openings.windows-for-deap.faces": {
+      "labels": [
+        "Orientation"
+      ]
+    },
+    "openings.windows-for-deap.total-area-m2": {
+      "labels": [
+        "Area",
+        "Window area",
+        "Total area"
+      ]
+    },
+    "openings.windows-for-deap.no": {
+      "labels": [
+        "Count",
+        "Number",
+        "No. of windows"
+      ]
+    },
+    "openings.doors-for-deap.total-area-m2": {
+      "labels": [
+        "Area",
+        "Door area"
+      ]
+    },
+    "openings.doors-for-deap.no": {
+      "labels": [
+        "Count",
+        "Number",
+        "No. of doors"
+      ]
+    },
+    "fabric.tb": {
+      "labels": [
+        "Thermal bridging factor",
+        "Thermal bridging",
+        "y-value"
+      ]
+    },
+    "fabric.y": {
+      "labels": [
+        "y-value",
+        "Thermal bridging factor value"
+      ]
+    },
+    "fabric.mass": {
+      "labels": [
+        "Thermal mass category",
+        "Thermal mass"
+      ]
+    },
+    "fabric.notes": {
+      "skip": true
+    },
+    "vent.chimneys": {
+      "labels": [
+        "Number of chimneys",
+        "Chimneys"
+      ]
+    },
+    "vent.flues": {
+      "labels": [
+        "Number of open flues",
+        "Open flues"
+      ]
+    },
+    "vent.fans": {
+      "labels": [
+        "Number of intermittent fans",
+        "Intermittent fans",
+        "Number of intermittent fans and passive vents"
+      ]
+    },
+    "vent.vents": {
+      "labels": [
+        "Number of passive vents",
+        "Passive vents"
+      ]
+    },
+    "vent.flueless": {
+      "labels": [
+        "Number of flueless combustion room heaters",
+        "Flueless combustion room heaters"
+      ]
+    },
+    "vent.lobby": {
+      "labels": [
+        "Draught lobby",
+        "Is there a draught lobby"
+      ]
+    },
+    "vent.tested": {
+      "labels": [
+        "Has a permeability test been carried out",
+        "Permeability test",
+        "Air tightness test"
+      ]
+    },
+    "vent.q50": {
+      "labels": [
+        "Air permeability",
+        "Air permeability value",
+        "Pressure test result",
+        "q50"
+      ]
+    },
+    "vent.structure": {
+      "labels": [
+        "Structure type",
+        "Structural infiltration"
+      ]
+    },
+    "vent.susfloor": {
+      "labels": [
+        "Suspended wooden ground floor",
+        "Ground floor"
+      ]
+    },
+    "vent.hatches": {
+      "labels": [
+        "Number of attic hatches"
+      ]
+    },
+    "vent.hatches_ds": {
+      "labels": [
+        "Number of attic hatches draught stripped"
+      ]
+    },
+    "vent.sheltered": {
+      "labels": [
+        "Number of sides sheltered",
+        "Sheltered sides"
+      ]
+    },
+    "vent.mech": {
+      "labels": [
+        "Ventilation method",
+        "Mechanical ventilation",
+        "Ventilation type"
+      ]
+    },
+    "vent.sfp": {
+      "labels": [
+        "Specific fan power",
+        "SFP"
+      ]
+    },
+    "vent.hre": {
+      "labels": [
+        "Heat exchanger efficiency",
+        "Heat recovery efficiency"
+      ]
+    },
+    "vent.mv_model": {
+      "skip": true
+    },
+    "vent.testcert": {
+      "skip": true
+    },
+    "vent.notes": {
+      "skip": true
+    },
+    "heat.src": {
+      "labels": [
+        "Heat source",
+        "Main space heating system",
+        "Heating system type"
+      ]
+    },
+    "heat.fuel": {
+      "labels": [
+        "Fuel type",
+        "Fuel",
+        "Main space heating fuel"
+      ]
+    },
+    "heat.eff": {
+      "labels": [
+        "Efficiency",
+        "Seasonal efficiency",
+        "Heat generator efficiency",
+        "Main space heating efficiency"
+      ]
+    },
+    "heat.make": {
+      "skip": true
+    },
+    "heat.harp": {
+      "skip": true
+    },
+    "heat.hyear": {
+      "skip": true
+    },
+    "heat.eff_src": {
+      "skip": true
+    },
+    "heat.cond": {
+      "labels": [
+        "Condensing"
+      ]
+    },
+    "heat.flue": {
+      "labels": [
+        "Flue type"
+      ]
+    },
+    "heat.inside": {
+      "labels": [
+        "Boiler in heated space"
+      ]
+    },
+    "heat.flow": {
+      "labels": [
+        "Design flow temperature",
+        "Flow temperature"
+      ]
+    },
+    "heat.dlf": {
+      "labels": [
+        "Distribution loss factor"
+      ]
+    },
+    "heat.emit": {
+      "labels": [
+        "Heat emitter type",
+        "Heat emitters",
+        "Emitter type"
+      ]
+    },
+    "heat.pump": {
+      "labels": [
+        "Central heating pump",
+        "Number of central heating pumps"
+      ]
+    },
+    "heat.pump_in": {
+      "labels": [
+        "Pump in heated space",
+        "Central heating pump in heated space"
+      ]
+    },
+    "heat.oilpump_in": {
+      "labels": [
+        "Oil boiler fuel pump inside dwelling",
+        "Oil fuel pump inside"
+      ]
+    },
+    "heat.fluefan": {
+      "labels": [
+        "Gas boiler flue fan",
+        "Flue fan"
+      ]
+    },
+    "heat.warmair": {
+      "labels": [
+        "Warm air heating system fans",
+        "Warm air heating"
+      ]
+    },
+    "heat.sec": {
+      "labels": [
+        "Secondary heating system",
+        "Secondary space heating"
+      ]
+    },
+    "heat.secfuel": {
+      "labels": [
+        "Secondary fuel",
+        "Secondary heating fuel",
+        "Fuel type"
+      ]
+    },
+    "heat.seceff": {
+      "labels": [
+        "Secondary efficiency",
+        "Secondary heating efficiency",
+        "Efficiency"
+      ]
+    },
+    "heat.notes": {
+      "skip": true
+    },
+    "water.src": {
+      "labels": [
+        "Water heating source",
+        "Water heating system",
+        "Main water heating"
+      ]
+    },
+    "water.combi": {
+      "labels": [
+        "Combi boiler",
+        "Combination boiler"
+      ]
+    },
+    "water.distloss": {
+      "labels": [
+        "Distribution losses",
+        "Include distribution losses"
+      ]
+    },
+    "water.storeloss": {
+      "labels": [
+        "Storage losses",
+        "Include storage losses"
+      ]
+    },
+    "water.summer_imm": {
+      "labels": [
+        "Supplementary electric water heating in summer",
+        "Summer immersion"
+      ]
+    },
+    "water.imm": {
+      "labels": [
+        "Immersion",
+        "Immersion type"
+      ]
+    },
+    "water.cyl": {
+      "labels": [
+        "Hot water cylinder",
+        "Storage cylinder",
+        "Is there a hot water cylinder"
+      ]
+    },
+    "water.vol": {
+      "labels": [
+        "Cylinder volume",
+        "Hot water storage volume",
+        "Storage volume"
+      ]
+    },
+    "water.cylins": {
+      "labels": [
+        "Insulation type",
+        "Cylinder insulation type"
+      ]
+    },
+    "water.cylmm": {
+      "labels": [
+        "Insulation thickness",
+        "Cylinder insulation thickness"
+      ]
+    },
+    "water.indoors": {
+      "labels": [
+        "Hot water storage indoors",
+        "Storage indoors",
+        "Cylinder in heated space"
+      ]
+    },
+    "water.cylstat": {
+      "labels": [
+        "Cylinder thermostat"
+      ]
+    },
+    "water.primins": {
+      "labels": [
+        "Primary circuit loss insulation",
+        "Primary pipework insulation"
+      ]
+    },
+    "water.primcirc": {
+      "labels": [
+        "Primary circuit",
+        "Primary circuit type"
+      ]
+    },
+    "water.septime": {
+      "labels": [
+        "Water separately timed",
+        "Hot water separately timed"
+      ]
+    },
+    "water.baths": {
+      "labels": [
+        "Number of baths"
+      ]
+    },
+    "water.showers.type": {
+      "labels": [
+        "Shower type"
+      ]
+    },
+    "water.showers.flow": {
+      "labels": [
+        "Flow rate",
+        "Shower flow rate"
+      ]
+    },
+    "water.solar": {
+      "labels": [
+        "Solar water heating",
+        "Solar thermal"
+      ]
+    },
+    "water.coll": {
+      "labels": [
+        "Collector type"
+      ]
+    },
+    "water.aper": {
+      "labels": [
+        "Aperture area",
+        "Collector aperture area"
+      ]
+    },
+    "water.eta0": {
+      "labels": [
+        "Zero loss collector efficiency"
+      ]
+    },
+    "water.a1": {
+      "labels": [
+        "Collector heat loss coefficient",
+        "Heat loss coefficient"
+      ]
+    },
+    "water.sorient": {
+      "labels": [
+        "Collector orientation",
+        "Orientation"
+      ]
+    },
+    "water.spitch": {
+      "labels": [
+        "Collector pitch",
+        "Pitch",
+        "Tilt"
+      ]
+    },
+    "water.sshade": {
+      "labels": [
+        "Overshading"
+      ]
+    },
+    "water.svol": {
+      "labels": [
+        "Dedicated solar storage volume",
+        "Solar storage volume"
+      ]
+    },
+    "water.smodel": {
+      "skip": true
+    },
+    "water.notes": {
+      "skip": true
+    },
+    "gen.pv.kwp": {
+      "labels": [
+        "Peak power",
+        "kWp",
+        "Installed peak power"
+      ]
+    },
+    "gen.pv.orient": {
+      "labels": [
+        "Orientation",
+        "Collector orientation"
+      ]
+    },
+    "gen.pv.pitch": {
+      "labels": [
+        "Pitch",
+        "Tilt",
+        "Collector pitch"
+      ]
+    },
+    "gen.pv.shade": {
+      "labels": [
+        "Overshading"
+      ]
+    },
+    "gen.pv.ev": {
+      "skip": true
+    },
+    "gen.battery": {
+      "labels": [
+        "Battery capacity",
+        "Battery storage"
+      ]
+    },
+    "gen.pvmodel": {
+      "skip": true
+    },
+    "gen.windkw": {
+      "labels": [
+        "Rated output",
+        "Wind turbine rated output"
+      ]
+    },
+    "gen.hub": {
+      "labels": [
+        "Hub height"
+      ]
+    },
+    "gen.notes": {
+      "skip": true
+    }
+  }
+}
