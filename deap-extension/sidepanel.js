@@ -145,7 +145,12 @@ async function scan() {
 }
 async function clearMarks() { try { await send({ cmd: 'clear' }) } catch (e) { } }
 const copy = t => navigator.clipboard.writeText(String(t)).then(() => toast('Copied ' + String(t).slice(0, 40)), () => toast('Could not copy'));
-function download(name, obj) { const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' })), download: name }); document.body.append(a); a.click(); a.remove() }
+function download(name, obj) {
+  // chrome.downloads works from the side panel, where a plain link download can be blocked
+  const url = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' }));
+  if (chrome.downloads) chrome.downloads.download({ url, filename: name, saveAs: true }).then(() => toast('Saved ' + name), () => toast('Could not save. Use Copy instead.'));
+  else { const a = h('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove() }
+}
 
 // ---------- render ----------
 const cur = () => st.survey && st.survey.screens.find(s => s.id === st.screen) || (st.survey && st.survey.screens[0]);
