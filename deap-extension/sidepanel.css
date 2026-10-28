@@ -65,3 +65,10 @@ ol.steps{margin:0;padding-left:18px;color:var(--muted);font-size:13px}
 .btn.small{min-height:26px;padding:0 8px;font-size:12px}
 .card.rec{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad-soft)}
 .card.rec h2{color:var(--bad)}
+.steps2{display:flex;flex-direction:column;gap:2px}
+.step{display:grid;grid-template-columns:20px 1fr;gap:6px;align-items:start;padding:4px 0;border-top:1px solid var(--line);font-weight:600}
+.step:first-child{border-top:0}
+.step small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.step .ic{text-align:center;color:var(--muted)}
+.step.done .ic{color:var(--accent)}.step.running .ic{color:var(--warn)}.step.failed .ic,.step.failed small{color:var(--bad)}
+.needs{background:var(--warn-soft);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:13px}

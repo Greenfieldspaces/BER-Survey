@@ -106,9 +106,10 @@
   }
   const optLabel = r => clean((r.labels && r.labels[0] ? ownText(r.labels[0]) : '') || ownText(r.closest('label,mat-radio-button,mat-checkbox')) || r.value);
 
-  function collect() {
+  function collect(root) {
+    root = root || document;
     const list = [], seenRadio = new Set();
-    document.querySelectorAll('input,select,textarea').forEach(el => {
+    root.querySelectorAll('input,select,textarea').forEach(el => {
       if (el.closest('#bsdf-ui') || el.disabled || el.readOnly && el.type !== 'radio') return;
       const type = (el.getAttribute('type') || 'text').toLowerCase();
       if (el.tagName === 'INPUT' && SKIP_TYPES.test(type)) return;
@@ -126,7 +127,7 @@
       const kind = el.tagName === 'SELECT' ? 'select' : type === 'checkbox' ? 'checkbox' : el.getAttribute('role') === 'combobox' && el.getAttribute('aria-autocomplete') ? 'comboinput' : 'text';
       list.push({ el, kind, labels: labelCands(el), options: kind === 'select' ? [...el.options].map(o => clean(o.text)) : null });
     });
-    document.querySelectorAll(CUSTOM).forEach(el => {
+    root.querySelectorAll(CUSTOM).forEach(el => {
       if (el.closest('#bsdf-ui') || !visible(el) || list.some(c => c.el === el || c.el.contains(el) || el.contains(c.el) && c.kind !== 'radio')) return;
       if (el.getAttribute('aria-disabled') === 'true') return;
       const host = el.closest('.ng-select') || el;
@@ -257,14 +258,15 @@
 
   // ---------- fill one DEAP screen ----------
   const THRESH = 0.62;
-  function bySelector(sel) { try { return [...document.querySelectorAll(sel)] } catch (e) { return [] } }
+  function bySelector(sel, root) { try { return [...(root || document).querySelectorAll(sel)] } catch (e) { return [] } }
   function ctrlFor(all, el) {
     return all.find(c => c.el === el || (c.radios && c.radios.includes(el)) || c.el.contains(el) || el.contains(c.el));
   }
 
   async function fill(job) {
     clearMarks();
-    const o = job.options || {}, map = job.mapping || {}, all = collect(), used = new Set(), results = [];
+    if (job.scope === 'dialog' && !topDialog()) return { error: 'No DEAP dialog is open' };
+    const o = job.options || {}, map = job.mapping || {}, root = job.scope === 'dialog' ? topDialog() : null, all = collect(root || document), used = new Set(), results = [];
     const labelsFor = (key, base) => { const m = map[key] || {}; return [...(m.labels || []), ...(m.label ? [m.label] : []), ...base].filter(Boolean) };
     const pending = [];
     // scalar fields: taught selectors first, then best label matches, each DEAP field used once
@@ -272,7 +274,7 @@
       const m = map[it.key] || {};
       if (m.skip) { results.push({ key: it.key, status: 'skipped' }); continue }
       if (m.selector) {
-        const el = bySelector(m.selector).find(e => visible(e) || e.type === 'radio' || e.type === 'checkbox');
+        const el = bySelector(m.selector, root).find(e => visible(e) || e.type === 'radio' || e.type === 'checkbox');
         const c = el && ctrlFor(all, el);
         if (c && !used.has(c)) { used.add(c); pending.push({ it, c, via: 'taught' }); continue }
       }
@@ -301,7 +303,7 @@
         const col = t.columns[ci], ck = t.key + '.' + col.key, cm = map[ck] || {};
         if (cm.skip) continue;
         let ctrls;
-        if (cm.selector) ctrls = bySelector(cm.selector).map(e => ctrlFor(all, e)).filter(Boolean);
+        if (cm.selector) ctrls = bySelector(cm.selector, root).map(e => ctrlFor(all, e)).filter(Boolean);
         else {
           const labels = [...(cm.labels || []), ...(cm.label ? [cm.label] : []), col.label];
           ctrls = all.filter(c => !used.has(c) && best(labels, c.labels).s >= THRESH);
@@ -440,7 +442,45 @@
   }
   function stopPick() { if (picking) { picking(); picking = null } }
 
+  // ---------- moving through DEAP for a whole-survey transfer ----------
+  const DIALOGS = 'mat-dialog-container,.mat-mdc-dialog-container,[role=dialog]';
+  function topDialog() { return [...document.querySelectorAll(DIALOGS)].filter(visible).pop() || null }
+  const dialogTitle = d => d ? clean(textOf(d.querySelector('h1,h2,h3,.mat-mdc-dialog-title,.mat-dialog-title'))) || 'dialog' : null;
+  // never pressed by the transfer, whatever happens
+  const FORBIDDEN = /publish|submit|lodge|finali[sz]e|delete|remove|download|copy/i;
+  function state() {
+    const d = topDialog();
+    return { path: location.pathname, dialog: dialogTitle(d), saving: /saving/i.test(textOf(document.querySelector('main') || document.body).slice(0, 4000)) && !!document.querySelector('.mat-mdc-progress-spinner,mat-spinner,.saving,mat-progress-bar') };
+  }
+  function nav(path) {
+    const base = (location.pathname.match(/^\/survey\/[^/]+/) || [''])[0];
+    if (!base) return { error: 'Open the assessment in DEAP first' };
+    const want = base + '/' + path;
+    if (location.pathname === want) return { ok: true, already: true };
+    const a = [...document.querySelectorAll('a[href]')].find(x => x.getAttribute('href') === want);
+    if (a) a.click(); else location.assign(want);
+    return { ok: true };
+  }
+  function press(text, inDialog) {
+    if (FORBIDDEN.test(text)) return { error: 'Not allowed: ' + text };
+    const scope = inDialog ? topDialog() : document;
+    if (!scope) return { error: 'No dialog open' };
+    const btn = [...scope.querySelectorAll('button,[role=button]')].filter(b => visible(b) && !b.disabled && !b.closest('#bsdf-ui') && (inDialog || !b.closest(DIALOGS))).find(b => clean(textOf(b)).toUpperCase() === text.toUpperCase());
+    if (!btn) return { error: 'No ' + text + ' button' };
+    if (FORBIDDEN.test(textOf(btn)) || FORBIDDEN.test(btn.getAttribute('aria-label') || '')) return { error: 'Not allowed' };
+    btn.click();
+    return { ok: true };
+  }
+  function dialogErrors() {
+    const d = topDialog(); if (!d) return [];
+    return [...d.querySelectorAll('mat-error,.mat-mdc-form-field-error,.mat-error')].filter(visible).map(textOf).filter(Boolean);
+  }
+
   chrome.runtime.onMessage.addListener((msg, _s, reply) => {
+    if (msg.cmd === 'state') { reply(state()); return }
+    if (msg.cmd === 'nav') { reply(nav(msg.path)); return }
+    if (msg.cmd === 'press') { reply(press(msg.text, msg.inDialog)); return }
+    if (msg.cmd === 'errors') { reply(dialogErrors()); return }
     if (msg.cmd === 'ping') { reply({ ok: true, url: location.href }); return }
     if (msg.cmd === 'fill') { fill(msg).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'scan') { reply({ fields: scan(), url: location.href, title: document.title }); return }

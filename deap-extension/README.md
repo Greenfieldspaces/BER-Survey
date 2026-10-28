@@ -26,6 +26,18 @@ To update later, unzip the new version over the same folder and press the reload
 
 DEAP adds walls, windows and other list items one at a time in a dialog. For those, press ADD WALL (or open an existing one) in DEAP, then press **Fill** on that row in the panel. Check it and save it in DEAP, then do the next row. Age bands are picked from the wall's year, or the dwelling's year if the wall has none.
 
+## Transfer whole survey
+
+With the survey loaded and the assessment open in DEAP, press **Start** under **Transfer whole survey**. It goes through Survey details, Floors, Roofs, Walls, Doors, Windows, Global factors, Ventilation and the heating screens:
+
+- On ordinary screens it fills the values. DEAP saves those itself.
+- For floors, roofs, walls, doors and windows it presses ADD, fills the dialog and presses SAVE, one at a time.
+- Doors and windows need a DEAP library item first. The panel says **Your turn**: pick the library item and press ADD in DEAP, and the transfer carries on. **Skip this one** leaves that item out.
+- If DEAP refuses to save a dialog, it waits for you to fix it and press SAVE.
+- When it finishes, it lists what is left to do by hand.
+
+It never presses Publish, Submit, Delete or Download. Untick any section that is already in DEAP so it is not added twice. **Stop** halts it at any point.
+
 ## Teaching it DEAP's fields
 
 The first version matches DEAP fields by their labels, using best guesses from the SEAI DEAP Survey Guide. When a value is not found or lands in the wrong field:

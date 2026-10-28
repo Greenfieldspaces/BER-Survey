@@ -66,8 +66,23 @@ function fullMap(keys) { const m = {}; keys.forEach(k => { const v = mapFor(k); 
 
 // ---------- what to send for one screen ----------
 // Multi-choice answers become one Yes per ticked option; wall types become a table (one row per type)
+const surveyValue = (screen, key) => ((st.survey.screens.find(x => x.id === screen) || { fields: [] }).fields.find(f => f.key === key) || {}).value || '';
+const dwellingYear = () => surveyValue('details', 'details.year');
+// the survey's wall construction in DEAP's Wall Type wording
+function deapWallType(cons, thick, name) {
+  const t = parseFloat(thick) || 0, c = String(cons || '');
+  if (/semi/i.test(name) && /block/i.test(c)) return t && t < 150 ? 'Semi Exposed 100mm Block Wall adjacent unheated circulation space' : 'Semi Exposed 215mm Block Wall adjacent unheated circulation space';
+  if (/cavity, unfilled/i.test(c)) return t >= 400 ? '425 mm Cavity Wall' : '300mm Cavity';
+  if (/cavity, filled/i.test(c)) return t >= 400 ? '425mm Filled Cavity' : '300mm Filled Cavity';
+  if (/hollow block/i.test(c)) return 'Concrete Hollow Block';
+  if (/solid masonry/i.test(c)) return t >= 300 ? '325mm Solid Brick' : t ? '225mm Solid Brick' : 'Solid Mass Concrete';
+  if (/stone/i.test(c)) return 'Stone';
+  if (/timber/i.test(c)) return 'Timber Frame';
+  if (/steel|other/i.test(c)) return 'Other';
+  return c;
+}
 function job(sc) {
-  const fields = [], tables = sc.tables.map(t => Object.assign({}, t));
+  const fields = [], tables = sc.tables.map(t => Object.assign({}, t, { columns: t.columns.slice(), rows: t.rows.map(r => r.slice()) }));
   sc.fields.filter(f => !f.group).forEach(f => {
     if (Array.isArray(f.value)) f.value.forEach(o => fields.push({ key: f.key + '.' + slug(o), label: o, value: 'Yes', parent: f.label }));
     else fields.push({ key: f.key, label: f.label, value: f.value });
@@ -80,9 +95,29 @@ function job(sc) {
     if (!cols.some(c => c.key === 'year')) cols.push({ key: 'year', label: 'Year built' });
     cols.push({ key: 'semi', label: 'Semi-exposed' });
     const dyear = ((st.survey.screens.find(x => x.id === 'details') || { fields: [] }).fields.find(f => f.key === 'details.year') || {}).value || '';
-    const val = (g, k) => k === 'name' ? g : k === 'semi' ? (/semi/i.test(g) ? 'Yes' : 'No') : (grouped.find(f => f.group === g && f.key.endsWith('.' + k)) || {}).value || (k === 'year' ? dyear : '');
+    const raw = (g, k) => (grouped.find(f => f.group === g && f.key.endsWith('.' + k)) || {}).value || '';
+    const val = (g, k) => k === 'name' ? g : k === 'semi' ? (/semi/i.test(g) ? 'Yes' : 'No') : k === 'cons' ? deapWallType(raw(g, 'cons'), raw(g, 'thick'), g) : raw(g, k) || (k === 'year' ? dyear : '');
     tables.unshift({ key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => val(g, c.key))) });
   }
+  // extra columns DEAP's dialogs ask for that the survey holds elsewhere
+  const add = (t, key, label, fn) => { if (!t.columns.some(c => c.key === key)) { t.columns.push({ key, label }); t.rows = t.rows.map((r, i) => r.concat([fn(r, i)])) } };
+  const col = (t, r, k) => r[t.columns.findIndex(c => c.key === k)] || '';
+  tables.forEach(t => {
+    if (t.key === 'dims.floors') {
+      add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
+      add(t, 'loc', 'Floor location', r => /ground|solid|suspended/i.test(col(t, r, 'type')) ? 'Storey 1' : '');
+      add(t, 'year', 'Year built', () => dwellingYear());
+    }
+    if (t.key === 'roofs.roofs') {
+      add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
+      add(t, 'year', 'Year built', () => dwellingYear());
+    }
+    if (t.key === 'openings.windows-for-deap') {
+      add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
+      const sh = surveyValue('openings', 'openings.shading'); if (sh) add(t, 'shading', 'Overshading', () => sh);
+    }
+  });
+  if (sc.id === 'dims') { const n = surveyValue('details', 'details.storeys') || String((sc.tables.find(t => t.key === 'dims.storeys') || { rows: [] }).rows.length || ''); if (n) fields.unshift({ key: 'dims.nstoreys', label: 'Number of storeys', value: n }) }
   const keys = fields.map(f => f.key).concat(tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))));
   return { fields, tables, mapping: fullMap(keys) };
 }
@@ -166,7 +201,7 @@ function render() {
     const r = results[x.id], bad = r ? r.filter(q => /nomatch|norow|nooption|error/.test(q.status)).length : 0;
     return h('button', { 'aria-pressed': String(x.id === sc.id), onclick: () => { st.screen = x.id; save(); clearMarks(); render() } }, x.name, r ? h('span', { class: 'n' }, bad ? bad + ' left' : '✓') : null);
   })));
-  main.replaceChildren(screenCard(sc), recordCard(), toolsCard());
+  main.replaceChildren(transferCard(), screenCard(sc), recordCard(), toolsCard());
 }
 function loadCard(first) {
   const ta = h('textarea', { placeholder: 'Or paste the transfer text here' });
@@ -278,4 +313,4 @@ function toolsCard() {
   return d;
 }
 
-init();
+document.addEventListener('DOMContentLoaded', init);

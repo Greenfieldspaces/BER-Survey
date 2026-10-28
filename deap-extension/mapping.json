@@ -2,7 +2,7 @@
   "_about": "Starting guesses at how DEAP labels each survey value. Keys are the survey app's field ids. 'labels' are DEAP label texts to look for, 'selector' pins an exact DEAP field, 'values' maps a survey answer to DEAP's wording, 'skip' leaves a value out. Fields you teach in the side panel are saved on top of this file. Tables are filled one row at a time into DEAP's Add dialog unless the table key has \"dialog\": false. Walls selectors confirmed from live DEAP on 2026-10-28.",
   "screens": {
     "details": {
-      "url": "dwelling|details|general|property|assessment-details"
+      "url": "/details|dwelling"
     },
     "dims": {
       "url": "building/(floors?|dimensions)"
@@ -34,85 +34,52 @@
   },
   "fields": {
     "details.address": {
-      "labels": [
-        "Address",
-        "Address line 1",
-        "Dwelling address"
-      ]
+      "skip": true
     },
     "details.mprn": {
-      "labels": [
-        "MPRN"
-      ]
+      "selector": "input[name=\"MPRN\"]"
     },
     "details.eircode": {
-      "labels": [
-        "Eircode",
-        "Postcode"
-      ]
+      "selector": "input[name=\"Eircode\"]"
     },
     "details.county": {
-      "labels": [
-        "County"
-      ]
+      "selector": "mat-select[name=\"CountyID\"]"
     },
     "details.dtype": {
-      "labels": [
-        "Dwelling type",
-        "Property type"
-      ]
+      "selector": "mat-select[name=\"DwellingTypeID\"]"
     },
     "details.year": {
-      "labels": [
-        "Year of construction",
-        "Dwelling age",
-        "Year built",
-        "Age band"
-      ]
+      "selector": "input[name=\"Year\"]"
     },
     "details.extyear": {
-      "labels": [
-        "Extension year of construction",
-        "Extension age"
-      ]
+      "skip": true
     },
     "details.storeys": {
-      "labels": [
-        "Number of storeys",
-        "No. of storeys"
-      ]
+      "skip": true
     },
     "details.rooms": {
-      "labels": [
-        "Number of habitable rooms",
-        "Habitable rooms"
-      ]
+      "skip": true
     },
     "details.purpose": {
-      "labels": [
-        "Purpose of rating",
-        "Purpose of assessment"
-      ]
+      "selector": "mat-select[name=\"RatingPurposeId\"]",
+      "values": {
+        "Letting": "Private letting",
+        "Grant support": "Grant Support"
+      }
     },
     "details.rtype": {
-      "labels": [
-        "Type of rating",
-        "Rating type"
-      ]
+      "selector": "mat-select[name=\"RatingTypeId\"]",
+      "values": {
+        "Existing": "Existing Dwelling",
+        "Provisional": "New Dwelling - Provisional",
+        "New final": "New Dwelling - Final"
+      }
     },
     "details.date": {
-      "labels": [
-        "Date of survey",
-        "Survey date",
-        "Date of assessment",
-        "Date of site visit"
-      ]
+      "skip": true
     },
     "details.planning": {
-      "labels": [
-        "Planning reference",
-        "Planning permission reference"
-      ]
+      "selector": "input[name=\"PlanningReference\"]"
     },
     "details.notes": {
       "skip": true
@@ -124,35 +91,19 @@
       "skip": true
     },
     "dims.calc.living-area-fraction": {
-      "labels": [
-        "Living area fraction"
-      ]
+      "skip": true
     },
     "dims.living": {
-      "labels": [
-        "Living area",
-        "Living room area"
-      ]
+      "selector": "input[name=\"LivingArea\"]"
     },
     "dims.storeys.level": {
-      "labels": [
-        "Floor",
-        "Storey",
-        "Level"
-      ]
+      "skip": true
     },
     "dims.storeys.area": {
-      "labels": [
-        "Floor area",
-        "Area"
-      ]
+      "skip": true
     },
     "dims.storeys.height": {
-      "labels": [
-        "Storey height",
-        "Room height",
-        "Height"
-      ]
+      "selector": "input[formcontrolname=\"AverageStoreyHeight\"]"
     },
     "dims.notes": {
       "skip": true
@@ -200,32 +151,26 @@
       "skip": true
     },
     "dims.floors.type": {
-      "labels": [
-        "Floor type"
-      ]
+      "selector": "mat-select[name=\"FloorTypeID\"]",
+      "values": {
+        "Solid ground floor": "Ground Floor - Solid",
+        "Suspended timber": "Ground Floor - Suspended",
+        "Suspended concrete": "Ground Floor - Suspended",
+        "Exposed floor (over outside air)": "Exposed / Semi Exposed",
+        "Semi-exposed (over garage)": "Exposed / Semi Exposed"
+      }
     },
     "dims.floors.area": {
-      "labels": [
-        "Area",
-        "Floor area"
-      ]
+      "selector": "input[name=\"Area\"]"
     },
     "dims.floors.perim": {
-      "labels": [
-        "Exposed perimeter",
-        "Perimeter"
-      ]
+      "selector": "input[name=\"ExposedPerimeter\"]"
     },
     "dims.floors.ins": {
-      "labels": [
-        "Insulation thickness",
-        "Insulation"
-      ]
+      "skip": true
     },
     "dims.floors.u": {
-      "labels": [
-        "U-value"
-      ]
+      "selector": "input[name=\"UValue\"]"
     },
     "dims.floors.part": {
       "skip": true
@@ -234,25 +179,24 @@
       "skip": true
     },
     "roofs.roofs.type": {
-      "labels": [
-        "Roof type"
-      ]
+      "selector": "mat-select[name=\"TGDLRoofTypeId\"]",
+      "values": {
+        "Pitched, insulated at joists": "Pitched Roof - Insulated on Ceiling",
+        "Pitched, insulated at rafters": "Pitched Roof - Insulated on Rafter",
+        "Flat roof": "Flat Roof",
+        "Room in roof, sloping": "Pitched Roof - Insulated on Rafter",
+        "Room in roof, flat ceiling": "Pitched Roof - Insulated on Ceiling",
+        "Room in roof, stud wall": "Room in Roof - Insulated on side"
+      }
     },
     "roofs.roofs.area": {
-      "labels": [
-        "Area",
-        "Roof area"
-      ]
+      "selector": "input[name=\"Area\"]"
     },
     "roofs.roofs.ins": {
-      "labels": [
-        "Insulation thickness"
-      ]
+      "skip": true
     },
     "roofs.roofs.u": {
-      "labels": [
-        "U-value"
-      ]
+      "selector": "input[name=\"UValue\"]"
     },
     "roofs.roofs.part": {
       "skip": true
@@ -329,43 +273,27 @@
       "skip": true
     },
     "openings.windows-for-deap.faces": {
-      "labels": [
-        "Orientation"
-      ]
+      "selector": "mat-select[name=\"OrientationID\"]"
     },
     "openings.windows-for-deap.total-area-m2": {
-      "labels": [
-        "Area",
-        "Window area",
-        "Total area"
-      ]
+      "selector": "input[name=\"Area\"]"
     },
     "openings.windows-for-deap.no": {
-      "labels": [
-        "Count",
-        "Number",
-        "No. of windows"
-      ]
+      "selector": "input[name=\"Number\"]"
     },
     "openings.doors-for-deap.total-area-m2": {
-      "labels": [
-        "Area",
-        "Door area"
-      ]
+      "selector": "input[name=\"Area\"]"
     },
     "openings.doors-for-deap.no": {
-      "labels": [
-        "Count",
-        "Number",
-        "No. of doors"
-      ]
+      "selector": "input[name=\"Number\"]"
     },
     "fabric.tb": {
-      "labels": [
-        "Thermal bridging factor",
-        "Thermal bridging",
-        "y-value"
-      ]
+      "selector": "mat-select[name=\"ThermalBridgingFactorID\"]",
+      "values": {
+        "Default 0.15": "Default",
+        "Acceptable Construction Details 0.08": "Acceptable Construction Details 2008, 2011, 2019 and 2022 TGDL",
+        "Calculated value": "User Defined"
+      }
     },
     "fabric.y": {
       "labels": [
@@ -374,10 +302,7 @@
       ]
     },
     "fabric.mass": {
-      "labels": [
-        "Thermal mass category",
-        "Thermal mass"
-      ]
+      "selector": "mat-select[name=\"ThermalMassCategoryID\"]"
     },
     "fabric.notes": {
       "skip": true
@@ -414,10 +339,7 @@
       ]
     },
     "vent.lobby": {
-      "labels": [
-        "Draught lobby",
-        "Is there a draught lobby"
-      ]
+      "selector": "input[name=\"DraughtLobby\"]"
     },
     "vent.tested": {
       "labels": [
@@ -829,13 +751,161 @@
       "skip": true
     },
     "walls.types": {
-      "dialog": true
+      "dialog": true,
+      "add": "ADD WALL"
     },
     "walls.types.semi": {
       "selector": "input[name=\"SemiExposed\"]",
       "labels": [
         "Wall is semi-exposed"
       ]
+    },
+    "details.ext": {
+      "selector": "input[name=\"Extended\"]"
+    },
+    "details.client": {
+      "skip": true
+    },
+    "details.client_tel": {
+      "skip": true
+    },
+    "dims.nstoreys": {
+      "selector": "input[name=\"NumberOfStoreys\"]"
+    },
+    "dims.storeys": {
+      "dialog": false
+    },
+    "dims.floors": {
+      "dialog": true,
+      "add": "ADD FLOOR"
+    },
+    "dims.floors.name": {
+      "selector": "input[name=\"Description\"]"
+    },
+    "dims.floors.loc": {
+      "selector": "mat-select[name=\"FloorLocationID\"]"
+    },
+    "dims.floors.year": {
+      "selector": "mat-select[name=\"AgeBandID\"]"
+    },
+    "roofs.roofs": {
+      "dialog": true,
+      "add": "ADD ROOF"
+    },
+    "roofs.roofs.name": {
+      "selector": "input[name=\"Description\"]"
+    },
+    "roofs.roofs.year": {
+      "selector": "mat-select[name=\"AgeBandID\"]"
+    },
+    "openings.doors-for-deap": {
+      "dialog": true,
+      "add": "ADD DOOR",
+      "library": true
+    },
+    "openings.doors-for-deap.door-type": {
+      "selector": "input[name=\"Description\"]"
+    },
+    "openings.doors-for-deap.u-value": {
+      "selector": "input[name=\"UValue\"]"
+    },
+    "openings.windows-for-deap": {
+      "dialog": true,
+      "add": "ADD WINDOW",
+      "library": true
+    },
+    "openings.windows-for-deap.desc": {
+      "selector": "input[name=\"Description\"]"
+    },
+    "openings.windows-for-deap.u-value": {
+      "selector": "input[name=\"UValue\"]"
+    },
+    "openings.windows-for-deap.shading": {
+      "selector": "mat-select[name=\"OvershadingID\"]",
+      "values": {
+        "None or very little": "Very Little",
+        "Modest": "Average or Unknown",
+        "Significant": "More Than Average",
+        "Heavy": "Heavy"
+      }
+    },
+    "openings.windows-for-deap.glazing": {
+      "skip": true
+    },
+    "openings.windows-for-deap.frame": {
+      "skip": true
+    },
+    "openings.windows-for-deap.gap": {
+      "skip": true
+    },
+    "openings.windows-for-deap.gas": {
+      "skip": true
+    },
+    "openings.windows-for-deap.u-value-evidence": {
+      "skip": true
     }
-  }
+  },
+  "transfer": [
+    {
+      "name": "Survey details",
+      "path": "details",
+      "screen": "details"
+    },
+    {
+      "name": "Floors",
+      "path": "building/floors",
+      "screen": "dims"
+    },
+    {
+      "name": "Roofs",
+      "path": "building/roofs",
+      "screen": "roofs"
+    },
+    {
+      "name": "Walls",
+      "path": "building/walls",
+      "screen": "walls"
+    },
+    {
+      "name": "Doors",
+      "path": "building/doors",
+      "screen": "openings",
+      "only": [
+        "openings.doors-for-deap"
+      ]
+    },
+    {
+      "name": "Windows",
+      "path": "building/windows",
+      "screen": "openings",
+      "only": [
+        "openings.windows-for-deap"
+      ]
+    },
+    {
+      "name": "Global factors",
+      "path": "building/global-factors",
+      "screen": "fabric"
+    },
+    {
+      "name": "Ventilation",
+      "path": "ventilation/infiltration",
+      "screen": "vent"
+    },
+    {
+      "name": "Space heating",
+      "path": "space-heating",
+      "screen": "heat"
+    },
+    {
+      "name": "Water heating",
+      "path": "water-heating",
+      "screen": "water"
+    },
+    {
+      "name": "On-site generation",
+      "path": "renewables",
+      "screen": "gen"
+    }
+  ]
 }
