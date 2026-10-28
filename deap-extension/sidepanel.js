@@ -128,7 +128,7 @@ const cur = () => st.survey && st.survey.screens.find(s => s.id === st.screen) |
 function render() {
   const bar = $('#surveyBar'), main = $('#main');
   bar.replaceChildren();
-  if (!st.survey) { main.replaceChildren(loadCard(true), helpCard()); return }
+  if (!st.survey) { main.replaceChildren(loadCard(true), helpCard(), toolsCard()); return }
   const sv = st.survey.survey;
   bar.append(h('div', { class: 'row' }, h('div', { style: 'flex:1;min-width:0' }, h('b', null, sv.name), h('div', { class: 'note' }, [sv.eircode, sv.date].filter(Boolean).join(' · ') || 'Exported ' + new Date(st.survey.exported).toLocaleString('en-IE'))),
     h('button', { class: 'btn ghost', onclick: () => { st.survey = null; save(); render() } }, 'Change')));
