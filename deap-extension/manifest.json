@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "BER Survey DEAP Fill",
+  "version": "0.1.0",
+  "description": "Fills the open DEAP screen from a BER Survey transfer file. You check each screen and save it in DEAP yourself.",
+  "permissions": ["storage", "sidePanel", "scripting", "clipboardWrite"],
+  "host_permissions": ["https://deap.seai.ie/*"],
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "action": {
+    "default_title": "BER Survey DEAP Fill",
+    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" }
+  },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "content_scripts": [
+    { "matches": ["https://deap.seai.ie/*"], "js": ["content.js"], "run_at": "document_idle" }
+  ]
+}

@@ -126,6 +126,7 @@ tr.tot td{font-weight:600;border-bottom:0}
 textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
 @media (prefers-reduced-motion:no-preference){.wall{transition:border-color .2s}}
 .tab .cnt{font-family:var(--f-num);font-size:11px;background:var(--accent-soft);color:var(--accent);border-radius:9px;padding:1px 6px;margin-left:5px;vertical-align:2px}
+.xfer summary{cursor:pointer;min-height:28px}
 .subnav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
 .subnav button{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:0 14px;min-height:38px;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--muted)}
 .subnav button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -1146,6 +1147,55 @@ function entryScreens(s){
   }));
   return out;
 }
+// ---- DEAP transfer file: read by the BER Survey DEAP Fill Chrome extension on the laptop ----
+// Keys are section.field ids, so the extension's field mapping survives label changes here
+const slug=t=>String(t).toLowerCase().replace(/²/g,'2').replace(/³/g,'3').replace(/\(.*?\)/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+function deapExport(s){
+  const screens=[];
+  const scr=(id,tab,sub,name)=>{const x={id,tab,sub,name,fields:[],tables:[]};screens.push(x);return x};
+  const fromTable=(x,t,pre)=>{if(t.record)return;const rows=t.total?t.rows.slice(0,-1):t.rows;if(!rows.length)return;x.tables.push({key:pre+'.'+slug(t.title.replace(/ \((for DEAP|matching.*)\)/,'')),title:t.title,columns:t.head.map(h=>({key:slug(h),label:h})),rows:rows.map(r=>r.map(c=>plainVal(c)))})};
+  const fromGroups=(x,groups,key)=>{
+    const d=s.data[key]||{};
+    groups.forEach(g=>(g.fields||[]).forEach(f=>{
+      if(f.show&&!f.show(d))return;
+      if(f.type==='calc'){REPORT_CALCS[f.calc]().forEach(([k,v])=>x.fields.push({key:key+'.calc.'+slug(k),label:k,kind:'num',value:plainVal(v)}));return}
+      if(f.id==='_name'){if(hasVal(s.name)&&!s.example)x.fields.push({key:key+'.address',label:f.label,kind:'text',value:s.name});return}
+      const v=d[f.id];if(!hasVal(v))return;
+      if(f.type==='list'){x.tables.push({key:key+'.'+f.id,title:f.label,columns:f.cols.map(c=>({key:c.id,label:c.label,kind:c.type})),rows:v.map(r=>f.cols.map(c=>hasVal(r[c.id])?plainVal(r[c.id]):''))});return}
+      x.fields.push({key:key+'.'+f.id,label:f.label.replace(' (if certified)','').replace(' (if known)',''),kind:f.type,value:Array.isArray(v)?v.slice():(f.type==='num'?plainVal(v):String(v)),options:f.options||undefined});
+    }));
+  };
+  SECTIONS.filter(x=>!x.util).forEach(sec=>{
+    if(!sec.subs){fromGroups(scr(sec.id,sec.id,null,sec.name),sec.groups,sec.id);return}
+    sec.subs.forEach(sb=>{
+      const x=scr(sb.id,sec.id,sb.id,sb.name);
+      if(sb.walls){
+        // one line per wall type, with its net area and construction, in the shape DEAP's wall screen wants
+        const S=summarise(s),wt=s.data.walltypes||{};
+        usedTypes(s).forEach(t=>{const d=wt[t]||{},k='walls.type.'+slug(t);
+          x.fields.push({key:k+'.net',group:t,label:'Net area',kind:'num',value:f2(S.byType[t]?S.byType[t].net:0)});
+          WALL_FIELDS.forEach(f=>{if((f.show&&!f.show(d))||!hasVal(d[f.id]))return;x.fields.push({key:k+'.'+f.id,group:t,label:f.label.replace(' (if known)',''),kind:f.type,value:f.type==='num'?plainVal(d[f.id]):String(d[f.id]),options:f.options||undefined})});
+        });
+        return;
+      }
+      if(sb.id==='openings')openingParts(s).forEach(p=>p.table&&fromTable(x,p.table,'openings'));
+      fromGroups(x,sb.groups,sb.id);
+    });
+  });
+  const d=s.data.details||{};
+  return {format:'ber-survey-deap',version:1,exported:new Date().toISOString(),survey:{name:s.name||'Untitled',eircode:d.eircode||'',mprn:d.mprn||'',date:d.date||''},screens:screens.filter(x=>x.fields.length||x.tables.length)};
+}
+function transferName(s){return ('DEAP transfer - '+(s.name||'Untitled')).replace(/[\\/:*?"<>|]+/g,'-')+'.json'}
+async function shareTransfer(s){
+  const txt=JSON.stringify(deapExport(s),null,1),file=new File([txt],transferName(s),{type:'application/json'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:transferName(s)});return}}catch(e){if(e&&e.name==='AbortError')return}
+  const a=el('a',{href:URL.createObjectURL(file),download:file.name});document.body.append(a);a.click();a.remove();toast('Transfer file saved');
+}
+function transferCard(s){
+  return el('details',{class:'card xfer'},el('summary',null,el('b',null,'Fill DEAP from Chrome on your laptop')),
+    el('p',{class:'note',style:'margin:0'},'Send this survey to your laptop (AirDrop, Mail or iCloud Drive), then load it in the BER Survey DEAP Fill extension. It fills the open DEAP screen for you to check and save.'),
+    el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>shareTransfer(s)},'Share transfer file'),el('button',{class:'btn',onclick:()=>copy(JSON.stringify(deapExport(s)))},'Copy transfer text')));
+}
 function renderEntry(){
   const s=cur(),done=s.entered||(s.entered={}),scrs=entryScreens(s);
   const keys=sc=>sc.items.filter(x=>x.key).map(x=>x.key);
@@ -1155,7 +1205,8 @@ function renderEntry(){
   const box=el('div',{class:'stack'});
   box.append(el('div',{class:'ent-top'},el('h2',null,'Enter in DEAP'),el('span',{class:'note'},nDone+' of '+all.length+' lines entered')),
     el('div',{class:'prog'},el('i',{style:'width:'+(all.length?Math.round(nDone/all.length*100):0)+'%'})),
-    el('p',{class:'note',style:'margin:0'},'Open the same screen in DEAP. Tap a value to copy it, paste it into DEAP, then tick the line. Numbers copy without units.'));
+    el('p',{class:'note',style:'margin:0'},'Open the same screen in DEAP. Tap a value to copy it, paste it into DEAP, then tick the line. Numbers copy without units.'),
+    transferCard(s));
   const nav=el('div',{class:'subnav'});requestAnimationFrame(()=>{const a=nav.querySelector('[aria-pressed=true]');if(a&&a.offsetLeft+a.offsetWidth>nav.clientWidth)nav.scrollLeft=a.offsetLeft-16});
   box.append(nav);nav.append(...scrs.map((x,j)=>{const k=keys(x),left=k.filter(q=>!done[q]).length;
     return el('button',{'aria-pressed':String(j===i),class:k.length&&!left?'alldone':null,onclick:()=>go(j)},x.name,k.length?el('span',{class:'left'},left?left+' left':'✓'):null)}));
