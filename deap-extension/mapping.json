@@ -254,17 +254,10 @@
       ]
     },
     "openings.op_total": {
-      "labels": [
-        "Total number of windows and doors",
-        "Number of windows and doors"
-      ]
+      "skip": true
     },
     "openings.op_strip": {
-      "labels": [
-        "Number draught stripped",
-        "Draught stripped windows and doors",
-        "Number of windows and doors draught stripped"
-      ]
+      "selector": "input[name=\"NumberOfDraftStrippedOpenings\"]"
     },
     "openings.calc.draught-stripped": {
       "skip": true
@@ -342,11 +335,7 @@
       "selector": "input[name=\"DraughtLobby\"]"
     },
     "vent.tested": {
-      "labels": [
-        "Has a permeability test been carried out",
-        "Permeability test",
-        "Air tightness test"
-      ]
+      "selector": "input[name=\"AirPermeabilityTest\"]"
     },
     "vent.q50": {
       "labels": [
@@ -357,16 +346,18 @@
       ]
     },
     "vent.structure": {
-      "labels": [
-        "Structure type",
-        "Structural infiltration"
-      ]
+      "selector": "mat-select[name=\"StructuralInfiltrationID\"]",
+      "values": {
+        "Timber frame or steel frame": "Timber or Steel Frame"
+      }
     },
     "vent.susfloor": {
-      "labels": [
-        "Suspended wooden ground floor",
-        "Ground floor"
-      ]
+      "selector": "mat-select[name=\"WoodenFloorID\"]",
+      "values": {
+        "Solid": "No",
+        "Suspended, sealed": "Yes (Sealed)",
+        "Suspended, unsealed": "Yes (Unsealed)"
+      }
     },
     "vent.hatches": {
       "labels": [
@@ -379,29 +370,23 @@
       ]
     },
     "vent.sheltered": {
-      "labels": [
-        "Number of sides sheltered",
-        "Sheltered sides"
-      ]
+      "selector": "input[name=\"NoOfSidesSheltered\"]"
     },
     "vent.mech": {
-      "labels": [
-        "Ventilation method",
-        "Mechanical ventilation",
-        "Ventilation type"
-      ]
+      "selector": "mat-select[name=\"VentilationMethodID\"]",
+      "values": {
+        "Positive input from loft": "Positive input ventilation from loft",
+        "Positive input from outside": "Positive input ventilation from outside",
+        "Whole-house extract": "Whole-house extract ventilation",
+        "Balanced, with heat recovery (MVHR)": "Balanced whole-house mechanical ventilation with heat recovery",
+        "Balanced, no heat recovery": "Balanced whole-house mechanical ventilation, no heat recovery"
+      }
     },
     "vent.sfp": {
-      "labels": [
-        "Specific fan power",
-        "SFP"
-      ]
+      "selector": "input[name=\"FanPower\"]"
     },
     "vent.hre": {
-      "labels": [
-        "Heat exchanger efficiency",
-        "Heat recovery efficiency"
-      ]
+      "selector": "input[name=\"HeatExchanger\"]"
     },
     "vent.mv_model": {
       "skip": true
@@ -447,14 +432,10 @@
       "skip": true
     },
     "heat.cond": {
-      "labels": [
-        "Condensing"
-      ]
+      "skip": true
     },
     "heat.flue": {
-      "labels": [
-        "Flue type"
-      ]
+      "skip": true
     },
     "heat.inside": {
       "labels": [
@@ -473,41 +454,26 @@
       ]
     },
     "heat.emit": {
-      "labels": [
-        "Heat emitter type",
-        "Heat emitters",
-        "Emitter type"
-      ]
+      "selector": "mat-select[name=\"HeatEmitterType\"]",
+      "values": {
+        "Radiators and underfloor": "Both radiators and underfloor heating in concrete slab - living area heated by rads",
+        "Underfloor heating": "Underfloor heating, pipes in screed above insulation"
+      }
     },
     "heat.pump": {
-      "labels": [
-        "Central heating pump",
-        "Number of central heating pumps"
-      ]
+      "skip": true
     },
     "heat.pump_in": {
-      "labels": [
-        "Pump in heated space",
-        "Central heating pump in heated space"
-      ]
+      "selector": "input[name=\"CentralHeatingInsideDwelling\"]"
     },
     "heat.oilpump_in": {
-      "labels": [
-        "Oil boiler fuel pump inside dwelling",
-        "Oil fuel pump inside"
-      ]
+      "selector": "input[name=\"OilBoilerInsideDwelling\"]"
     },
     "heat.fluefan": {
-      "labels": [
-        "Gas boiler flue fan",
-        "Flue fan"
-      ]
+      "skip": true
     },
     "heat.warmair": {
-      "labels": [
-        "Warm air heating system fans",
-        "Warm air heating"
-      ]
+      "selector": "input[name=\"WarmAirHeatingOrFanCoilRadiator\"]"
     },
     "heat.sec": {
       "labels": [
@@ -540,28 +506,16 @@
       ]
     },
     "water.combi": {
-      "labels": [
-        "Combi boiler",
-        "Combination boiler"
-      ]
+      "selector": "input[name=\"IsCombiBoiler\"]"
     },
     "water.distloss": {
-      "labels": [
-        "Distribution losses",
-        "Include distribution losses"
-      ]
+      "selector": "input[name=\"Distribution\"]"
     },
     "water.storeloss": {
-      "labels": [
-        "Storage losses",
-        "Include storage losses"
-      ]
+      "selector": "input[name=\"Storage\"]"
     },
     "water.summer_imm": {
-      "labels": [
-        "Supplementary electric water heating in summer",
-        "Summer immersion"
-      ]
+      "selector": "input[name=\"ElecImmersionInSummer\"]"
     },
     "water.imm": {
       "labels": [
@@ -570,48 +524,29 @@
       ]
     },
     "water.cyl": {
-      "labels": [
-        "Hot water cylinder",
-        "Storage cylinder",
-        "Is there a hot water cylinder"
-      ]
+      "skip": true
     },
     "water.vol": {
-      "labels": [
-        "Cylinder volume",
-        "Hot water storage volume",
-        "Storage volume"
-      ]
+      "selector": "input[name=\"StorageVolume\"]"
     },
     "water.cylins": {
-      "labels": [
-        "Insulation type",
-        "Cylinder insulation type"
-      ]
+      "selector": "mat-select[name=\"InsulationTypeID\"]",
+      "values": {
+        "Factory insulated": "Factory insulated",
+        "Loose jacket": "Loose jacket"
+      }
     },
     "water.cylmm": {
-      "labels": [
-        "Insulation thickness",
-        "Cylinder insulation thickness"
-      ]
+      "selector": "input[name=\"CylinderThickness\"]"
     },
     "water.indoors": {
-      "labels": [
-        "Hot water storage indoors",
-        "Storage indoors",
-        "Cylinder in heated space"
-      ]
+      "selector": "input[name=\"StorageIndoorGroupScheme\"]"
     },
     "water.cylstat": {
-      "labels": [
-        "Cylinder thermostat"
-      ]
+      "selector": "input[name=\"CylinderThermostat\"]"
     },
     "water.primins": {
-      "labels": [
-        "Primary circuit loss insulation",
-        "Primary pipework insulation"
-      ]
+      "selector": "mat-select[name=\"SystemTypeID\"]"
     },
     "water.primcirc": {
       "labels": [
@@ -620,10 +555,7 @@
       ]
     },
     "water.septime": {
-      "labels": [
-        "Water separately timed",
-        "Hot water separately timed"
-      ]
+      "selector": "input[name=\"CylinderHeatedByBoiler\"]"
     },
     "water.baths": {
       "labels": [
@@ -700,38 +632,32 @@
       "skip": true
     },
     "gen.pv.kwp": {
-      "labels": [
-        "Peak power",
-        "kWp",
-        "Installed peak power"
-      ]
+      "skip": true
     },
     "gen.pv.orient": {
-      "labels": [
-        "Orientation",
-        "Collector orientation"
-      ]
+      "selector": "mat-select[name=\"OrientationId\"]",
+      "values": {
+        "S": "South",
+        "SE": "SE/SW",
+        "SW": "SE/SW",
+        "E": "East/West",
+        "W": "East/West",
+        "NE": "NE/NW",
+        "NW": "NE/NW",
+        "N": "North"
+      }
     },
     "gen.pv.pitch": {
-      "labels": [
-        "Pitch",
-        "Tilt",
-        "Collector pitch"
-      ]
+      "selector": "input[name=\"Tilt\"]"
     },
     "gen.pv.shade": {
-      "labels": [
-        "Overshading"
-      ]
+      "selector": "mat-select[name=\"OvershadingId\"]"
     },
     "gen.pv.ev": {
       "skip": true
     },
     "gen.battery": {
-      "labels": [
-        "Battery capacity",
-        "Battery storage"
-      ]
+      "selector": "input[name=\"BatteryCapacity\"]"
     },
     "gen.pvmodel": {
       "skip": true
@@ -843,6 +769,64 @@
     },
     "openings.windows-for-deap.u-value-evidence": {
       "skip": true
+    },
+    "openings.ops": {
+      "selector": "input[name=\"NumberOfOpenings\"]"
+    },
+    "vent.ducts": {
+      "skip": true
+    },
+    "vent.ductins": {
+      "skip": true
+    },
+    "heat.cat": {
+      "selector": "mat-select[name=\"HeatingSystemCategoryID\"]"
+    },
+    "heat.sub1": {
+      "selector": "mat-select[name=\"SubCategory1ID\"]"
+    },
+    "heat.sub2": {
+      "selector": "mat-select[name=\"SubCategory2ID\"]"
+    },
+    "heat.system": {
+      "selector": "mat-select[name=\"HeatingSystem\"]"
+    },
+    "heat.ctrl": {
+      "selector": "mat-select[name=\"HeatingSystemControlsID\"]"
+    },
+    "heat.interlock": {
+      "selector": "input[name=\"BoilerInterlockPresent\"]"
+    },
+    "heat.delayed": {
+      "selector": "input[name=\"DelayedThermostat\"]"
+    },
+    "heat.pumpn": {
+      "selector": "input[name=\"PumpsCentralHeating\"]"
+    },
+    "heat.oilpumpn": {
+      "selector": "input[name=\"PumpsOilBoiler\"]"
+    },
+    "heat.fluefann": {
+      "selector": "input[name=\"PumpsGasBoilerFlueFan\"]"
+    },
+    "heat.controls": {
+      "skip": true
+    },
+    "gen.battery_yes": {
+      "selector": "input[name=\"IsBatteryPresent\"]"
+    },
+    "gen.pv": {
+      "dialog": true,
+      "add": "ADD SOLAR PV ARRAY"
+    },
+    "gen.pv.tech": {
+      "selector": "input[name=\"Technology\"]"
+    },
+    "gen.pv.n": {
+      "selector": "input[name=\"NumberOfPanels\"]"
+    },
+    "gen.pv.w": {
+      "selector": "input[name=\"PowerOutputPerPanel\"]"
     }
   },
   "transfer": [
@@ -854,23 +838,34 @@
     {
       "name": "Floors",
       "path": "building/floors",
-      "screen": "dims"
+      "screen": "dims",
+      "tables": [
+        "dims.storeys",
+        "dims.floors"
+      ]
     },
     {
       "name": "Roofs",
       "path": "building/roofs",
-      "screen": "roofs"
+      "screen": "roofs",
+      "tables": [
+        "roofs.roofs"
+      ]
     },
     {
       "name": "Walls",
       "path": "building/walls",
-      "screen": "walls"
+      "screen": "walls",
+      "tables": [
+        "walls.types"
+      ]
     },
     {
       "name": "Doors",
       "path": "building/doors",
       "screen": "openings",
-      "only": [
+      "fields": [],
+      "tables": [
         "openings.doors-for-deap"
       ]
     },
@@ -878,7 +873,8 @@
       "name": "Windows",
       "path": "building/windows",
       "screen": "openings",
-      "only": [
+      "fields": [],
+      "tables": [
         "openings.windows-for-deap"
       ]
     },
@@ -888,24 +884,101 @@
       "screen": "fabric"
     },
     {
-      "name": "Ventilation",
+      "name": "Ventilation: draught lobby",
       "path": "ventilation/infiltration",
-      "screen": "vent"
+      "screen": "vent",
+      "fields": [
+        "vent.lobby"
+      ]
     },
     {
-      "name": "Space heating",
-      "path": "space-heating",
-      "screen": "heat"
+      "name": "Ventilation: air tightness",
+      "path": "ventilation/air-tightness",
+      "screen": "vent",
+      "fields": [
+        "vent.tested",
+        "vent.q50",
+        "vent.structure",
+        "vent.susfloor",
+        "vent.sheltered",
+        "openings.ops",
+        "openings.op_strip"
+      ]
     },
     {
-      "name": "Water heating",
-      "path": "water-heating",
-      "screen": "water"
+      "name": "Ventilation: method",
+      "path": "ventilation/method",
+      "screen": "vent",
+      "fields": [
+        "vent.mech",
+        "vent.sfp",
+        "vent.hre"
+      ]
     },
     {
-      "name": "On-site generation",
-      "path": "renewables",
-      "screen": "gen"
+      "name": "Space heating: controls",
+      "path": "space-heating/ctrl-resp",
+      "screen": "heat",
+      "fields": [
+        "heat.cat",
+        "heat.sub1",
+        "heat.sub2",
+        "heat.system",
+        "heat.emit",
+        "heat.ctrl",
+        "heat.interlock",
+        "heat.delayed"
+      ]
+    },
+    {
+      "name": "Space heating: pumps and fans",
+      "path": "space-heating/pumps-fans",
+      "screen": "heat",
+      "fields": [
+        "heat.pumpn",
+        "heat.pump_in",
+        "heat.oilpumpn",
+        "heat.oilpump_in",
+        "heat.fluefann",
+        "heat.warmair"
+      ]
+    },
+    {
+      "name": "Water heating: combi",
+      "path": "water-heating/combi-boiler",
+      "screen": "water",
+      "fields": [
+        "water.combi"
+      ]
+    },
+    {
+      "name": "Water heating: options",
+      "path": "water-heating/options",
+      "screen": "water",
+      "fields": [
+        "water.storeloss",
+        "water.indoors",
+        "water.distloss",
+        "water.summer_imm",
+        "water.vol",
+        "water.cylstat",
+        "water.septime",
+        "water.cylins",
+        "water.cylmm",
+        "water.primins"
+      ]
+    },
+    {
+      "name": "Solar PV",
+      "path": "renewables/solar-pv",
+      "screen": "gen",
+      "fields": [
+        "gen.battery_yes",
+        "gen.battery"
+      ],
+      "tables": [
+        "gen.pv"
+      ]
     }
   ]
 }

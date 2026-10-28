@@ -5,20 +5,65 @@
 const tx = { running: false, stop: false, steps: [], waitingFor: null, skipWait: false, included: {} };
 const pause = ms => new Promise(r => setTimeout(r, ms));
 
+// values DEAP asks for that the survey records in another shape
+function synthFields() {
+  const v = k => surveyValue(k.split('.')[0], k), yes = k => /^yes$/i.test(v(k)), out = [];
+  const put = (key, label, value) => { if (value !== '' && value != null) out.push({ key, label, value: String(value) }) };
+  // space heating: DEAP narrows the system down in steps (category, sub category, sub category 2, system)
+  const src = v('heat.src'), fuel = v('heat.fuel'), yr = parseInt(v('heat.hyear')) || 0, cond = yes('heat.cond');
+  if (src) {
+    const boiler = /boiler/i.test(src), hp = /heat pump/i.test(src);
+    put('heat.cat', 'Heating system category', boiler || hp ? 'Central heating systems with radiators or underfloor heating' : /storage/i.test(src) ? 'Electric storage systems' : /direct electric|stove|room/i.test(src) ? 'Room heaters' : '');
+    if (boiler || hp) put('heat.sub1', 'Sub category', hp ? 'Heat pumps' : /solid|biomass|range/i.test(src) && !/oil|gas|lpg/i.test(src) ? 'Solid fuel boilers' : /electric/i.test(fuel) ? 'Electric boilers' : 'Gas and oil boilers');
+    if (/oil/i.test(src) || /oil/i.test(fuel)) {
+      put('heat.sub2', 'Sub category 2', 'Oil boilers');
+      put('heat.system', 'Heating system', cond ? 'Condensing' : yr >= 1998 ? 'Standard oil boiler, 1998 or later' : yr >= 1985 ? 'Standard oil boiler 1985 to 1997' : yr ? 'Standard oil boiler pre-1985' : '');
+    } else if (/gas|lpg/i.test(src + fuel)) {
+      put('heat.sub2', 'Sub category 2', !yr || yr >= 1998 ? 'Gas boilers (including LPG) 1998 or later' : /fan/i.test(v('heat.flue')) ? 'Gas boilers (including LPG) pre-1998, with fan-assisted flue' : 'Gas boilers (including LPG) pre-1998, with balanced or open flue');
+      const combi = yes('water.combi');
+      put('heat.system', 'Heating system', cond ? (combi ? 'Condensing combi' : 'Condensing') : combi ? (yr && yr < 1998 ? 'Combi, pre-1998' : 'Combi, 1998 or later') : '');
+    }
+  }
+  const ctl = (surveyValue('heat', 'heat.controls') || []), has = c => [].concat(ctl).some(x => x === c);
+  if ([].concat(ctl).length) {
+    const prog = has('Programmer') || has('Time switch'), stat = has('Room thermostat') || has('Programmable room thermostat'), trv = has('TRVs');
+    put('heat.ctrl', 'Heating system controls', has('Time and temperature zone control') ? 'Time and temperature zone control' : prog && stat && trv ? 'Programmer, room thermostat and TRVs' : prog && trv && has('Boiler energy manager') ? 'Programmer, TRVs and boiler energy manager' : prog && trv && has('Flow switch') ? 'Programmer, TRVs and flow switch' : prog && trv ? 'Programmer, TRVs (likely to include bypass)' : prog && stat ? 'Programmer and room thermostat' : prog ? 'Programmer, no room thermostat' : stat ? 'Room thermostat only' : 'No time or thermostatic control of room temperature');
+    put('heat.interlock', 'Boiler interlock present', has('Boiler interlock') ? 'Yes' : 'No');
+    put('heat.delayed', 'Delayed start thermostat present', has('Delayed start thermostat') ? 'Yes' : 'No');
+  }
+  if (v('heat.pump')) put('heat.pumpn', 'Central heating pumps', yes('heat.pump') ? '1' : '0');
+  if (v('heat.oilpump_in')) put('heat.oilpumpn', 'Oil boiler pumps', '1');
+  if (v('heat.fluefan')) put('heat.fluefann', 'Gas boiler flue fans', yes('heat.fluefan') ? '1' : '0');
+  // ventilation: openings count, from the survey's own count or the windows and doors it measured
+  const ops = v('openings.op_total') || (() => { const sc = st.survey.screens.find(x => x.id === 'openings'); if (!sc) return ''; const n = sc.tables.filter(t => /windows-for-deap|doors-for-deap/.test(t.key)).reduce((a, t) => { const i = t.columns.findIndex(c => c.key === 'no'); return a + t.rows.reduce((b, r) => b + (parseInt(r[i]) || 0), 0) }, 0); return n || '' })();
+  put('openings.ops', 'Number of openings', ops);
+  if (v('gen.battery')) put('gen.battery_yes', 'Is a battery present?', parseFloat(v('gen.battery')) > 0 ? 'Yes' : 'No');
+  return out;
+}
+function allFields() {
+  const out = [];
+  st.survey.screens.forEach(sc => { const j = job(sc); j.fields.forEach(f => out.push(Object.assign({ screen: sc.id }, f))) });
+  return out.concat(synthFields());
+}
 function transferSteps() {
   if (!st.survey) return [];
-  return (base.transfer || []).map(p => {
-    const sc = st.survey.screens.find(x => x.id === p.screen);
-    if (!sc) return null;
-    const j = job(sc);
-    let fields = j.fields.filter(f => !(j.mapping[f.key] || {}).skip), tables = j.tables.filter(t => !(j.mapping[t.key] || {}).skip);
-    if (p.only) { fields = []; tables = tables.filter(t => p.only.includes(t.key)) }
-    else tables = tables.filter(t => !(base.transfer || []).some(q => q !== p && q.only && q.only.includes(t.key)));
-    const dlg = tables.filter(t => isDialog(j, t) && (j.mapping[t.key] || {}).add), flat = tables.filter(t => !isDialog(j, t));
+  const pool = allFields(), keys = [].concat(...st.survey.screens.map(sc => job(sc).tables.map(t => t.key)));
+  const steps = (base.transfer || []).map(p => {
+    const sc = st.survey.screens.find(x => x.id === p.screen) || { id: p.screen, fields: [], tables: [] };
+    const j = job(sc), mapping = fullMap(pool.map(f => f.key).concat(...st.survey.screens.map(x => { const jj = job(x); return jj.tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))) })));
+    const pick = k => pool.filter(f => f.key === k || f.parent && f.key.startsWith(k + '.'));
+    const fields = (p.fields ? p.fields.flatMap(pick) : j.fields).filter((f, i, a) => a.indexOf(f) === i && !(mapping[f.key] || {}).skip);
+    const tables = (p.tables ? st.survey.screens.flatMap(x => job(x).tables).filter(t => p.tables.includes(t.key)) : []).filter(t => !(mapping[t.key] || {}).skip);
+    const dlg = tables.filter(t => (mapping[t.key] || {}).dialog !== false && (mapping[t.key] || {}).add), flat = tables.filter(t => (mapping[t.key] || {}).dialog === false);
     const items = dlg.reduce((a, t) => a + t.rows.length, 0);
     if (!fields.length && !flat.length && !items) return null;
-    return { name: p.name, path: p.path, screen: sc.id, fields, flat, dlg, mapping: j.mapping, items, status: 'todo', note: '' };
+    return { name: p.name, path: p.path, screen: sc.id, fields, flat, dlg, mapping, items, status: 'todo', note: '' };
   }).filter(Boolean);
+  // anything the survey holds that no DEAP screen above takes: listed for doing by hand
+  const used = new Set(steps.flatMap(s => s.fields.map(f => f.key)));
+  transferSteps.left = pool.filter(f => !used.has(f.key) && f.screen && !(fullMap([f.key])[f.key] || {}).skip && !/\.calc\.|^heat\.controls/.test(f.key));
+  transferSteps.leftTables = keys.filter(k => !steps.some(s => s.dlg.concat(s.flat).some(t => t.key === k)) && !(fullMap([k])[k] || {}).skip);
+  return steps;
 }
 
 function setStep(s, status, note) { s.status = status; if (note != null) s.note = note; render() }
@@ -96,6 +141,8 @@ async function runTransfer() {
   if (tx.running) return;
   tx.running = true; tx.stop = false; tx.log = [];
   tx.steps = transferSteps().filter(s => tx.included[s.name] !== false);
+  (transferSteps.left || []).forEach(f => tx.log.push('Not transferred yet: ' + (f.parent ? f.parent + ', ' : '') + f.label + ' ' + f.value));
+  (transferSteps.leftTables || []).forEach(k => tx.log.push('Not transferred yet: ' + k.split('.').pop().replace(/-/g, ' ') + ' list'));
   render();
   try {
     const s0 = await send({ cmd: 'state' });
@@ -108,7 +155,9 @@ async function runTransfer() {
         await goTo(step);
         if (step.fields.length || step.flat.length) {
           setStep(step, 'running', 'Filling');
-          const res = await fillOn(step, { fields: step.fields, tables: step.flat });
+          let res = await fillOn(step, { fields: step.fields, tables: step.flat });
+          // ticking a box or picking a type can show more DEAP fields, so go over the screen once more
+          if (res.some(x => x.status === 'nomatch')) { await pause(1200); const again = await fillOn(step, { fields: step.fields.filter(f => res.some(x => x.key === f.key && x.status === 'nomatch')), tables: [] }); res = res.filter(x => !(x.status === 'nomatch' && again.some(y => y.key === x.key))).concat(again) }
           results[step.screen] = res;
           res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => { const f = step.fields.find(q => q.key === x.key); tx.log.push(step.name + ': ' + (f ? f.label + ' ' + f.value : x.key) + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')) });
           await pause(1500); // DEAP saves these screens itself

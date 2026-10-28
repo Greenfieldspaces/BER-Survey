@@ -112,6 +112,13 @@ function job(sc) {
       add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
       add(t, 'year', 'Year built', () => dwellingYear());
     }
+    if (t.key === 'gen.pv') {
+      // DEAP wants panels and watts per panel; the survey has the array's kWp, so it goes in as one panel of that size
+      const kwp = r => parseFloat(col(t, r, 'kwp')) || 0;
+      add(t, 'tech', 'Technology/Comment', r => kwp(r) ? 'Array ' + kwp(r) + ' kWp' : '');
+      add(t, 'n', 'Number of panels', r => kwp(r) ? '1' : '');
+      add(t, 'w', 'Peak power per panel W', r => kwp(r) ? String(Math.round(kwp(r) * 1000)) : '');
+    }
     if (t.key === 'openings.windows-for-deap') {
       add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
       const sh = surveyValue('openings', 'openings.shading'); if (sh) add(t, 'shading', 'Overshading', () => sh);

@@ -166,6 +166,8 @@
   }
   function pickOption(wants, options) {
     for (const w of wants) if (/^(1[6-9]\d\d|20\d\d)$/.test(w.trim())) { const i = yearBand(+w, options); if (i >= 0) return i }
+    const low = s => String(s).toLowerCase().replace(/\s+/g, ' ').trim();
+    for (const w of wants) { const i = options.findIndex(o => low(o) === low(w)); if (i >= 0) return i }
     let bi = -1, bs = 0;
     options.forEach((o, i) => { for (const w of wants) { const s = sim(w, o); if (s > bs) { bs = s; bi = i } } });
     return bs >= 0.6 ? bi : -1;
@@ -236,7 +238,7 @@
         return { status: 'nooption', detail: opts.length ? 'No option like "' + item.value + '". DEAP offers: ' + texts.slice(0, 15).join(' | ') + (texts.length > 15 ? ' …' : '') : 'List did not open' };
       }
       opts[i].click();
-      await sleep(80);
+      await sleep(350); // DEAP loads the next dropdown's choices from this one
       return { status: 'filled' };
     }
     return { status: 'error', detail: 'Unknown field type' };
