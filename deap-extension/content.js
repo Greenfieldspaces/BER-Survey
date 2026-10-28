@@ -153,7 +153,18 @@
     if (COMPASS[v]) w.push(COMPASS[v], COMPASS[v].replace(' ', '-'), COMPASS[v].replace(' ', '').toLowerCase());
     return w.filter(Boolean).map(String);
   };
+  // a year picks the age band that contains it, e.g. 2002 -> "2000 - 2004", 1890 -> "Before 1900"
+  function yearBand(y, options) {
+    return options.findIndex(o => {
+      const t = String(o).toLowerCase(), n = (t.match(/\b(1[6-9]\d\d|20\d\d)\b/g) || []).map(Number);
+      if (n.length >= 2) return y >= n[0] && y <= n[1];
+      if (n.length === 1 && /before|pre|earlier|up to|</.test(t)) return /up to/.test(t) ? y <= n[0] : y < n[0];
+      if (n.length === 1 && /onward|after|later|since|\+|or later|>/.test(t)) return /after|>/.test(t) ? y > n[0] : y >= n[0];
+      return false;
+    });
+  }
   function pickOption(wants, options) {
+    for (const w of wants) if (/^(1[6-9]\d\d|20\d\d)$/.test(w.trim())) { const i = yearBand(+w, options); if (i >= 0) return i }
     let bi = -1, bs = 0;
     options.forEach((o, i) => { for (const w of wants) { const s = sim(w, o); if (s > bs) { bs = s; bi = i } } });
     return bs >= 0.6 ? bi : -1;
@@ -210,14 +221,18 @@
       if (cur && wants.some(w => sim(w, cur) >= 0.8)) return { status: 'same' };
       if (cur && !o.overwrite && !/^(select|choose|please)/i.test(cur)) return { status: 'kept', detail: 'DEAP has ' + cur };
       if (c.kind === 'comboinput') { el.focus(); nativeSet(el, String(item.value)); el.dispatchEvent(new Event('input', { bubbles: true })) }
-      else { el.click(); el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })) }
+      // Angular Material opens from its inner trigger; other libraries open on mousedown
+      const trg = c.kind === 'combo' && el.querySelector('.mat-mdc-select-trigger,.mat-select-trigger,.p-dropdown-trigger') || el;
+      const listed = () => [...document.querySelectorAll(OPTION_SEL)].filter(x => visible(x) && !x.closest('#bsdf-ui'));
       let opts = [];
-      for (let t = 0; t < 15 && !opts.length; t++) { await sleep(100); opts = [...document.querySelectorAll(OPTION_SEL)].filter(x => visible(x) && !x.closest('#bsdf-ui')) }
-      const i = pickOption(wants, opts.map(textOf));
+      if (c.kind === 'combo') trg.click();
+      for (let t = 0; t < 15 && !opts.length; t++) { await sleep(100); opts = listed(); if (t === 3 && !opts.length && c.kind === 'combo') trg.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })) }
+      const texts = opts.map(textOf), i = pickOption(wants, texts);
       if (i < 0) {
-        document.activeElement && document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        return { status: 'nooption', detail: opts.length ? 'No option like "' + item.value + '"' : 'List did not open' };
+        [el, document.activeElement, document.body].forEach(t => t && t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true })));
+        await sleep(150);
+        const bd = document.querySelector('.cdk-overlay-backdrop'); if (bd && listed().length) bd.click();
+        return { status: 'nooption', detail: opts.length ? 'No option like "' + item.value + '". DEAP offers: ' + texts.slice(0, 15).join(' | ') + (texts.length > 15 ? ' …' : '') : 'List did not open' };
       }
       opts[i].click();
       await sleep(80);

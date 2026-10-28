@@ -1,5 +1,5 @@
 {
-  "_about": "Starting guesses at how DEAP labels each survey value. Keys are the survey app's field ids. 'labels' are DEAP label texts to look for, 'selector' pins an exact DEAP field, 'values' maps a survey answer to DEAP's wording, 'skip' leaves a value out. Fields you teach in the side panel are saved on top of this file.",
+  "_about": "Starting guesses at how DEAP labels each survey value. Keys are the survey app's field ids. 'labels' are DEAP label texts to look for, 'selector' pins an exact DEAP field, 'values' maps a survey answer to DEAP's wording, 'skip' leaves a value out. Fields you teach in the side panel are saved on top of this file. Tables are filled one row at a time into DEAP's Add dialog unless the table key has \"dialog\": false. Walls selectors confirmed from live DEAP on 2026-10-28.",
   "screens": {
     "details": {
       "url": "dwelling|details|general|property|assessment-details"
@@ -158,50 +158,42 @@
       "skip": true
     },
     "walls.types.name": {
+      "selector": "input[name=\"Description\"]",
       "labels": [
-        "Description",
-        "Name",
-        "Wall description"
+        "Description"
       ]
     },
     "walls.types.net": {
+      "selector": "input[name=\"Area\"]",
       "labels": [
-        "Area",
-        "Net area",
-        "Wall area"
+        "Area"
       ]
     },
     "walls.types.cons": {
+      "selector": "mat-select[name=\"WallTypeID\"]",
       "labels": [
-        "Wall type",
-        "Construction type",
-        "Construction"
+        "Wall Type"
       ]
     },
     "walls.types.thick": {
-      "labels": [
-        "Thickness",
-        "Wall thickness"
-      ]
-    },
-    "walls.types.ins": {
-      "labels": [
-        "Insulation type",
-        "Insulation"
-      ]
-    },
-    "walls.types.insmm": {
-      "labels": [
-        "Insulation thickness"
-      ]
-    },
-    "walls.types.year": {
       "skip": true
     },
-    "walls.types.u": {
+    "walls.types.ins": {
+      "skip": true
+    },
+    "walls.types.insmm": {
+      "skip": true
+    },
+    "walls.types.year": {
+      "selector": "mat-select[name=\"AgeBandID\"]",
       "labels": [
-        "U-value",
-        "U value"
+        "Age Band"
+      ]
+    },
+    "walls.types.u": {
+      "selector": "input[name=\"UValue\"]",
+      "labels": [
+        "U-Value"
       ]
     },
     "walls.types.ev": {
@@ -835,6 +827,15 @@
     },
     "gen.notes": {
       "skip": true
+    },
+    "walls.types": {
+      "dialog": true
+    },
+    "walls.types.semi": {
+      "selector": "input[name=\"SemiExposed\"]",
+      "labels": [
+        "Wall is semi-exposed"
+      ]
     }
   }
 }

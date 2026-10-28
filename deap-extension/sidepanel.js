@@ -75,7 +75,12 @@ function job(sc) {
   if (grouped.length) {
     const groups = [...new Set(grouped.map(f => f.group))], cols = [{ key: 'name', label: 'Description' }];
     grouped.forEach(f => { const ck = f.key.split('.').pop(); if (!cols.some(c => c.key === ck)) cols.push({ key: ck, label: f.label }) });
-    tables.unshift({ key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => c.key === 'name' ? g : (grouped.find(f => f.group === g && f.key.endsWith('.' + c.key)) || {}).value || '')) });
+    // DEAP's Add Wall dialog also wants the age band (wall year, else the dwelling's) and a semi-exposed tick
+    if (!cols.some(c => c.key === 'year')) cols.push({ key: 'year', label: 'Year built' });
+    cols.push({ key: 'semi', label: 'Semi-exposed' });
+    const dyear = ((st.survey.screens.find(x => x.id === 'details') || { fields: [] }).fields.find(f => f.key === 'details.year') || {}).value || '';
+    const val = (g, k) => k === 'name' ? g : k === 'semi' ? (/semi/i.test(g) ? 'Yes' : 'No') : (grouped.find(f => f.group === g && f.key.endsWith('.' + k)) || {}).value || (k === 'year' ? dyear : '');
+    tables.unshift({ key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => val(g, c.key))) });
   }
   const keys = fields.map(f => f.key).concat(tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))));
   return { fields, tables, mapping: fullMap(keys) };
@@ -96,11 +101,29 @@ async function fillScreen() {
   busy = true; render();
   try {
     const j = job(sc);
+    j.tables = j.tables.filter(t => !isDialog(j, t));
     const r = await send(Object.assign({ cmd: 'fill', options: { overwrite: st.overwrite } }, j));
     if (r && r.error) throw new Error(r.error);
-    results[sc.id] = r.results;
+    const dk = new Set(job(sc).tables.filter(t => isDialog(j, t)).map(t => t.key));
+    results[sc.id] = (results[sc.id] || []).filter(x => dk.has(x.key)).concat(r.results);
     const n = c => r.results.filter(x => c.includes(x.status)).length;
     toast(n(['filled', 'same']) + ' filled, ' + n(['nomatch', 'norow', 'nooption', 'error']) + ' to do by hand');
+  } catch (e) { toast(String(e.message || e)) }
+  busy = false; render();
+}
+// DEAP adds walls, windows and so on one at a time in a dialog, so a table row is filled into the open dialog
+const isDialog = (j, t) => (j.mapping[t.key] || {}).dialog !== false;
+async function fillRow(t, ri) {
+  const sc = cur(); if (!sc || busy) return;
+  busy = true; render();
+  try {
+    const j = job(sc);
+    const r = await send({ cmd: 'fill', options: { overwrite: st.overwrite }, fields: [], tables: [Object.assign({}, t, { rows: [t.rows[ri]] })], mapping: j.mapping });
+    if (r && r.error) throw new Error(r.error);
+    const got = r.results.map(x => Object.assign(x, x.row != null ? { row: ri } : {}));
+    results[sc.id] = (results[sc.id] || []).filter(x => !(x.key === t.key && x.row === ri)).concat(got);
+    const ok = got.filter(x => /filled|same/.test(x.status)).length, bad = got.filter(x => /nomatch|norow|nooption|error/.test(x.status)).length;
+    toast(ok ? ok + ' filled' + (bad ? ', ' + bad + ' by hand' : '') + '. Check it, then save in DEAP.' : 'Nothing filled. Is the DEAP dialog open?');
   } catch (e) { toast(String(e.message || e)) }
   busy = false; render();
 }
@@ -151,7 +174,7 @@ function helpCard() {
   return h('div', { class: 'card' }, h('h2', null, 'How it works'), h('ol', { class: 'steps' },
     h('li', null, 'Log in to DEAP and open the assessment.'),
     h('li', null, 'Go to a DEAP screen. The panel picks the same screen from your survey.'),
-    h('li', null, 'Press Fill this DEAP screen. Green outlines show what it filled.'),
+    h('li', null, 'Press Fill this DEAP screen. Green outlines show what it filled. For walls, windows and other lists, open DEAP\'s Add dialog and press Fill on that row.'),
     h('li', null, 'Check the screen and save it in DEAP yourself. Red items are left for you, tap a value to copy it.'),
     h('li', null, 'If a value went in the wrong place or was not found, press Pick and click the right DEAP field. It remembers that for every survey.')));
 }
@@ -184,9 +207,17 @@ function screenCard(sc) {
     const skip = j.mapping[t.key] && j.mapping[t.key].skip;
     card.append(h('h3', null, t.title + (skip ? ' (left out)' : '')));
     if (skip) { card.append(h('div', { class: 'row' }, h('button', { class: 'teach', onclick: () => setSkip(t.key, false) }, 'Fill this table'))); }
-    const tb = h('table', null, h('thead', null, h('tr', null, t.columns.map(c => h('th', null, c.label, h('br'), h('button', { class: 'teach', onclick: () => teach(t.key + '.' + c.key, c.label + ' (' + t.title + ')', true) }, 'Pick'))))),
-      h('tbody', null, t.rows.map((row, ri) => h('tr', null, row.map((v, ci) => { const res = resultFor(t.key, ri, t.columns[ci].key); return h('td', { class: res ? res.status : '', title: res ? STATUS[res.status] + (res.detail ? ': ' + res.detail : '') : '' }, v === '' ? '' : h('button', { class: 'v', onclick: () => copy(v) }, v)) })))));
+    const dlg = !skip && isDialog(j, t);
+    if (dlg) card.append(h('p', { class: 'note' }, 'One at a time: press ADD in DEAP (or open the item), press Fill on its row here, check it and save in DEAP.'));
+    const tb = h('table', null, h('thead', null, h('tr', null, dlg ? h('th') : null, t.columns.map(c => h('th', null, c.label, h('br'), h('button', { class: 'teach', onclick: () => teach(t.key + '.' + c.key, c.label + ' (' + t.title + ')', !dlg) }, 'Pick'))))),
+      h('tbody', null, t.rows.map((row, ri) => {
+        const rr = (results[sc.id] || []).filter(x => x.key === t.key && x.row === ri);
+        return h('tr', null, dlg ? h('td', null, h('button', { class: 'btn small' + (rr.length ? '' : ' primary'), disabled: busy || !deapTab, title: 'Fill this row into the open DEAP dialog', onclick: () => fillRow(t, ri) }, rr.length ? 'Again' : 'Fill')) : null,
+          row.map((v, ci) => { const res = resultFor(t.key, ri, t.columns[ci].key); return h('td', { class: res ? res.status : '', title: res ? STATUS[res.status] + (res.detail ? ': ' + res.detail : '') : '' }, v === '' ? '' : h('button', { class: 'v', onclick: () => copy(v) }, v)) }));
+      })));
     card.append(h('div', { class: 'tbl' }, tb));
+    const why = (results[sc.id] || []).filter(x => x.key === t.key && x.detail && !/filled|same/.test(x.status));
+    why.forEach(x => card.append(h('div', { class: 'why ' + x.status, style: 'grid-column:auto' }, 'Row ' + (x.row + 1) + ', ' + (t.columns.find(c => c.key === x.col) || {}).label + ': ' + x.detail)));
     const bad = (results[sc.id] || []).filter(x => x.key === t.key && x.status === 'norow').length;
     if (bad) card.append(h('p', { class: 'note' }, 'DEAP shows fewer rows than the survey. Add the missing rows in DEAP, then fill again.'));
     if (!skip) card.append(h('div', { class: 'row' }, h('button', { class: 'teach', onclick: () => setSkip(t.key, true) }, 'Leave this table out')));

@@ -24,7 +24,7 @@ To update later, unzip the new version over the same folder and press the reload
    - Red: not found, or DEAP has no matching option. Tap the value to copy it and enter it by hand.
 6. Check the screen and save it in DEAP.
 
-For lists such as windows or storeys, add the rows in DEAP first (for example Add window three times), then press Fill. Row 1 of the survey goes into the first row DEAP shows, and so on.
+DEAP adds walls, windows and other list items one at a time in a dialog. For those, press ADD WALL (or open an existing one) in DEAP, then press **Fill** on that row in the panel. Check it and save it in DEAP, then do the next row. Age bands are picked from the wall's year, or the dwelling's year if the wall has none.
 
 ## Teaching it DEAP's fields
 
