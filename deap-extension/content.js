@@ -363,6 +363,49 @@
     return collect().map(c => ({ kind: c.kind, label: (c.labels[0] || {}).t || '', alsoSeen: c.labels.slice(1, 4).map(x => x.t), selector: selectorFor(c.el), options: c.options ? c.options.slice(0, 40) : undefined, value: c.kind === 'text' ? c.el.value : c.kind === 'select' ? clean(c.el.options[c.el.selectedIndex]?.text) : undefined }));
   }
 
+  // ---------- record: while on, every DEAP screen and dialog you open is listed, with dropdown choices you open ----------
+  // Saved straight into the extension's storage, so one walk through a survey gives the whole field list
+  let recObs = null, recT = null, lastTouched = null;
+  const touch = e => { const c = e.target.closest && e.target.closest(CUSTOM + ',select,input'); if (c && !c.closest('#bsdf-ui')) lastTouched = c.closest('mat-select') || c };
+  const screenKey = () => {
+    const path = location.pathname.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, '<id>');
+    const dlg = [...document.querySelectorAll('mat-dialog-container,[role=dialog],.mat-mdc-dialog-container')].filter(visible).pop();
+    const title = dlg ? clean(textOf(dlg.querySelector('h1,h2,h3,.mat-mdc-dialog-title,.mat-dialog-title')) || 'dialog') : '';
+    return { key: path + (title ? ' › ' + title : ''), path, dialog: title || undefined, heading: title ? undefined : [...document.querySelectorAll('h1,h2,[role=tab][aria-selected=true]')].filter(visible).slice(0, 3).map(textOf).join(' / ') };
+  };
+  async function snapshot() {
+    const sk = screenKey(), fields = scan();
+    // a dropdown that is open right now: keep its choices against the field that opened it
+    const open = [...document.querySelectorAll(OPTION_SEL)].filter(x => visible(x) && !x.closest('#bsdf-ui')).map(textOf).filter(Boolean);
+    const exp = open.length && ([...document.querySelectorAll('mat-select[aria-expanded=true],[role=combobox][aria-expanded=true]')].find(e => !e.closest('#bsdf-ui')) || lastTouched);
+    const { recorded = {} } = await chrome.storage.local.get('recorded');
+    const scr = recorded[sk.key] || (recorded[sk.key] = Object.assign({ fields: [] }, sk));
+    const same = (a, b) => a.selector && a.selector === b.selector || !a.selector && a.label === b.label;
+    fields.forEach(f => { const o = scr.fields.find(x => same(x, f)); if (o) { f.options = f.options || o.options; Object.assign(o, f) } else scr.fields.push(f) });
+    // buttons, tabs and menu links too, so a later version can move through DEAP and press Add and Save itself
+    const name = e => clean(textOf(e) || e.getAttribute('aria-label') || e.getAttribute('title') || e.getAttribute('mattooltip') || '').slice(0, 60);
+    const btns = [...document.querySelectorAll('button,[role=button],[role=tab],a[href]')].filter(e => visible(e) && !e.closest('#bsdf-ui')).map(e => ({ text: name(e), tag: e.tagName.toLowerCase(), role: e.getAttribute('role') || undefined, href: e.getAttribute('href') || undefined, inDialog: !!e.closest('mat-dialog-container,[role=dialog]') || undefined, cls: [...e.classList].filter(c => !shaky(c)).slice(0, 3).join(' ') || undefined })).filter(b => b.text || b.href);
+    scr.buttons = scr.buttons || [];
+    btns.forEach(b => { if (!scr.buttons.some(x => x.text === b.text && x.href === b.href && x.inDialog === b.inDialog)) scr.buttons.push(b) });
+    scr.buttons = scr.buttons.slice(0, 150);
+    if (exp) {
+      const sel = selectorFor(exp), lab = (labelCands(exp)[0] || {}).t;
+      for (const sc of Object.values(recorded)) { const f = sc.fields.find(x => sel && x.selector === sel || !sel && x.label === lab); if (f) f.options = open.slice(0, 80) }
+    }
+    await chrome.storage.local.set({ recorded });
+  }
+  function record(on) {
+    if (recObs) { recObs.disconnect(); recObs = null; document.removeEventListener('click', touch, true) }
+    if (!on) return;
+    document.addEventListener('click', touch, true);
+    const kick = () => { clearTimeout(recT); recT = setTimeout(() => snapshot().catch(() => {}), 600) };
+    recObs = new MutationObserver(kick);
+    recObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded'] });
+    kick();
+  }
+  chrome.storage.local.get('recording').then(r => record(!!r.recording));
+  chrome.storage.onChanged.addListener(ch => { if (ch.recording) record(!!ch.recording.newValue) });
+
   // ---------- teach: you click the DEAP field that should get a value ----------
   let picking = null;
   function pick(label, column) {

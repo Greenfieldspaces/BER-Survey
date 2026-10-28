@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BER Survey DEAP Fill",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Fills the open DEAP screen from a BER Survey transfer file. You check each screen and save it in DEAP yourself.",
   "permissions": ["storage", "sidePanel", "scripting", "clipboardWrite"],
   "host_permissions": ["https://deap.seai.ie/*"],

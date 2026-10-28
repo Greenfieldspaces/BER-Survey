@@ -23,6 +23,7 @@ async function init() {
   document.addEventListener('dragover', e => { e.preventDefault(); const d = $('.drop'); if (d) d.classList.add('on') });
   document.addEventListener('dragleave', () => { const d = $('.drop'); if (d) d.classList.remove('on') });
   document.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) f.text().then(loadText) });
+  await loadRec();
   await findTab();
   render();
 }
@@ -151,7 +152,7 @@ const cur = () => st.survey && st.survey.screens.find(s => s.id === st.screen) |
 function render() {
   const bar = $('#surveyBar'), main = $('#main');
   bar.replaceChildren();
-  if (!st.survey) { main.replaceChildren(loadCard(true), helpCard(), toolsCard()); return }
+  if (!st.survey) { main.replaceChildren(recordCard(), loadCard(true), helpCard(), toolsCard()); return }
   const sv = st.survey.survey;
   bar.append(h('div', { class: 'row' }, h('div', { style: 'flex:1;min-width:0' }, h('b', null, sv.name), h('div', { class: 'note' }, [sv.eircode, sv.date].filter(Boolean).join(' · ') || 'Exported ' + new Date(st.survey.exported).toLocaleString('en-IE'))),
     h('button', { class: 'btn ghost', onclick: () => { st.survey = null; save(); render() } }, 'Change')));
@@ -160,7 +161,7 @@ function render() {
     const r = results[x.id], bad = r ? r.filter(q => /nomatch|norow|nooption|error/.test(q.status)).length : 0;
     return h('button', { 'aria-pressed': String(x.id === sc.id), onclick: () => { st.screen = x.id; save(); clearMarks(); render() } }, x.name, r ? h('span', { class: 'n' }, bad ? bad + ' left' : '✓') : null);
   })));
-  main.replaceChildren(screenCard(sc), toolsCard());
+  main.replaceChildren(screenCard(sc), recordCard(), toolsCard());
 }
 function loadCard(first) {
   const ta = h('textarea', { placeholder: 'Or paste the transfer text here' });
@@ -228,6 +229,28 @@ function screenCard(sc) {
 }
 const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
+// ---------- record DEAP once: walk through one assessment and every screen's fields are kept ----------
+let rec = { recording: false, recorded: {} };
+async function loadRec() { Object.assign(rec, await chrome.storage.local.get(['recording', 'recorded'])); rec.recorded = rec.recorded || {} }
+chrome.storage.onChanged.addListener(ch => { if (ch.recorded || ch.recording) loadRec().then(render) });
+async function setRecording(on) {
+  await chrome.storage.local.set({ recording: on });
+  if (on) { try { await send({ cmd: 'ping' }) } catch (e) { } }
+}
+function recordCard() {
+  const scr = Object.values(rec.recorded), nf = scr.reduce((a, s) => a + s.fields.length, 0), nopt = scr.reduce((a, s) => a + s.fields.filter(f => f.options).length, 0);
+  const all = () => ({ recorded: new Date().toISOString(), version: chrome.runtime.getManifest().version, screens: rec.recorded, taught: st.userMap });
+  return h('div', { class: 'card' + (rec.recording ? ' rec' : '') }, h('h2', null, rec.recording ? '● Recording DEAP fields' : 'Record DEAP fields (one time)'),
+    rec.recording ? h('p', { class: 'note' }, 'Click through DEAP: every tab, every Add dialog (then Cancel), and open each dropdown once. Nothing is typed or saved in DEAP.')
+      : h('p', { class: 'note' }, 'Press Start, then click through one assessment in DEAP. When you are done, press Save file and send it to Claude once.'),
+    h('p', { class: 'sum' }, scr.length + ' screens · ' + nf + ' fields · ' + nopt + ' dropdown lists'),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn' + (rec.recording ? '' : ' primary'), onclick: () => setRecording(!rec.recording) }, rec.recording ? 'Stop' : 'Start recording'),
+      scr.length ? h('button', { class: 'btn' + (rec.recording ? '' : ' primary'), onclick: () => download('deap-fields-recorded.json', all()) }, 'Save file') : null,
+      scr.length ? h('button', { class: 'btn', onclick: () => copy(JSON.stringify(all())) }, 'Copy') : null,
+      scr.length ? h('button', { class: 'btn ghost', onclick: e => { if (e.target.dataset.armed) chrome.storage.local.set({ recorded: {} }); else { e.target.dataset.armed = 1; e.target.textContent = 'Click again to clear' } } }, 'Clear') : null),
+    scr.length ? h('details', null, h('summary', { class: 'note' }, 'What it has seen'), h('div', { class: 'scan' }, scr.map(s => s.key + '  (' + s.fields.length + ')').join('\n'))) : null);
+}
 function toolsCard() {
   const file = h('input', { type: 'file', accept: '.json', hidden: true, onchange: async e => { const f = e.target.files[0]; if (!f) return; try { const m = JSON.parse(await f.text()); Object.assign(st.userMap, m.fields || m); save(); render(); toast('Field mapping imported') } catch (x) { toast('That is not a mapping file') } } });
   const taught = Object.keys(st.userMap).length;

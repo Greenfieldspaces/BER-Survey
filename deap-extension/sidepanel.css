@@ -63,3 +63,5 @@ details>summary{cursor:pointer;font-weight:600}
 .drop.on{border-color:var(--accent);color:var(--accent)}
 ol.steps{margin:0;padding-left:18px;color:var(--muted);font-size:13px}
 .btn.small{min-height:26px;padding:0 8px;font-size:12px}
+.card.rec{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad-soft)}
+.card.rec h2{color:var(--bad)}
