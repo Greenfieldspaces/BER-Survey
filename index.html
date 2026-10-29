@@ -74,35 +74,42 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .intro b{font-weight:600}
 
 .wall{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
-.wall-head{display:grid;grid-template-columns:minmax(0,1.4fr) 92px minmax(0,1.2fr);gap:8px}
-@media (max-width:520px){.wall-head{grid-template-columns:1fr 92px}.wall-head .wtype{grid-column:1/-1}}
+.wall-head{display:grid;grid-template-columns:76px minmax(0,1fr) 96px 96px;gap:10px;align-items:end}
+.wall-head .span2{grid-column:span 2}
+.wall-head .wtype{grid-column:1/4}
+@media (max-width:520px){.wall-head{grid-template-columns:72px minmax(0,1fr) minmax(0,1fr)}.wall-head>.field:nth-child(2){grid-column:2/4}.wall-head .wtype{grid-column:1/3}}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .seg{display:inline-flex;background:var(--sunk);border-radius:8px;padding:3px;gap:2px}
 .seg button{border:0;background:none;padding:6px 12px;border-radius:6px;min-height:36px;cursor:pointer;font-weight:600;color:var(--muted)}
 .seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.15)}
-.dims{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end}
-.gross{display:flex;flex-direction:column;justify-content:center;min-height:44px}
-.gross .v{font-family:var(--f-num);font-size:17px}
-
-.ops{display:flex;flex-direction:column;gap:6px}
-.op{display:grid;grid-template-columns:100px minmax(0,1fr) 72px 72px 84px 52px 70px 40px;gap:6px;align-items:center}
-.op-h{font-size:11px;letter-spacing:.04em}
-.op .area{font-family:var(--f-num);text-align:right;font-size:15px}
-.op input.dimmed{opacity:.4}
-@media (max-width:640px){
-  .op{grid-template-columns:1fr 1fr 1fr 1fr;row-gap:6px;padding:8px;background:var(--sunk);border-radius:8px}
-  .op .k{grid-column:1/3}.op .nm{grid-column:3/5}
-  .op .area{grid-column:1/4;text-align:left}
-  .op .x{justify-self:end}
-  .op-h{background:none!important;padding:0 8px!important;row-gap:0!important}.op-h .k,.op-h .nm,.op-h .hide-sm{display:none}
-}
-.op-add{display:flex;gap:8px;flex-wrap:wrap}
+.dirsel{font-weight:700;font-size:17px;text-align:center;background:var(--accent-soft)!important;border-color:var(--accent)!important}
+input.auto::placeholder{color:var(--muted);font-size:15px}
+input.auto{border-style:dashed;background:var(--bg)}
+.wnetbox{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;min-height:44px}
+.wnet{font-family:var(--f-num);font-size:21px;color:var(--accent)}
+.wall.open{border:2px solid var(--accent)}
+.wrow{display:grid;grid-template-columns:52px minmax(0,1fr) auto 84px;gap:12px;align-items:center;padding:10px 14px}
+.wrow .dir{min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--accent-soft);font-weight:700;font-size:17px}
+.wrow-m{display:flex;flex-direction:column;gap:6px;min-width:0}
+.wrow .wnet{text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{display:inline-flex;gap:6px;align-items:center;min-height:36px;padding:0 10px;border-radius:18px;background:var(--sunk);font-size:14px;border:0;color:inherit;cursor:pointer}
+span.chip{min-height:28px;cursor:default;font-size:13px}
+.code{background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:0 6px;font-size:12px;font-weight:700}
+.code.door{background:var(--muted);color:var(--surface)}
+.code.big{font-size:18px;padding:2px 10px;border-radius:6px}
+.oppanel{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:12px}
+.oppanel h4{margin:0;font-family:var(--f-display);font-size:17px}
+.opgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:520px){.opgrid{grid-template-columns:1fr 1fr}}
+.tchips{display:flex;flex-wrap:wrap;gap:6px}
+.tchip{min-height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:15px;cursor:pointer}
+.tchip[aria-pressed=true]{border:2px solid var(--accent);background:var(--accent-soft)}
+.tchip.add{border-style:dashed;color:var(--muted);font-weight:400}
+.otype{background:var(--surface)}
 .x{min-height:40px;width:40px;border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer;border-radius:8px}
 
 .wall-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:12px}
-.net{margin-right:auto;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.net .v{font-family:var(--f-num);font-size:26px;color:var(--accent)}
-.net .calc{font-size:14px;color:var(--muted);font-family:var(--f-num)}
 .warn{background:var(--warn-soft);color:var(--warn);padding:6px 10px;border-radius:8px;font-size:14px}
 
 aside.panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 110px);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:14px}
@@ -280,13 +287,14 @@ const SECTIONS=[
       NOTES()]},
     {id:'walls',name:'Walls',walls:true},
     {id:'openings',name:'Windows & doors',groups:[
-      {title:'Default for all windows',hint:'Set what most windows are. Change individual windows below only where they differ.',fields:WIN_FIELDS.concat([S_('shading','Window overshading',OVERSHADE)])},
-      {title:'Default for all doors',fields:DOOR_FIELDS},
+      {title:'Window types',custom:'wintypes'},
+      {title:'Door types',custom:'doortypes'},
+      {title:'Whole house',fields:[S_('shading','Window overshading',OVERSHADE)]},
       {title:'Windows/doors draught stripping',fields:[
         N('op_total','Total windows & doors',{int:1,phFn:()=>'('+wallOpCount()+' on walls)',hint:'Leave blank to use the count from your walls'}),
         N('op_strip','No. draught stripped',{int:1}),
         F('_c','',{type:'calc',calc:'drstrip'})]},
-      {title:'Each window and door',custom:'oplist'},
+      {title:'What DEAP gets',custom:'deaplines'},
       {title:'Roof lights',fields:[
         F('rooflights','Roof lights',{type:'list',add:'+ Roof light',cols:[N('w','Width m'),N('h','Height m'),N('qty','Qty',{int:1}),S_('orient','Faces',['Horizontal'].concat(ORIENTS)),N('pitch','Pitch °')]})]},
       NOTES()]},
@@ -411,7 +419,8 @@ function load(){
     if(d.vent&&(d.vent.op_total||d.vent.op_strip)){d.openings=d.openings||{};['op_total','op_strip'].forEach(k=>{if(d.vent[k]&&!d.openings[k])d.openings[k]=d.vent[k];delete d.vent[k]})}
     if(d.water&&d.water.src==='Main space heating system')d.water.src='Same as main space heating';
     if(d.water&&d.water.src==='Combi boiler'){d.water.src='Same as main space heating';d.water.combi='Yes'}
-    if(d.details&&d.details.extyear&&!d.details.ext)d.details.ext='Yes'});
+    if(d.details&&d.details.extyear&&!d.details.ext)d.details.ext='Yes';
+    migrateOps(s)});
   if(db.tab==='walls'){db.tab='building';db.sub='walls'}
   if(!SECTIONS.some(x=>x.id===db.tab))db.tab='details';
   db.sub=db.sub||'dims';
@@ -421,9 +430,12 @@ function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setIt
 const cur=()=>db.surveys[db.current];
 
 // ---- geometry ----
+// a wall with no height of its own takes the storey heights added up (room in roof and basement left out)
+const autoH=s=>(((s.data||{}).dims||{}).storeys||[]).filter(r=>!/roof|basement/i.test(r.level||'')).reduce((a,r)=>a+n(r.height),0);
+const wallH=w=>hasVal(w.H)?n(w.H):autoH(cur());
 function gross(w){
   if(w.shape==='area')return n(w.area);
-  const r=n(w.L)*n(w.H);
+  const r=n(w.L)*wallH(w);
   return w.shape==='gable'?r+0.5*n(w.L)*n(w.apex):r;
 }
 // an area typed in directly wins over width × height
@@ -435,7 +447,7 @@ const net=w=>gross(w)-opsArea(w);
 
 // ---- ui helpers ----
 const $=s=>document.querySelector(s);
-function el(tag,attrs,...kids){const e=document.createElement(tag);for(const k in attrs||{}){const v=attrs[k];if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v)}for(const c of kids.flat()){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(c))}return e}
+function el(tag,attrs,...kids){const e=document.createElement(tag);for(const k in attrs||{}){const v=attrs[k];if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v)}for(const c of kids.flat(Infinity)){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(c))}return e}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,1800)}
 function numInput(id,val,label,oninput){return el('input',{id,inputmode:'decimal',value:val,placeholder:'0.00','aria-label':label,autocomplete:'off',oninput})}
 function armButton(label,onConfirm,cls){
@@ -459,13 +471,30 @@ $('#surveySel').addEventListener('change',e=>{db.current=e.target.value;save();r
 $('#newSurvey').addEventListener('click',()=>{const s=newSurvey('Survey '+new Date().toLocaleDateString('en-IE'));s.data.details={date:new Date().toISOString().slice(0,10)};db.surveys[s.id]=s;db.current=s.id;db.tab='details';save();render();setTimeout(()=>{const i=$('#svName');i&&i.focus();i&&i.select()},50)});
 
 // ---- walls ----
+// one wall is open for editing at a time; the others show as one-line rows
+let openWall=null,opDraft=null,addingType=null;
+const lastT={};
+const nextOrient=s=>{const last=s.walls[s.walls.length-1];return last?ORIENTS[(ORIENTS.indexOf(last.orient)+2)%8]:'S'};
+const oppOf=o=>ORIENTS[(ORIENTS.indexOf(o)+4)%8];
+function addWall(s,from){
+  const last=s.walls[s.walls.length-1],o=nextOrient(s);
+  const w=blankWall(from?{orient:o,type:from.type,shape:from.shape,L:from.L,H:from.H,apex:from.apex,area:from.area}
+    :{orient:o,type:last?last.type:s.types[0],H:last&&!autoH(s)?last.H:''});
+  s.walls.push(w);openWall=w.id;opDraft=null;save();render();
+  setTimeout(()=>{const c=$('[data-wall="'+w.id+'"]');c&&c.scrollIntoView({behavior:'smooth',block:'start'});const i=c&&c.querySelector('#wn-'+w.id);i&&i.focus()},50);
+}
 function renderWalls(){
-  const s=cur();
+  const s=cur(),ah=autoH(s);
   const col=el('div',{class:'stack'});
-  if(s.example)col.append(exampleNote());
-  s.walls.forEach((w,i)=>col.append(wallCard(w,i)));
+  col.append(el('div',{class:'intro'},el('b',null,'Walk round the outside, one row per wall.'),' ',
+    ah?['Height fills in from your storey heights (',el('span',{class:'num'},f2(ah)),' m, room in roof left out). Type over it if a wall is different.']
+      :'Add storey heights on Dimensions and the wall height fills in by itself.'));
+  if(openWall==null||(openWall!=='none'&&!s.walls.some(w=>w.id===openWall)))openWall=s.walls.length?s.walls[s.walls.length-1].id:null;
+  s.walls.forEach((w,i)=>col.append(w.id===openWall?wallCard(w,i):wallRow(w,i)));
+  const o=nextOrient(s),opp=[...s.walls].reverse().find(w=>w.orient===oppOf(o));
   col.append(el('div',{class:'row'},
-    el('button',{class:'btn primary',onclick:()=>{const last=s.walls[s.walls.length-1];s.walls.push(blankWall({H:last?last.H:'',type:last?last.type:s.types[0],orient:last?ORIENTS[(ORIENTS.indexOf(last.orient)+2)%8]:'S'}));save();render();setTimeout(()=>{const c=document.querySelectorAll('.wall');const l=c[c.length-1];l&&l.scrollIntoView({behavior:'smooth',block:'start'});const i=l&&l.querySelector('input');i&&i.focus()},50)}},'+ Add wall')));
+    el('button',{class:'btn primary',onclick:()=>addWall(s)},s.walls.length?'+ Next wall (faces '+o+')':'+ Add wall'),
+    opp?el('button',{class:'btn',onclick:()=>addWall(s,opp)},'+ Same size as '+(opp.name||'wall '+(s.walls.indexOf(opp)+1))):null));
   col.append(wallTypesEl());
   const wrap=el('div',{class:'layout'},col,summaryPanel(true));
   return wrap;
@@ -486,20 +515,81 @@ function wallTypesEl(){
   });
   return card;
 }
-let addingType=null;
+const sizeText=w=>w.shape==='area'?f2(n(w.area))+' m² typed in':f2(n(w.L))+' × '+f2(wallH(w))+(w.shape==='gable'?' + apex '+f2(n(w.apex)):'');
+function opChip(o,onclick){
+  const t=opType(o);
+  return el(onclick?'button':'span',{class:'chip',onclick:onclick||null,'aria-label':onclick?'Edit '+o.kind+(o.name?' '+o.name:''):null},
+    el('b',{class:'code'+(o.kind==='door'?' door':'')},t?t.code:o.kind==='door'?'Door':'?'),
+    el('span',{class:'num'},(hasVal(o.a)?f2(n(o.a))+' m²':f2(n(o.w))+'×'+f2(n(o.h)))+(n(o.qty)>1?' ×'+o.qty:'')),
+    o.name?el('span',{class:'muted'},o.name):null);
+}
+function wallRow(w,i){
+  return el('section',{class:'wall wrow','data-wall':w.id},
+    el('span',{class:'dir'},w.orient),
+    el('div',{class:'wrow-m'},
+      el('div',null,el('b',null,w.name||'Wall '+(i+1)),' ',el('span',{class:'num muted'},sizeText(w)),el('span',{class:'muted'},' · '+w.type)),
+      el('div',{class:'chips'},w.ops.length?w.ops.map(o=>opChip(o)):el('span',{class:'note'},'No openings'))),
+    el('button',{class:'btn small',onclick:()=>{openWall=w.id;opDraft=null;addingType=null;render()}},'Edit'),
+    el('span',{class:'wnet','data-net':1},f2(net(w))));
+}
+function startDraft(w,kind,o){
+  if(o){opDraft={wall:w.id,id:o.id,kind:o.kind,w:o.w||'',h:o.h||'',a:o.a||'',qty:o.qty||'1',name:o.name||'',t:o.t}}
+  else{
+    const ts=opTypes(kind);
+    const t=ts.find(x=>x.id===lastT[kind])||ts[0]||newOpType(kind);
+    opDraft={wall:w.id,id:null,kind,w:'',h:'',a:'',qty:'1',name:'',t:t.id};save();
+  }
+  render();setTimeout(()=>{const i=$('#dw');i&&i.focus()},40);
+}
+function opPanel(w){
+  const d=opDraft,door=d.kind==='door',ts=opTypes(d.kind),what=door?'door':'window';
+  const area=el('span',{class:'num note'});
+  const upd=()=>{area.textContent=opArea(d)>0?'= '+f2(opArea(d))+' m²':''};upd();
+  const commit=()=>{
+    if(!(opEach(d)>0)){toast('Enter the width and height');return false}
+    const v={kind:d.kind,name:d.name.trim(),w:d.w,h:d.h,qty:hasVal(d.qty)?d.qty:'1',t:d.t};
+    const o=d.id&&w.ops.find(x=>x.id===d.id);
+    if(o){Object.assign(o,v);if(hasVal(d.a))o.a=d.a;else delete o.a}
+    else{if(hasVal(d.a))v.a=d.a;w.ops.push(blankOp(d.kind,v))}
+    lastT[d.kind]=d.t;save();return true;
+  };
+  const next=()=>{if(!commit())return;opDraft=Object.assign({},d,{id:null,w:'',h:'',a:'',qty:'1',name:''});render();setTimeout(()=>{const i=$('#dw');i&&i.focus()},40)};
+  const done=()=>{if((hasVal(d.w)||hasVal(d.h)||hasVal(d.a))&&!commit())return;opDraft=null;render()};
+  const inp=(id,k,label,mode,ph)=>el('div',{class:'field'},el('label',{class:'label',for:id},label),
+    el('input',{id,inputmode:mode,value:d[k],placeholder:ph||'',autocomplete:'off',oninput:e=>{d[k]=e.target.value;upd()},onkeydown:e=>{if(e.key==='Enter'){e.preventDefault();d.id?done():next()}}}));
+  const tb=el('div',{class:'tchips',role:'group','aria-label':door?'Door type':'Window type'},
+    ts.map(t=>el('button',{class:'tchip','aria-pressed':String(d.t===t.id),onclick:()=>{d.t=t.id;render()}},typeLabel(t,d.kind))),
+    el('button',{class:'tchip add',onclick:()=>{const t=newOpType(d.kind);d.t=t.id;save();render();toast('Type '+t.code+' added. Describe it on Windows & doors')}},'+ New type'));
+  return el('div',{class:'oppanel'},
+    el('h4',null,d.id?'Edit '+what:'Add a '+what+' to '+(w.name||'this wall')),
+    el('div',{class:'opgrid'},inp('dw','w','Width m','decimal','0.00'),inp('dh','h','Height m','decimal','0.00'),inp('dq','qty','How many','numeric'),inp('da','a','Or area each m²','decimal','')),
+    el('div',{class:'field'},el('span',{class:'label'},door?'Door type':'Window type'),tb),
+    el('div',{class:'row'},el('label',{class:'note',for:'dn'},'Label'),el('input',{id:'dn',value:d.name,placeholder:door?'e.g. Back door':'e.g. Kitchen',style:'width:200px;flex:0 1 200px',oninput:e=>{d.name=e.target.value}}),area,
+      el('span',{style:'flex:1'}),
+      d.id?armButton('Delete',()=>{w.ops=w.ops.filter(x=>x.id!==d.id);opDraft=null;save();render()}):null,
+      el('button',{class:'btn ghost',onclick:d.id?()=>{opDraft=null;render()}:done},d.id?'Cancel':'Done'),
+      el('button',{class:'btn primary',onclick:d.id?done:next},d.id?'Save':'Add and next '+what)));
+}
 function wallCard(w,i){
-  const s=cur();
-  const card=el('section',{class:'wall','data-wall':w.id});
+  const s=cur(),ah=autoH(s);
+  const card=el('section',{class:'wall open','data-wall':w.id});
   const tsel=el('select',{id:'wt-'+w.id,onchange:e=>{if(e.target.value==='__new'){addingType=w.id}else{w.type=e.target.value;addingType=null}save();render()}});
   const types=s.types.includes(w.type)?s.types:s.types.concat(w.type);
   types.forEach(t=>tsel.append(el('option',{value:t,selected:t===w.type&&addingType!==w.id},t)));
   tsel.append(el('option',{value:'__new',selected:addingType===w.id},'+ New wall type…'));
-  const osel=el('select',{id:'wo-'+w.id,onchange:e=>{w.orient=e.target.value;save();refresh()}});
+  const osel=el('select',{id:'wo-'+w.id,class:'dirsel',onchange:e=>{w.orient=e.target.value;save();render()}});
   ORIENTS.forEach(o=>osel.append(el('option',{value:o,selected:o===w.orient},o)));
+  const upd=k=>e=>{w[k]=e.target.value;save();refresh()};
+  const fld=(lab,id,inp,cls)=>el('div',{class:'field'+(cls?' '+cls:'')},el('label',{class:'label',for:id},lab),inp);
+  const hi=numInput('wh-'+w.id,w.H,'Height',upd('H'));
+  if(ah){hi.placeholder=f2(ah)+' auto';hi.classList.add('auto')}
   card.append(el('div',{class:'wall-head'},
-    el('div',{class:'field'},el('label',{class:'label',for:'wn-'+w.id},'Wall '+(i+1)),el('input',{id:'wn-'+w.id,value:w.name,placeholder:'e.g. Front, Rear, Gable',oninput:e=>{w.name=e.target.value;save();refresh()}})),
-    el('div',{class:'field'},el('label',{class:'label',for:'wo-'+w.id},'Faces'),osel),
-    el('div',{class:'field wtype'},el('label',{class:'label',for:'wt-'+w.id},'Wall type'),tsel)));
+    fld('Faces','wo-'+w.id,osel),
+    fld('Wall '+(i+1),'wn-'+w.id,el('input',{id:'wn-'+w.id,value:w.name,placeholder:'e.g. Front, Rear, Gable',oninput:e=>{w.name=e.target.value;save();refresh()}})),
+    w.shape==='area'?fld('Gross area m²','wa-'+w.id,numInput('wa-'+w.id,w.area,'Gross area',upd('area')),'span2')
+      :[fld('Length m','wl-'+w.id,numInput('wl-'+w.id,w.L,'Length',upd('L'))),fld(w.shape==='gable'?'Eaves height m':'Height m','wh-'+w.id,hi)],
+    fld('Wall type','wt-'+w.id,tsel,'wtype'),
+    el('div',{class:'wnetbox'},el('span',{class:'label'},'Net m²'),el('span',{class:'wnet','data-net':1},f2(net(w))))));
   if(addingType===w.id){
     const ni=el('input',{id:'nt-'+w.id,value:'',placeholder:'e.g. Extension cavity wall 2005'});
     const addT=()=>{const v=ni.value.trim();if(!v)return;if(!s.types.includes(v))s.types.push(v);w.type=v;addingType=null;save();render();toast('Wall type added. Fill in its construction and year below')};
@@ -509,47 +599,29 @@ function wallCard(w,i){
       el('div',{class:'row'},ni,el('button',{class:'btn primary',onclick:addT},'Add'),el('button',{class:'btn ghost',onclick:()=>{addingType=null;render()}},'Cancel'))));
     setTimeout(()=>{const x=document.getElementById('nt-'+w.id);x&&x.focus()},30);
   }
-
-  const seg=el('div',{class:'seg',role:'group','aria-label':'Wall shape'});
-  [['rect','Rectangle'],['gable','Gable'],['area','Area']].forEach(([k,lab])=>seg.append(el('button',{'aria-pressed':String(w.shape===k),onclick:()=>{w.shape=k;save();render()}},lab)));
-  const dims=el('div',{class:'dims'});
-  const upd=k=>e=>{w[k]=e.target.value;save();refresh()};
-  if(w.shape==='area'){
-    dims.append(el('div',{class:'field'},el('label',{class:'label',for:'wa-'+w.id},'Gross area m²'),numInput('wa-'+w.id,w.area,'Gross area',upd('area'))));
-  }else{
-    dims.append(el('div',{class:'field'},el('label',{class:'label',for:'wl-'+w.id},'Length m'),numInput('wl-'+w.id,w.L,'Length',upd('L'))));
-    dims.append(el('div',{class:'field'},el('label',{class:'label',for:'wh-'+w.id},w.shape==='gable'?'Eaves height m':'Height m'),numInput('wh-'+w.id,w.H,'Height',upd('H'))));
-    if(w.shape==='gable')dims.append(el('div',{class:'field'},el('label',{class:'label',for:'wp-'+w.id},'Eaves to apex m'),numInput('wp-'+w.id,w.apex,'Eaves to apex',upd('apex'))));
-  }
-  dims.append(el('div',{class:'gross'},el('span',{class:'label'},'Gross'),el('span',{class:'v','data-gross':1},f2(gross(w))+' m²')));
-  card.append(el('div',{class:'row'},seg),dims);
-
-  const ops=el('div',{class:'ops'});
-  if(w.ops.length)ops.append(el('div',{class:'op op-h label'},el('span',{class:'k'},'Type'),el('span',{class:'nm'},'Label'),el('span',null,'Width m'),el('span',null,'Height m'),el('span',null,'Or area'),el('span',null,'Qty'),el('span',{class:'area hide-sm',style:'text-align:right'},'Total'),el('span',{class:'hide-sm'})));
-  w.ops.forEach(o=>{
-    const ksel=el('select',{class:'k','aria-label':'Opening type',onchange:e=>{o.kind=e.target.value;save();refresh()}});
-    [['window','Window'],['door','Door']].forEach(([k,l])=>ksel.append(el('option',{value:k,selected:o.kind===k},l)));
-    const u=k=>e=>{o[k]=e.target.value;save();refresh()};
-    ops.append(el('div',{class:'op','data-op':o.id},ksel,
-      el('input',{class:'nm',value:o.name,placeholder:'Label','aria-label':'Opening label',oninput:u('name')}),
-      numInput('ow-'+o.id,o.w,'Width',u('w')),numInput('oh-'+o.id,o.h,'Height',u('h')),
-      el('input',{id:'oa-'+o.id,inputmode:'decimal',value:o.a||'','aria-label':'Area of each opening, instead of width and height',placeholder:n(o.w)*n(o.h)?f2(n(o.w)*n(o.h)):'m²','data-opeach':1,autocomplete:'off',oninput:u('a')}),
-      el('input',{id:'oq-'+o.id,inputmode:'numeric',value:o.qty,'aria-label':'Quantity',oninput:u('qty')}),
-      el('span',{class:'area','data-oparea':1},f2(opArea(o))+' m²'),
-      el('button',{class:'x','aria-label':'Remove opening',onclick:()=>{w.ops=w.ops.filter(x=>x!==o);save();render()}},'×')));
-  });
-  const addOp=kind=>()=>{w.ops.push(blankOp(kind));save();render();setTimeout(()=>{const r=document.querySelector('[data-wall="'+w.id+'"] .op:last-of-type input[inputmode=decimal]');r&&r.focus()},30)};
-  ops.append(el('div',{class:'op-add'},el('button',{class:'btn small',onclick:addOp('window')},'+ Window'),el('button',{class:'btn small',onclick:addOp('door')},'+ Door')));
-  card.append(el('div',{class:'label'},'Openings in this wall'),ops);
-
+  const setShape=k=>()=>{w.shape=k;save();render()};
+  card.append(el('div',{class:'row'},
+    w.shape==='area'?el('button',{class:'btn small ghost',onclick:setShape('rect')},'Use length × height instead')
+      :[el('span',{class:'note'},'Gable top'),
+        el('div',{class:'seg',role:'group','aria-label':'Gable top'},[['rect','None'],['gable','Apex']].map(([k,lab])=>el('button',{'aria-pressed':String(w.shape===k),onclick:setShape(k)},lab))),
+        w.shape==='gable'?[el('label',{class:'note',for:'wp-'+w.id},'eaves to apex m'),Object.assign(numInput('wp-'+w.id,w.apex,'Eaves to apex',upd('apex')),{style:'width:96px'})]:null,
+        el('button',{class:'btn small ghost',onclick:setShape('area')},'Type the area instead')],
+    el('span',{class:'note num','data-calc':1,style:'margin-left:auto'},calcText(w))));
+  const chips=el('div',{class:'chips'},el('span',{class:'label',style:'margin-right:4px'},'Openings'),
+    w.ops.map(o=>opChip(o,()=>startDraft(w,o.kind,o))),
+    el('button',{class:'btn small',onclick:()=>startDraft(w,'window')},'+ Window'),
+    el('button',{class:'btn small',onclick:()=>startDraft(w,'door')},'+ Door'));
+  card.append(chips);
+  if(opDraft&&opDraft.wall===w.id)card.append(opPanel(w));
   card.append(el('div',{class:'wall-foot'},
-    el('div',{class:'net'},el('span',{class:'label'},'Net wall'),el('span',{class:'v','data-net':1},f2(net(w))+' m²'),el('span',{class:'calc','data-calc':1},calcText(w))),
     el('div',{class:'warn','data-warn':1,hidden:net(w)>=0},'Openings exceed gross area'),
-    el('button',{class:'btn small',onclick:()=>{const c=JSON.parse(JSON.stringify(w));c.id=uid();c.name=(w.name||'Wall')+' copy';c.ops.forEach(o=>o.id=uid());s.walls.splice(i+1,0,c);save();render()}},'Duplicate'),
-    armButton('Delete',()=>{s.walls=s.walls.filter(x=>x!==w);save();render()})));
+    el('span',{style:'flex:1'}),
+    el('button',{class:'btn small',onclick:()=>{const c=JSON.parse(JSON.stringify(w));c.id=uid();c.name=(w.name||'Wall')+' copy';c.ops.forEach(o=>o.id=uid());s.walls.splice(i+1,0,c);openWall=c.id;opDraft=null;save();render()}},'Duplicate'),
+    armButton('Delete',()=>{s.walls=s.walls.filter(x=>x!==w);openWall=null;opDraft=null;save();render()}),
+    el('button',{class:'btn small',onclick:()=>{openWall='none';opDraft=null;render()}},'Close')));
   return card;
 }
-const calcText=w=>'= '+f2(gross(w))+' − '+f2(opsArea(w));
+const calcText=w=>f2(gross(w))+' gross − '+f2(opsArea(w))+' openings';
 
 // ---- summary ----
 function summarise(s){
@@ -647,7 +719,7 @@ function wallsParts(s){
   const crow=types.map(t=>{const d=wt[t]||{};return [t,d.cons||'',d.thick||'',d.ins&&d.ins!=='None'?d.ins+(d.insmm?' '+d.insmm+' mm':''):(d.ins||''),d.year||'',d.u||'',d.ev||'']});
   if(crow.length){const head=['Wall type','Construction','Thickness mm','Insulation','Year built','U-value','Evidence'],num=[0,0,1,0,0,1,0];const keep=head.map((h,i)=>i<2||crow.some(r=>hasVal(r[i])));parts.push({table:{title:'Wall construction (for DEAP)',head:head.filter((h,i)=>keep[i]),num:num.filter((x,i)=>keep[i]),rows:crow.map(r=>r.filter((x,i)=>keep[i]))}})}
   parts.push({table:{title:'Walls measured (site record)',record:true,head:['Wall','Faces','Type','Size','Gross m²','Openings m²','Net m²'],num:[0,0,0,0,1,1,1],
-    rows:s.walls.map(w=>[w.name||'Wall',w.orient,w.type,w.shape==='area'?'area entered':f2(n(w.L))+' × '+f2(n(w.H))+(w.shape==='gable'?' + gable '+f2(n(w.apex)):''),f2(gross(w)),f2(opsArea(w)),f2(net(w))])}});
+    rows:s.walls.map(w=>[w.name||'Wall',w.orient,w.type,w.shape==='area'?'area entered':f2(n(w.L))+' × '+f2(wallH(w))+(w.shape==='gable'?' + gable '+f2(n(w.apex)):''),f2(gross(w)),f2(opsArea(w)),f2(net(w))])}});
   return parts;
 }
 function openingParts(s){
@@ -985,7 +1057,7 @@ function renderBackup(){
   const inp=el('textarea',{id:'bkIn',placeholder:'Paste a backup here'});
   const msg=el('p',{class:'note',style:'margin:0'});
   box.append(el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Restore a survey'),inp,
-    el('div',{class:'row'},el('button',{class:'btn',onclick:()=>{try{const d=JSON.parse(inp.value);if(!d||!Array.isArray(d.walls))throw 0;d.id=uid();d.created=Date.now();d.types=d.types||DEFAULT_TYPES.slice();d.data=d.data||{};if(d.imageData){(d.images||[]).forEach(m=>{const nid=uid();if(d.imageData[m.id]&&imgSet(nid,d.imageData[m.id]))m.id=nid});delete d.imageData}db.surveys[d.id]=d;db.current=d.id;db.tab='details';save();render();toast('Survey restored')}catch(e){msg.textContent='That text is not a survey backup. Paste the whole backup, starting with {'}}},'Restore as new survey')),msg));
+    el('div',{class:'row'},el('button',{class:'btn',onclick:()=>{try{const d=JSON.parse(inp.value);if(!d||!Array.isArray(d.walls))throw 0;d.id=uid();d.created=Date.now();d.types=d.types||DEFAULT_TYPES.slice();d.data=d.data||{};migrateOps(d);if(d.imageData){(d.images||[]).forEach(m=>{const nid=uid();if(d.imageData[m.id]&&imgSet(nid,d.imageData[m.id]))m.id=nid});delete d.imageData}db.surveys[d.id]=d;db.current=d.id;db.tab='details';save();render();toast('Survey restored')}catch(e){msg.textContent='That text is not a survey backup. Paste the whole backup, starting with {'}}},'Restore as new survey')),msg));
   box.append(el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Delete this survey'),el('p',{class:'note',style:'margin:0'},'Removes "'+(s.name||'Untitled')+'" from this device.'),
     el('div',{class:'row'},armButton('Delete survey',()=>{(s.images||[]).forEach(m=>imgDel(m.id));delete db.surveys[s.id];if(!Object.keys(db.surveys).length){const n2=newSurvey();db.surveys[n2.id]=n2}db.current=Object.keys(db.surveys)[0];db.tab='details';save();render()}))));
   return box;
@@ -1058,7 +1130,7 @@ function groupsEl(groups,key){
   const d=dataFor(key);
   const box=el('div',{class:'two'});
   groups.forEach(g=>{
-    if(g.custom){box.append(g.custom==='images'?imagesEl():opListEl());return}
+    if(g.custom){box.append(g.custom==='images'?imagesEl():g.custom==='deaplines'?deapLinesEl():opTypesEl(g.custom==='doortypes'?'door':'window'));return}
     const vis=g.fields.filter(f=>!f.show||f.show(d));
     const grid=el('div',{class:'grid'});
     vis.forEach(f=>grid.append(fieldEl(f,d,key)));
@@ -1083,28 +1155,59 @@ function renderSection(sec){
   if(nx&&!nx.util)box.append(el('div',null,el('button',{class:'btn',onclick:()=>{db.tab=nx.id;save();render();scrollTo(0,0)}},'Next: '+nx.name+' →')));
   return box;
 }
-// per-opening glazing: values on o.g override the defaults on the Windows & doors tab
-const opFields=o=>o.kind==='door'?DOOR_FIELDS:WIN_FIELDS.filter(f=>!(opEff(o,'glazing')==='Single'&&(f.id==='gap'||f.id==='fill')));
-const opEff=(o,k)=>(o.g&&hasVal(o.g[k]))?o.g[k]:(dataFor('openings')[k]||'');
-function opListEl(){
-  const s=cur(),def=dataFor('openings');
-  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,'Each window and door'),
-    el('p',{class:'hint',style:'margin:0'},'These come from the openings on each wall. A value in brackets is the default from above. Only change the boxes where this window is different.'));
-  let any=false;
-  s.walls.forEach(w=>{
-    if(!w.ops.length)return;any=true;
-    card.append(el('div',{class:'label',style:'margin-top:4px'},(w.name||'Wall')+' · faces '+w.orient));
-    w.ops.forEach(o=>{
-      o.g=o.g||{};
-      const g=el('div',{class:'grid'});
-      opFields(o).forEach(f=>{const dv=def[f.id];g.append(fieldEl(Object.assign({},f,{ph:hasVal(dv)?'('+dv+')':'(not set)'}),o.g,'g'+o.id))});
-      const diff=Object.values(o.g).some(hasVal);
-      card.append(el('div',{class:'lrow'},el('div',{class:'lrow-h'},
-        el('span',null,el('b',null,(o.kind==='door'?'Door':'Window')+(o.name?': '+o.name:'')),' ',el('span',{class:'num muted',style:'font-size:14px'},opSize(o)+(n(o.qty)>1?' × '+o.qty:'')+' = '+f2(opArea(o))+' m²')),
-        diff?el('button',{class:'btn small ghost',onclick:()=>{o.g={};save();render()}},'Reset to default'):null),g));
-    });
+// window and door types: describe each kind once; each opening points at one with o.t
+// (o.g holds per-window overrides from before types and still wins if present)
+const opTypes=(kind,s)=>{const d=(s||cur()).data,o=d.openings||(d.openings={}),k=kind==='door'?'doortypes':'wintypes';return o[k]||(o[k]=[])};
+const opType=o=>opTypes(o.kind).find(t=>t.id===o.t)||null;
+const typeCode=(ts,kind)=>{const used=new Set(ts.map(t=>t.code));for(let i=0;;i++){const c=kind==='door'?'D'+(i+1):String.fromCharCode(65+i%26)+(i>=26?Math.floor(i/26)+1:'');if(!used.has(c))return c}};
+function newOpType(kind,vals,s){const ts=opTypes(kind,s),t=Object.assign({id:uid(),code:typeCode(ts,kind),name:''},vals||{});ts.push(t);return t}
+const autoName=(t,kind)=>(kind==='door'?[t.doortype]:[t.glazing,t.frame,t.win_year]).filter(hasVal).join(' ');
+const typeLabel=(t,kind)=>{const nm=t.name||autoName(t,kind);return t.code+(nm?' · '+nm:'')};
+// surveys from before types: one type per distinct set of window (or door) details, from the old defaults and overrides
+function migrateOps(s){
+  const d=s.data.openings||(s.data.openings={});
+  if(d.wintypes&&d.doortypes)return;
+  [['window',WIN_FIELDS],['door',DOOR_FIELDS]].forEach(([kind,F])=>{
+    const seen=new Map();
+    s.walls.forEach(w=>w.ops.filter(o=>o.kind===kind).forEach(o=>{
+      const v={};F.forEach(f=>{const x=(o.g&&hasVal(o.g[f.id]))?o.g[f.id]:d[f.id];if(hasVal(x))v[f.id]=x});
+      const key=JSON.stringify(v);let t=seen.get(key);
+      if(!t){t=newOpType(kind,v,s);seen.set(key,t)}
+      o.t=t.id;delete o.g;
+    }));
   });
-  if(!any)card.append(el('div',{class:'row'},el('span',{class:'muted'},'No windows or doors yet. Add them to each wall first.'),el('button',{class:'btn small',onclick:()=>{db.sub='walls';save();render()}},'Go to walls')));
+}
+const opFields=o=>o.kind==='door'?DOOR_FIELDS:WIN_FIELDS.filter(f=>!(opEff(o,'glazing')==='Single'&&(f.id==='gap'||f.id==='fill')));
+const opEff=(o,k)=>{if(o.g&&hasVal(o.g[k]))return o.g[k];const t=opType(o);return t?(t[k]||''):(dataFor('openings')[k]||'')};
+function opTypesEl(kind){
+  const s=cur(),ts=opTypes(kind),door=kind==='door',what=door?'door':'window';
+  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,door?'Door types':'Window types'),
+    el('p',{class:'hint',style:'margin:0'},door?'Describe each kind of door once, then pick it when you add a door on the Walls tab.'
+      :'Describe each kind of window once. On the Walls tab you just tap A, B or C for each window. Most houses need one or two types.'));
+  const list=el('div',{class:'two'});
+  ts.forEach(t=>{
+    const used=[];s.walls.forEach(w=>w.ops.forEach(o=>{if(o.kind===kind&&o.t===t.id)used.push([w,o])}));
+    const cnt=used.reduce((a,[,o])=>a+Math.max(0,Math.round(n(o.qty)||0)),0),area=used.reduce((a,[,o])=>a+opArea(o),0);
+    const dirs=ORIENTS.filter(x=>used.some(([w])=>w.orient===x));
+    const F=door?DOOR_FIELDS:WIN_FIELDS.filter(f=>!(t.glazing==='Single'&&(f.id==='gap'||f.id==='fill')));
+    const g=el('div',{class:'grid'});F.forEach(f=>g.append(fieldEl(f,t,'ty'+t.id)));
+    list.append(el('div',{class:'lrow otype'},
+      el('div',{class:'lrow-h',style:'gap:10px'},el('b',{class:'code big'+(door?' door':'')},t.code),
+        el('input',{value:t.name,placeholder:autoName(t,kind)||'Name, e.g. '+(door?'Composite front door':'Double PVC 2005'),'aria-label':'Name for type '+t.code,style:'flex:1',oninput:e=>{t.name=e.target.value;save()}}),
+        used.length?null:el('button',{class:'x','aria-label':'Remove type '+t.code,onclick:()=>{ts.splice(ts.indexOf(t),1);save();render()}},'×')),
+      g,
+      el('div',{class:'note'},used.length?['Used by ',el('b',null,cnt+' '+what+(cnt===1?'':'s')),' · ',el('span',{class:'num'},f2(area)+' m²'),' · '+dirs.join(', ')]:'Not used yet')));
+  });
+  if(ts.length)card.append(list);
+  card.append(el('div',null,el('button',{class:'btn',onclick:()=>{newOpType(kind);save();render()}},'+ New '+what+' type ('+typeCode(ts,kind)+')')));
+  return card;
+}
+function deapLinesEl(){
+  const parts=openingParts(cur()).filter(p=>p.table&&/^(Windows|Doors) for DEAP/.test(p.table.title));
+  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,'What DEAP gets'),
+    el('p',{class:'hint',style:'margin:0'},'Windows facing the same way with the same details are combined into one line.'));
+  if(!parts.length)card.append(el('div',{class:'row'},el('span',{class:'muted'},'No windows or doors yet. Add them to each wall.'),el('button',{class:'btn small',onclick:()=>{db.sub='walls';save();render()}},'Go to walls')));
+  parts.forEach(p=>card.append(tableEl(p.table)));
   return card;
 }
 function opText(L){
@@ -1180,10 +1283,21 @@ function deapExport(s){
       }
       if(sb.id==='openings')openingParts(s).forEach(p=>p.table&&fromTable(x,p.table,'openings'));
       fromGroups(x,sb.groups,sb.id);
+      if(sb.id==='openings')x.fields.unshift(...mainTypeFields(s));
     });
   });
   const d=s.data.details||{};
   return {format:'ber-survey-deap',version:1,exported:new Date().toISOString(),survey:{name:s.name||'Untitled',eircode:d.eircode||'',mprn:d.mprn||'',date:d.date||''},screens:screens.filter(x=>x.fields.length||x.tables.length)};
+}
+// the type covering the most area stands in for the old 'default for all windows / doors' fields
+function mainTypeFields(s){
+  const out=[];
+  [['window',WIN_FIELDS],['door',DOOR_FIELDS]].forEach(([kind,F])=>{
+    const a=new Map();s.walls.forEach(w=>w.ops.forEach(o=>{if(o.kind===kind&&o.t)a.set(o.t,(a.get(o.t)||0)+opArea(o))}));
+    const id=[...a.entries()].sort((x,y)=>y[1]-x[1])[0];const t=id&&opTypes(kind,s).find(x=>x.id===id[0]);if(!t)return;
+    F.forEach(f=>{if(!hasVal(t[f.id])||(t.glazing==='Single'&&(f.id==='gap'||f.id==='fill')))return;out.push({key:'openings.'+f.id,label:f.label.replace(' (if certified)',''),kind:f.type,value:f.type==='num'?plainVal(t[f.id]):String(t[f.id]),options:f.options||undefined})});
+  });
+  return out;
 }
 function transferName(s){return ('DEAP transfer - '+(s.name||'Untitled')).replace(/[\\/:*?"<>|]+/g,'-')+'.json'}
 async function shareTransfer(s){
@@ -1240,11 +1354,10 @@ function refresh(){
   const s=cur();
   s.walls.forEach(w=>{
     const c=document.querySelector('[data-wall="'+w.id+'"]');if(!c)return;
-    c.querySelector('[data-gross]').textContent=f2(gross(w))+' m²';
-    c.querySelector('[data-net]').textContent=f2(net(w))+' m²';
-    c.querySelector('[data-calc]').textContent=calcText(w);
-    c.querySelector('[data-warn]').hidden=net(w)>=0;
-    w.ops.forEach(o=>{const row=c.querySelector('[data-op="'+o.id+'"]');if(!row)return;row.querySelector('[data-oparea]').textContent=f2(opArea(o))+' m²';const ea=row.querySelector('[data-opeach]');ea.placeholder=n(o.w)*n(o.h)?f2(n(o.w)*n(o.h)):'m²';const dim=hasVal(o.a);row.querySelectorAll('#ow-'+o.id+',#oh-'+o.id).forEach(i=>i.classList.toggle('dimmed',dim))});
+    const q=k=>c.querySelector('[data-'+k+']');
+    q('net').textContent=f2(net(w));
+    if(q('calc'))q('calc').textContent=calcText(w);
+    if(q('warn'))q('warn').hidden=net(w)>=0;
   });
   const p=$('#panel');if(p)p.replaceWith(summaryPanel(true));
   document.querySelectorAll('[data-fcalc]').forEach(e=>{const fn=CALCS[e.dataset.fcalc];if(fn)e.textContent=fn()});
