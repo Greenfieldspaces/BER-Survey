@@ -113,11 +113,21 @@ function job(sc) {
       add(t, 'year', 'Year built', () => dwellingYear());
     }
     if (t.key === 'gen.pv') {
-      // DEAP wants panels and watts per panel; the survey has the array's kWp, so it goes in as one panel of that size
-      const kwp = r => parseFloat(col(t, r, 'kwp')) || 0;
-      add(t, 'tech', 'Technology/Comment', r => kwp(r) ? 'Array ' + kwp(r) + ' kWp' : '');
-      add(t, 'n', 'Number of panels', r => kwp(r) ? '1' : '');
-      add(t, 'w', 'Peak power per panel W', r => kwp(r) ? String(Math.round(kwp(r) * 1000)) : '');
+      // DEAP wants number of panels and watts per panel. Older surveys only have one number, which is the array kWp,
+      // unless it is too big to be kWp (then it is the panel's watts); a count of panels can also be in the notes
+      const notes = String(surveyValue('gen', 'gen.notes') || ''), nm = /(\d+)\s*(?:x\s*)?(?:pv\s*|solar\s*)?panels?/i.exec(notes);
+      const calc = t.rows.map(r => {
+        let n = parseInt(col(t, r, 'panels')) || 0, w = parseFloat(col(t, r, 'wp')) || 0, k = parseFloat(col(t, r, 'kwp')) || 0;
+        if (k > 30 && !w) { w = k; k = 0 }
+        if (!n && nm && t.rows.length === 1) n = +nm[1];
+        if (!w && k && n) w = Math.round(k * 1000 / n);
+        if (!n && k && w) n = Math.round(k * 1000 / w);
+        if (!n && !w && k) { n = 1; w = Math.round(k * 1000) }
+        return { n, w };
+      });
+      add(t, 'tech', 'Technology/Comment', (r, i) => calc[i].n && calc[i].w ? calc[i].n + ' x ' + calc[i].w + ' W panels' : '');
+      add(t, 'n', 'Number of panels', (r, i) => calc[i].n ? String(calc[i].n) : '');
+      add(t, 'w', 'Peak power per panel W', (r, i) => calc[i].w ? String(calc[i].w) : '');
     }
     if (t.key === 'openings.windows-for-deap') {
       add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));

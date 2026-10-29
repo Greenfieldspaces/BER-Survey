@@ -241,7 +241,7 @@
       "skip": true
     },
     "openings.op_strip": {
-      "selector": "input[name=\"NumberOfDraftStrippedOpenings\"]"
+      "skip": true
     },
     "openings.calc.draught-stripped": {
       "skip": true
@@ -344,14 +344,10 @@
       }
     },
     "vent.hatches": {
-      "labels": [
-        "Number of attic hatches"
-      ]
+      "skip": true
     },
     "vent.hatches_ds": {
-      "labels": [
-        "Number of attic hatches draught stripped"
-      ]
+      "skip": true
     },
     "vent.sheltered": {
       "selector": "input[name=\"NoOfSidesSheltered\"]"
@@ -530,13 +526,10 @@
       "selector": "input[name=\"CylinderThermostat\"]"
     },
     "water.primins": {
-      "selector": "mat-select[name=\"SystemTypeID\"]"
+      "skip": true
     },
     "water.primcirc": {
-      "labels": [
-        "Primary circuit",
-        "Primary circuit type"
-      ]
+      "skip": true
     },
     "water.septime": {
       "selector": "input[name=\"CylinderHeatedByBoiler\"]"
@@ -901,6 +894,18 @@
     },
     "openings.doors-for-deap.search": {
       "skip": true
+    },
+    "gen.pv.panels": {
+      "skip": true
+    },
+    "gen.pv.wp": {
+      "skip": true
+    },
+    "openings.strip": {
+      "selector": "input[name=\"NumberOfDraftStrippedOpenings\"]"
+    },
+    "water.primtype": {
+      "selector": "mat-select[name=\"SystemTypeID\"]"
     }
   },
   "transfer": [
@@ -979,7 +984,7 @@
         "vent.susfloor",
         "vent.sheltered",
         "openings.ops",
-        "openings.op_strip"
+        "openings.strip"
       ]
     },
     {
@@ -1051,7 +1056,7 @@
         "water.septime",
         "water.cylins",
         "water.cylmm",
-        "water.primins"
+        "water.primtype"
       ]
     },
     {

@@ -294,9 +294,22 @@
       let r;
       try { r = await setCtrl(p.c, p.it, Object.assign({}, o, { valueMap: (map[p.it.key] || {}).values })) } catch (e) { r = { status: 'error', detail: String(e.message || e) } }
       mark(p.c, r.status, p.it.key);
-      results.push(Object.assign({ key: p.it.key, matched: p.via === 'taught' ? 'taught field' : p.via }, r));
+      results.push(Object.assign({ key: p.it.key, matched: p.via === 'taught' ? 'taught field' : p.via, sent: String(p.it.value) }, r, readBack(p.c)));
     }
 
+    // what DEAP shows in the field now, for the run report
+    function readBack(c) {
+      try {
+        const el = c.el, name = el.getAttribute('name') || el.getAttribute('formcontrolname') || '';
+        let now;
+        if (c.kind === 'checkbox') now = el.checked ? 'ticked' : 'not ticked';
+        else if (c.kind === 'radio') { const r = (c.radios || [el]).find(x => x.checked); now = r ? clean(optLabel(r)) : '(none)' }
+        else if (c.kind === 'select') now = el.selectedIndex >= 0 ? clean(el.options[el.selectedIndex].text) : '';
+        else if (c.kind === 'combo') now = clean(textOf(el));
+        else now = el.value;
+        return { deap: (name ? name + ' ' : '') + '"' + clean((c.labels || [])[0] || '') + '"', now };
+      } catch (e) { return {} }
+    }
     // tables: column N of row i goes into the i-th DEAP field that matches the column, in page order
     for (const t of job.tables || []) {
       const tm = map[t.key] || {};
@@ -319,7 +332,7 @@
           let r;
           try { r = await setCtrl(c, { key: ck, value: v }, Object.assign({}, o, { valueMap: cm.values })) } catch (e) { r = { status: 'error', detail: String(e.message || e) } }
           mark(c, r.status, ck + ' row ' + (ri + 1));
-          results.push(Object.assign(rk, r));
+          results.push(Object.assign(rk, { sent: String(v) }, r, readBack(c)));
         }
       }
     }
@@ -467,9 +480,14 @@
     if (FORBIDDEN.test(text)) return { error: 'Not allowed: ' + text };
     const scope = inDialog ? topDialog() : document;
     if (!scope) return { error: 'No dialog open' };
-    const btn = [...scope.querySelectorAll('button,[role=button]')].filter(b => visible(b) && !b.disabled && !b.closest('#bsdf-ui') && (inDialog || !b.closest(DIALOGS))).find(b => clean(textOf(b)).toUpperCase() === text.toUpperCase());
-    if (!btn) return { error: 'No ' + text + ' button' };
+    const T = text.toUpperCase();
+    // DEAP buttons can carry an icon whose name is part of their text ("add ADD WALL"), so the label may end the text
+    const btns = [...scope.querySelectorAll('button,[role=button]')].filter(b => visible(b) && !b.closest('#bsdf-ui') && (inDialog || !b.closest(DIALOGS)));
+    const txt = b => clean(textOf(b)).toUpperCase();
+    const btn = btns.find(b => txt(b) === T) || btns.find(b => txt(b).endsWith(' ' + T));
+    if (!btn) return { error: 'No ' + text + ' button', missing: true, seen: [...new Set(btns.map(txt).filter(t => /^ADD|SAVE|ADD /.test(t)))].slice(0, 8) };
     if (FORBIDDEN.test(textOf(btn)) || FORBIDDEN.test(btn.getAttribute('aria-label') || '')) return { error: 'Not allowed' };
+    if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return { error: text + ' is greyed out in DEAP', disabled: true };
     btn.click();
     return { ok: true };
   }

@@ -2,7 +2,7 @@
 // Goes through DEAP's screens in order, fills each one, and for walls, floors, roofs, doors and windows
 // presses ADD, fills the dialog and presses SAVE, one item at a time. It never presses Publish or Submit:
 // content.js refuses those buttons whatever it is asked.
-const tx = { running: false, stop: false, steps: [], waitingFor: null, skipWait: false, included: {} };
+const tx = { overwrite: true, running: false, stop: false, steps: [], waitingFor: null, skipWait: false, included: {} };
 const pause = ms => new Promise(r => setTimeout(r, ms));
 
 // values DEAP asks for that the survey records in another shape
@@ -36,7 +36,16 @@ function synthFields() {
   if (v('heat.fluefan')) put('heat.fluefann', 'Gas boiler flue fans', yes('heat.fluefan') ? '1' : '0');
   // ventilation: openings count, from the survey's own count or the windows and doors it measured
   const ops = v('openings.op_total') || (() => { const sc = st.survey.screens.find(x => x.id === 'openings'); if (!sc) return ''; const n = sc.tables.filter(t => /windows-for-deap|doors-for-deap/.test(t.key)).reduce((a, t) => { const i = t.columns.findIndex(c => c.key === 'no'); return a + t.rows.reduce((b, r) => b + (parseInt(r[i]) || 0), 0) }, 0); return n || '' })();
-  put('openings.ops', 'Number of openings', ops);
+  // DEAP counts attic hatches as openings too
+  const hatches = parseInt(v('vent.hatches')) || 0, hatchesDs = parseInt(v('vent.hatches_ds')) || 0;
+  put('openings.ops', 'Number of openings (windows, doors and attic hatches)', ops !== '' ? String((parseInt(ops) || 0) + hatches) : hatches ? String(hatches) : '');
+  if (v('openings.op_strip') !== '' && v('openings.op_strip') != null || hatchesDs) put('openings.strip', 'Number of draught stripped openings (with attic hatches)', String((parseInt(v('openings.op_strip')) || 0) + hatchesDs));
+  // water: DEAP's primary circuit loss type combines pipe insulation and cylinder thermostat
+  if (yes('water.cyl') || v('water.primins')) {
+    const ins = /all accessible|fully/i.test(v('water.primins')), stat = yes('water.cylstat');
+    const elec = /immersion only|instantaneous/i.test(v('water.src'));
+    put('water.primtype', 'Primary circuit loss type', elec ? 'Electric immersion heater' : 'Boiler / heat pump with ' + (ins ? 'insulated' : 'uninsulated') + ' primary pipework and ' + (stat ? 'with' : 'no') + ' cylinder thermostat');
+  }
   if (v('gen.battery')) put('gen.battery_yes', 'Is a battery present?', parseFloat(v('gen.battery')) > 0 ? 'Yes' : 'No');
   return out;
 }
@@ -120,11 +129,20 @@ async function goTo(step) {
 }
 
 async function fillOn(step, payload) {
-  const r = await send(Object.assign({ cmd: 'fill', options: { overwrite: st.overwrite, scroll: false }, mapping: step.mapping }, payload));
+  const r = await send(Object.assign({ cmd: 'fill', options: { overwrite: tx.overwrite, scroll: false }, mapping: step.mapping }, payload));
   if (r && r.error) throw new Error(r.error);
   return r.results;
 }
 
+// DEAP draws buttons after it loads the screen's data, so keep looking for a while
+async function pressWait(text, inDialog, ms) {
+  const end = Date.now() + ms; let r;
+  while (true) {
+    r = await send({ cmd: 'press', text, inDialog });
+    if (!r || !r.error || !(r.missing || r.disabled) || Date.now() > end || tx.stop) return r;
+    await pause(500);
+  }
+}
 const after = (txt, t, ri) => txt.replace(/\{(\w+)\}/g, (_, k) => t.rows[ri][t.columns.findIndex(c => c.key === k)] || '?');
 async function addItems(step, t) {
   const m = step.mapping[t.key] || {}, label = t.title.replace(/ \(.*\)$/, '').replace(/s$/, '');
@@ -132,8 +150,8 @@ async function addItems(step, t) {
     if (tx.stop) throw new Error('Stopped');
     const what = label + ' ' + (ri + 1) + ' of ' + t.rows.length;
     setStep(step, 'running', what);
-    const pr = await send({ cmd: 'press', text: m.add });
-    if (pr && pr.error) throw new Error(pr.error);
+    const pr = await pressWait(m.add, false, 10000);
+    if (pr && pr.error) throw new Error(pr.disabled ? m.add + ' is greyed out in DEAP' : 'Could not find ' + m.add + ' in DEAP' + (pr.seen && pr.seen.length ? ' (buttons seen: ' + pr.seen.join(', ') + ')' : ' (no ADD buttons seen)'));
     let s = await waitState(x => !!x.dialog, 8000);
     if (!s) throw new Error(m.add + ' did not open a dialog');
     if (m.library && /library/i.test(s.dialog)) {
@@ -153,15 +171,17 @@ async function addItems(step, t) {
     }
     await pause(600);
     const res = await fillOn(step, { scope: 'dialog', fields: [], tables: [Object.assign({}, t, { rows: [t.rows[ri]] })] });
+    tx.report.push({ step: step.name, item: what + (s.dialog ? ' (' + s.dialog + ')' : ''), results: res.map(x => Object.assign({ label: (t.columns.find(c => c.key === x.col) || {}).label || x.key }, x)) });
     results[step.screen] = (results[step.screen] || []).filter(x => !(x.key === t.key && x.row === ri)).concat(res.map(x => Object.assign(x, x.row != null ? { row: ri } : {})));
     res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => tx.log.push(step.name + ': ' + what + ', ' + (t.columns.find(c => c.key === x.col) || {}).label + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')));
-    const sv = await send({ cmd: 'press', text: 'SAVE', inDialog: true });
-    if (sv && sv.error) throw new Error(sv.error + ' in the ' + s.dialog + ' dialog');
-    const closed = await waitState(x => !x.dialog, 8000);
+    await pause(500);
+    const sv = await pressWait('SAVE', true, 3000);
+    const closed = !(sv && sv.error) && await waitState(x => !x.dialog, 8000);
     if (!closed) {
+      // DEAP keeps SAVE greyed out until every required box is right: hand over to the person
       const errs = await send({ cmd: 'errors' });
-      const fixed = await waitForYou('DEAP did not save ' + what + (errs && errs.length ? ': ' + errs.join('; ') : '') + '. Fix it in the dialog and press SAVE (or Cancel to skip it).', x => !x.dialog);
-      if (!fixed) throw new Error('Stopped at ' + what);
+      const fixed = await waitForYou('DEAP will not save ' + what + ' yet' + (errs && errs.length ? ' (' + errs.join('; ') + ')' : '') + '. Fix the red or empty boxes in the DEAP dialog and press SAVE, or press Skip this one.', x => !x.dialog);
+      if (!fixed) { tx.log.push(step.name + ': ' + what + ' skipped, DEAP would not save it' + (errs && errs.length ? ' (' + errs.join('; ') + ')' : '')); await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); await waitState(x => !x.dialog, 4000); continue }
     }
     if (m.after) tx.log.push(step.name + ': ' + what + ', ' + after(m.after, t, ri));
     await pause(900);
@@ -170,7 +190,7 @@ async function addItems(step, t) {
 
 async function runTransfer() {
   if (tx.running) return;
-  tx.running = true; tx.stop = false; tx.log = [];
+  tx.running = true; tx.stop = false; tx.log = []; tx.report = []; tx.startedAt = new Date().toISOString();
   tx.steps = transferSteps().filter(s => tx.included[s.name] !== false);
   (transferSteps.left || []).forEach(f => tx.log.push('Not transferred yet: ' + (f.parent ? f.parent + ', ' : '') + f.label + ' ' + f.value));
   (transferSteps.leftTables || []).forEach(k => tx.log.push('Not transferred yet: ' + k.split('.').pop().replace(/-/g, ' ') + ' list'));
@@ -190,6 +210,7 @@ async function runTransfer() {
           // ticking a box or picking a type can show more DEAP fields, so go over the screen once more
           if (res.some(x => x.status === 'nomatch')) { await pause(1200); const again = await fillOn(step, { fields: step.fields.filter(f => res.some(x => x.key === f.key && x.status === 'nomatch')), tables: [] }); res = res.filter(x => !(x.status === 'nomatch' && again.some(y => y.key === x.key))).concat(again) }
           results[step.screen] = res;
+          tx.report.push({ step: step.name, results: res.map(x => Object.assign({ label: (step.fields.find(q => q.key === x.key) || {}).label || x.key }, x)) });
           res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => { const f = step.fields.find(q => q.key === x.key); tx.log.push(step.name + ': ' + (f ? f.label + ' ' + f.value : x.key) + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')) });
           await pause(1500); // DEAP saves these screens itself
         }
@@ -198,12 +219,31 @@ async function runTransfer() {
       } catch (e) {
         if (tx.stop) { setStep(step, 'stopped', ''); break }
         setStep(step, 'failed', String(e.message || e));
+        // never leave a dialog open behind a failed step, or the next screens cannot open
+        try { const s = await send({ cmd: 'state' }); if (s && s.dialog) { await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); await waitState(x => !x.dialog, 4000) } } catch (x) { }
       }
     }
   } catch (e) { toast(String(e.message || e)) }
   tx.running = false; render();
 }
 
+function reportText() {
+  const icon = st => /filled|same/.test(st) ? 'OK ' : /skipped/.test(st) ? '-- ' : 'XX ';
+  const L = ['BER Survey DEAP Fill run report', 'Extension ' + chrome.runtime.getManifest().version + ', survey "' + ((st.survey && st.survey.survey && st.survey.survey.name) || '') + '", ' + (tx.startedAt || ''), ''];
+  L.push('STEPS'); tx.steps.forEach(s => L.push('  ' + s.name + ': ' + s.status + (s.note ? ' (' + s.note + ')' : '')));
+  L.push('', 'EVERY FIELD (OK = set, XX = not set, -- = left out)');
+  (tx.report || []).forEach(r => {
+    L.push('', r.step + (r.item ? ', ' + r.item : ''));
+    r.results.filter(x => x.status !== 'skipped').forEach(x => L.push('  ' + icon(x.status) + x.label + ': sent "' + (x.sent ?? '') + '"' + (x.deap ? ' into ' + x.deap + ', DEAP now shows "' + (x.now ?? '') + '"' : '') + ' [' + (STATUS[x.status] || x.status) + (x.detail ? ': ' + x.detail : '') + ']'));
+  });
+  L.push('', 'TO CHECK OR DO BY HAND'); (tx.log || []).forEach(x => L.push('  ' + x));
+  return L.join('\n');
+}
+function saveReport() {
+  const name = ('DEAP run report - ' + ((st.survey && st.survey.survey && st.survey.survey.name) || 'survey')).replace(/[\\/:*?"<>|]+/g, '-') + '.txt';
+  const url = URL.createObjectURL(new Blob([reportText()], { type: 'text/plain' }));
+  if (chrome.downloads) chrome.downloads.download({ url, filename: name, saveAs: true }).then(() => toast('Saved ' + name), () => toast('Could not save. Use Copy run report instead.'));
+}
 function transferCard() {
   const steps = tx.steps.length ? tx.steps : transferSteps();
   const card = h('div', { class: 'card xfer' }, h('div', { class: 'row' }, h('h2', { style: 'flex:1' }, 'Transfer whole survey'),
@@ -211,6 +251,7 @@ function transferCard() {
       : h('button', { class: 'btn primary', disabled: !deapTab, onclick: runTransfer }, tx.steps.length ? 'Run again' : 'Start')));
   if (!tx.running && !tx.steps.length) card.append(h('p', { class: 'note' }, 'Open this assessment in DEAP, then press Start. It goes through each screen, adds the walls, floors, roofs, doors and windows, and saves each one. It never publishes. Untick anything already in DEAP so it is not added twice.'));
   if (tx.waitingFor) card.append(h('div', { class: 'needs' }, h('b', null, 'Your turn: '), tx.waitingFor, h('div', { class: 'row', style: 'margin-top:6px' }, h('button', { class: 'btn small', onclick: () => { tx.skipWait = true } }, 'Skip this one'))));
+  if (!tx.running) card.append(h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: tx.overwrite, onchange: e => { tx.overwrite = e.target.checked } }), 'Replace values already in DEAP (untick to keep what DEAP has)'));
   const list = h('div', { class: 'steps2' });
   steps.forEach(s => {
     const icon = { todo: '○', running: '◐', done: '✓', failed: '!', stopped: '■' }[s.status] || '○';
@@ -221,6 +262,9 @@ function transferCard() {
   });
   card.append(list);
   if (tx.log && tx.log.length && !tx.running) card.append(h('details', { open: true }, h('summary', null, tx.log.length + ' to do by hand in DEAP'), h('div', { class: 'scan' }, tx.log.join('\n')), h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => copy(tx.log.join('\n')) }, 'Copy list'))));
-  if (!tx.running && tx.steps.length) card.append(h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: () => { tx.steps = []; tx.log = []; render() } }, 'Reset')));
+  if (!tx.running && tx.steps.length) {
+    card.append(h('p', { class: 'note' }, 'Something wrong in DEAP? Save the run report and send it to Claude. It lists every field, what was sent and what DEAP shows now.'));
+    card.append(h('div', { class: 'row' }, h('button', { class: 'btn primary small', onclick: saveReport }, 'Save run report'), h('button', { class: 'btn small', onclick: () => copy(reportText()) }, 'Copy run report'), h('button', { class: 'btn ghost small', onclick: () => { tx.steps = []; tx.log = []; render() } }, 'Reset')));
+  }
   return card;
 }
