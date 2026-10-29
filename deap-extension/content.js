@@ -284,7 +284,7 @@
       it._labels = labels;
     }
     const pairs = [];
-    job.fields.filter(it => it._labels).forEach(it => all.forEach(c => { if (used.has(c)) return; const b = best(it._labels, c.labels); if (b.s >= THRESH) pairs.push({ it, c, s: b.s, hit: b.hit }) }));
+    job.fields.filter(it => it._labels).forEach(it => all.forEach(c => { if (used.has(c)) return; if (/^-?\d+(\.\d+)?$/.test(String(it.value).trim()) && !isYes(it.value) && !isNo(it.value) && (c.kind === 'checkbox' || c.kind === 'radio' && (c.options || []).every(o => /^(yes|no)$/i.test(clean(o.text || o))))) return; const b = best(it._labels, c.labels); if (b.s >= THRESH) pairs.push({ it, c, s: b.s, hit: b.hit }) }));
     pairs.sort((a, b) => b.s - a.s);
     const done = new Set();
     for (const p of pairs) { if (done.has(p.it) || used.has(p.c)) continue; done.add(p.it); used.add(p.c); pending.push({ it: p.it, c: p.c, via: p.hit, s: p.s }) }
@@ -473,6 +473,17 @@
     btn.click();
     return { ok: true };
   }
+  // type a search into DEAP's Add From Library dialog so the right items are listed; the person still picks
+  async function libSearch(phrase) {
+    const d = topDialog(); if (!d || !phrase) return { ok: false };
+    const tab = [...d.querySelectorAll('button,[role=tab]')].find(b => visible(b) && /^search items$/i.test(clean(textOf(b))));
+    if (tab) { tab.click(); await new Promise(r => setTimeout(r, 500)) }
+    const inp = d.querySelector('input[name="SearchPhrase"]') || [...d.querySelectorAll('input[type=text],input:not([type])')].find(visible);
+    if (!inp) return { ok: false };
+    inp.focus(); nativeSet(inp, phrase); fire(inp);
+    for (const t of ['keydown', 'keypress', 'keyup']) inp.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+    return { ok: true };
+  }
   function dialogErrors() {
     const d = topDialog(); if (!d) return [];
     return [...d.querySelectorAll('mat-error,.mat-mdc-form-field-error,.mat-error')].filter(visible).map(textOf).filter(Boolean);
@@ -483,6 +494,7 @@
     if (msg.cmd === 'nav') { reply(nav(msg.path)); return }
     if (msg.cmd === 'press') { reply(press(msg.text, msg.inDialog)); return }
     if (msg.cmd === 'errors') { reply(dialogErrors()); return }
+    if (msg.cmd === 'libsearch') { libSearch(msg.text).then(reply); return true }
     if (msg.cmd === 'ping') { reply({ ok: true, url: location.href }); return }
     if (msg.cmd === 'fill') { fill(msg).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'scan') { reply({ fields: scan(), url: location.href, title: document.title }); return }

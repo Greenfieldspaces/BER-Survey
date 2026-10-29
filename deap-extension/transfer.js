@@ -14,8 +14,8 @@ function synthFields() {
   if (src) {
     const boiler = /boiler/i.test(src), hp = /heat pump/i.test(src);
     put('heat.cat', 'Heating system category', boiler || hp ? 'Central heating systems with radiators or underfloor heating' : /storage/i.test(src) ? 'Electric storage systems' : /direct electric|stove|room/i.test(src) ? 'Room heaters' : '');
-    if (boiler || hp) put('heat.sub1', 'Sub category', hp ? 'Heat pumps' : /solid|biomass|range/i.test(src) && !/oil|gas|lpg/i.test(src) ? 'Solid fuel boilers' : /electric/i.test(fuel) ? 'Electric boilers' : 'Gas and oil boilers');
-    if (/oil/i.test(src) || /oil/i.test(fuel)) {
+    if (boiler || hp) put('heat.sub1', 'Sub category', hp ? 'Heat pumps' : /solid|biomass|range/i.test(src) && !/\boil\b|gas|lpg/i.test(src) ? 'Solid fuel boilers' : /electric/i.test(fuel) ? 'Electric boilers' : 'Gas and oil boilers');
+    if (/\boil\b/i.test(src) || /\boil\b/i.test(fuel)) {
       put('heat.sub2', 'Sub category 2', 'Oil boilers');
       put('heat.system', 'Heating system', cond ? 'Condensing' : yr >= 1998 ? 'Standard oil boiler, 1998 or later' : yr >= 1985 ? 'Standard oil boiler 1985 to 1997' : yr ? 'Standard oil boiler pre-1985' : '');
     } else if (/gas|lpg/i.test(src + fuel)) {
@@ -40,6 +40,27 @@ function synthFields() {
   if (v('gen.battery')) put('gen.battery_yes', 'Is a battery present?', parseFloat(v('gen.battery')) > 0 ? 'Yes' : 'No');
   return out;
 }
+// DEAP library items (heat sources, ventilation items, showers and baths, solar collector): the person picks the
+// library item, with a search typed in for them, and the transfer fills and saves whatever dialog follows
+const FUEL_DEAP = { 'Bulk LPG': 'Bulk LPG (propane or butane)', 'Wood pellets (bags)': 'Wood Pellets (in bags for secondary heating)', 'Wood pellets (bulk)': 'Wood Pellets (bulk supply for main heating)', 'Coal': 'House Coal', 'Smokeless fuel': 'Manufactured Smokeless Fuel' };
+function synthTables() {
+  const v = k => surveyValue(k.split('.')[0], k), yes = k => /^yes$/i.test(v(k)), n = k => parseInt(v(k)) || 0, out = [];
+  const tbl = (key, title, cols, rows) => { if (rows.length) out.push({ key, title, columns: cols.map(([k, l]) => ({ key: k, label: l })), rows }) };
+  const fuel = f => FUEL_DEAP[f] || f || '';
+  const heats = [];
+  if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '']);
+  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([v('heat.sec'), fuel(v('heat.secfuel')), v('heat.seceff'), '']);
+  tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water']], heats);
+  const vent = [['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0).map(([k, q]) => [q, String(n('vent.' + k))]);
+  tbl('vent.items', 'Ventilation items', [['search', 'Library search'], ['n', 'Number of items']], vent);
+  const wsc = st.survey.screens.find(x => x.id === 'water'), sh = wsc && wsc.tables.find(t => t.key === 'water.showers'), wet = [];
+  if (sh) { const ti = sh.columns.findIndex(c => c.key === 'type'); sh.rows.forEach(r => wet.push([(r[ti] || '').replace(/ \/.*$/, '') + ' shower', '1'])) }
+  if (n('water.baths') > 0) wet.push(['bath', String(n('water.baths'))]);
+  tbl('water.wet', 'Showers and baths', [['search', 'Library search'], ['n', 'Number of items']], wet);
+  if (yes('water.solar')) tbl('water.collector', 'Solar collector', [['search', 'Library search'], ['aper', 'Aperture area'], ['orient', 'Orientation'], ['tilt', 'Tilt'], ['shade', 'Overshading']], [[v('water.smodel') || v('water.coll') || 'solar', v('water.aper'), v('water.sorient'), v('water.spitch'), v('water.sshade')]]);
+  return out;
+}
+synthTables.uses = /^(heat\.(src|fuel|make|eff|sec|secfuel|seceff)|vent\.(chimneys|flues|fans|vents|flueless)|water\.(baths|solar|coll|aper|sorient|spitch|sshade|smodel|src))$/;
 function allFields() {
   const out = [];
   st.survey.screens.forEach(sc => { const j = job(sc); j.fields.forEach(f => out.push(Object.assign({ screen: sc.id }, f))) });
@@ -50,17 +71,17 @@ function transferSteps() {
   const pool = allFields(), keys = [].concat(...st.survey.screens.map(sc => job(sc).tables.map(t => t.key)));
   const steps = (base.transfer || []).map(p => {
     const sc = st.survey.screens.find(x => x.id === p.screen) || { id: p.screen, fields: [], tables: [] };
-    const j = job(sc), mapping = fullMap(pool.map(f => f.key).concat(...st.survey.screens.map(x => { const jj = job(x); return jj.tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))) })));
+    const j = job(sc), mapping = fullMap(pool.map(f => f.key).concat(...st.survey.screens.map(x => { const jj = job(x); return jj.tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))) }), synthTables().flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key)))));
     const pick = k => pool.filter(f => f.key === k || f.parent && f.key.startsWith(k + '.'));
     const fields = (p.fields ? p.fields.flatMap(pick) : j.fields).filter((f, i, a) => a.indexOf(f) === i && !(mapping[f.key] || {}).skip);
-    const tables = (p.tables ? st.survey.screens.flatMap(x => job(x).tables).filter(t => p.tables.includes(t.key)) : []).filter(t => !(mapping[t.key] || {}).skip);
+    const tables = (p.tables ? st.survey.screens.flatMap(x => job(x).tables).concat(synthTables()).filter(t => p.tables.includes(t.key)) : []).filter(t => !(mapping[t.key] || {}).skip);
     const dlg = tables.filter(t => (mapping[t.key] || {}).dialog !== false && (mapping[t.key] || {}).add), flat = tables.filter(t => (mapping[t.key] || {}).dialog === false);
     const items = dlg.reduce((a, t) => a + t.rows.length, 0);
     if (!fields.length && !flat.length && !items) return null;
     return { name: p.name, path: p.path, screen: sc.id, fields, flat, dlg, mapping, items, status: 'todo', note: '' };
   }).filter(Boolean);
   // anything the survey holds that no DEAP screen above takes: listed for doing by hand
-  const used = new Set(steps.flatMap(s => s.fields.map(f => f.key)));
+  const used = new Set(steps.flatMap(s => s.fields.map(f => f.key)).concat(pool.filter(f => synthTables.uses.test(f.key)).map(f => f.key)));
   transferSteps.left = pool.filter(f => !used.has(f.key) && f.screen && !(fullMap([f.key])[f.key] || {}).skip && !/\.calc\.|^heat\.controls/.test(f.key));
   transferSteps.leftTables = keys.filter(k => !steps.some(s => s.dlg.concat(s.flat).some(t => t.key === k)) && !(fullMap([k])[k] || {}).skip);
   return steps;
@@ -104,6 +125,7 @@ async function fillOn(step, payload) {
   return r.results;
 }
 
+const after = (txt, t, ri) => txt.replace(/\{(\w+)\}/g, (_, k) => t.rows[ri][t.columns.findIndex(c => c.key === k)] || '?');
 async function addItems(step, t) {
   const m = step.mapping[t.key] || {}, label = t.title.replace(/ \(.*\)$/, '').replace(/s$/, '');
   for (let ri = 0; ri < t.rows.length; ri++) {
@@ -115,10 +137,18 @@ async function addItems(step, t) {
     let s = await waitState(x => !!x.dialog, 8000);
     if (!s) throw new Error(m.add + ' did not open a dialog');
     if (m.library && /library/i.test(s.dialog)) {
+      const si = t.columns.findIndex(c => c.key === 'search'), phrase = si >= 0 ? t.rows[ri][si] : '';
+      if (phrase) { await pause(500); await send({ cmd: 'libsearch', text: phrase }) }
       const desc = t.rows[ri].filter(Boolean).slice(0, 5).join(', ');
-      const got = await waitForYou('Pick the DEAP library item for ' + what + ' (' + desc + ') and press ADD. I fill in the rest.', x => x.dialog && !/library/i.test(x.dialog) || !x.dialog);
+      const got = await waitForYou('Pick the DEAP library item for ' + what + ' (' + desc + ') and press ADD. ' + (phrase ? 'I searched the library for "' + phrase + '". ' : '') + 'I fill in the rest.', x => x.dialog && !/library/i.test(x.dialog) || !x.dialog);
       s = await send({ cmd: 'state' });
-      if (!got || !s.dialog) { tx.log.push(step.name + ': ' + what + ' skipped'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }
+      if (!got) { tx.log.push(step.name + ': ' + what + ' skipped'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }
+      if (!s.dialog) { // added straight from the library: whatever else the survey has for it is left to enter in DEAP
+        const rest = t.columns.map((c, i) => [c, t.rows[ri][i]]).filter(([c, x]) => c.key !== 'search' && x && !(c.key === 'n' && x === '1') && !((step.mapping[t.key + '.' + c.key] || {}).skip)).map(([c, x]) => c.label + ' ' + x);
+        if (rest.length) tx.log.push(step.name + ': ' + what + ' added, check in DEAP: ' + rest.join(', '));
+        if (m.after) tx.log.push(step.name + ': ' + what + ', ' + after(m.after, t, ri));
+        await pause(900); continue
+      }
       await pause(800);
     }
     await pause(600);
@@ -133,6 +163,7 @@ async function addItems(step, t) {
       const fixed = await waitForYou('DEAP did not save ' + what + (errs && errs.length ? ': ' + errs.join('; ') : '') + '. Fix it in the dialog and press SAVE (or Cancel to skip it).', x => !x.dialog);
       if (!fixed) throw new Error('Stopped at ' + what);
     }
+    if (m.after) tx.log.push(step.name + ': ' + what + ', ' + after(m.after, t, ri));
     await pause(900);
   }
 }

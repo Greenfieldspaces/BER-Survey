@@ -28,13 +28,14 @@ DEAP adds walls, windows and other list items one at a time in a dialog. For tho
 
 ## Transfer whole survey
 
-With the survey loaded and the assessment open in DEAP, press **Start** under **Transfer whole survey**. It goes through Survey details, Floors, Roofs, Walls, Doors, Windows, Global factors, Ventilation (draught lobby, air tightness, method), Space heating (system type, controls, pumps and fans), Water heating (combi, cylinder options) and Solar PV:
+With the survey loaded and the assessment open in DEAP, press **Start** under **Transfer whole survey**. It goes through Survey details, Floors, Roofs, Walls, Doors, Windows, Global factors, Ventilation (draught lobby, chimneys and fans, air tightness, method), Space heating (system type, controls, heat sources, pumps and fans), Water heating (combi, cylinder options, showers and baths, solar) and Solar PV:
 
 - On ordinary screens it fills the values. DEAP saves those itself.
 - For floors, roofs, walls, doors and windows it presses ADD, fills the dialog and presses SAVE, one at a time.
 - Doors and windows need a DEAP library item first. The panel says **Your turn**: pick the library item and press ADD in DEAP, and the transfer carries on. **Skip this one** leaves that item out.
 - If DEAP refuses to save a dialog, it waits for you to fix it and press SAVE.
-- When it finishes, it lists what is left to do by hand. For now that is the main heat source dialog (fuel and efficiency), chimneys and fans, showers and baths, and solar water heating, which all go through DEAP library dialogs I have not seen yet.
+- Library items (doors, windows, heat sources, chimneys and fans, showers and baths, solar collector): the panel says **Your turn** and types a search into DEAP's library for you. Pick the item and press ADD; it fills and saves the dialog that follows (fuel and "heats water" for heat sources, number, area and so on).
+- When it finishes, it lists what is left to check or do by hand, such as the boiler efficiency, which comes from the library item you picked.
 
 It never presses Publish, Submit, Delete or Download. Untick any section that is already in DEAP so it is not added twice. **Stop** halts it at any point.
 

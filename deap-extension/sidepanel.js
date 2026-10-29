@@ -122,7 +122,9 @@ function job(sc) {
     if (t.key === 'openings.windows-for-deap') {
       add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
       const sh = surveyValue('openings', 'openings.shading'); if (sh) add(t, 'shading', 'Overshading', () => sh);
+      add(t, 'search', 'Library search', r => col(t, r, 'glazing'));
     }
+    if (t.key === 'openings.doors-for-deap') add(t, 'search', 'Library search', r => col(t, r, 'door-type'));
   });
   if (sc.id === 'dims') { const n = surveyValue('details', 'details.storeys') || String((sc.tables.find(t => t.key === 'dims.storeys') || { rows: [] }).rows.length || ''); if (n) fields.unshift({ key: 'dims.nstoreys', label: 'Number of storeys', value: n }) }
   const keys = fields.map(f => f.key).concat(tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))));

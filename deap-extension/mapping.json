@@ -217,24 +217,13 @@
       "skip": true
     },
     "openings.glazing": {
-      "labels": [
-        "Glazing type",
-        "Glazing"
-      ]
+      "skip": true
     },
     "openings.frame": {
-      "labels": [
-        "Frame type",
-        "Frame material",
-        "Frame"
-      ]
+      "skip": true
     },
     "openings.gap": {
-      "labels": [
-        "Gap",
-        "Air gap",
-        "Gap width"
-      ]
+      "skip": true
     },
     "openings.fill": {
       "labels": [
@@ -243,15 +232,10 @@
       ]
     },
     "openings.shading": {
-      "labels": [
-        "Overshading",
-        "Window overshading"
-      ]
+      "skip": true
     },
     "openings.doortype": {
-      "labels": [
-        "Door type"
-      ]
+      "skip": true
     },
     "openings.op_total": {
       "skip": true
@@ -275,7 +259,7 @@
       "selector": "input[name=\"Number\"]"
     },
     "openings.doors-for-deap.total-area-m2": {
-      "selector": "input[name=\"Area\"]"
+      "selector": "input[name=\"DoorArea\"]"
     },
     "openings.doors-for-deap.no": {
       "selector": "input[name=\"Number\"]"
@@ -827,6 +811,96 @@
     },
     "gen.pv.w": {
       "selector": "input[name=\"PowerOutputPerPanel\"]"
+    },
+    "heat.sources": {
+      "dialog": true,
+      "add": "ADD HEAT SOURCE",
+      "library": true,
+      "after": "check DEAP's efficiency against the survey's {eff}%"
+    },
+    "heat.sources.search": {
+      "skip": true
+    },
+    "heat.sources.eff": {
+      "skip": true
+    },
+    "heat.sources.fuel": {
+      "selector": "mat-select[name=\"FuelTypeID\"]"
+    },
+    "heat.sources.water": {
+      "selector": "input[name=\"LinkToWater\"]"
+    },
+    "vent.items": {
+      "dialog": true,
+      "add": "ADD VENTILATION ITEM",
+      "library": true
+    },
+    "vent.items.search": {
+      "skip": true
+    },
+    "vent.items.n": {
+      "labels": [
+        "Number of items",
+        "Number",
+        "Quantity",
+        "Count"
+      ]
+    },
+    "water.wet": {
+      "dialog": true,
+      "add": "ADD SHOWERS & BATHS",
+      "library": true
+    },
+    "water.wet.search": {
+      "skip": true
+    },
+    "water.wet.n": {
+      "labels": [
+        "Number of items",
+        "Number",
+        "Quantity",
+        "Count"
+      ]
+    },
+    "water.collector": {
+      "dialog": true,
+      "add": "ADD SOLAR COLLECTOR",
+      "library": true
+    },
+    "water.collector.search": {
+      "skip": true
+    },
+    "water.collector.aper": {
+      "labels": [
+        "Aperture area",
+        "Collector aperture area",
+        "Area"
+      ]
+    },
+    "water.collector.orient": {
+      "labels": [
+        "Orientation"
+      ]
+    },
+    "water.collector.tilt": {
+      "labels": [
+        "Tilt",
+        "Pitch"
+      ]
+    },
+    "water.collector.shade": {
+      "labels": [
+        "Overshading"
+      ]
+    },
+    "water.showers": {
+      "skip": true
+    },
+    "openings.windows-for-deap.search": {
+      "skip": true
+    },
+    "openings.doors-for-deap.search": {
+      "skip": true
     }
   },
   "transfer": [
@@ -884,11 +958,14 @@
       "screen": "fabric"
     },
     {
-      "name": "Ventilation: draught lobby",
+      "name": "Ventilation: lobby, chimneys and fans",
       "path": "ventilation/infiltration",
       "screen": "vent",
       "fields": [
         "vent.lobby"
+      ],
+      "tables": [
+        "vent.items"
       ]
     },
     {
@@ -931,6 +1008,15 @@
       ]
     },
     {
+      "name": "Space heating: heat sources",
+      "path": "space-heating/heat-sources",
+      "screen": "heat",
+      "fields": [],
+      "tables": [
+        "heat.sources"
+      ]
+    },
+    {
       "name": "Space heating: pumps and fans",
       "path": "space-heating/pumps-fans",
       "screen": "heat",
@@ -966,6 +1052,24 @@
         "water.cylins",
         "water.cylmm",
         "water.primins"
+      ]
+    },
+    {
+      "name": "Water heating: showers and baths",
+      "path": "water-heating/showers-bath",
+      "screen": "water",
+      "fields": [],
+      "tables": [
+        "water.wet"
+      ]
+    },
+    {
+      "name": "Water heating: solar",
+      "path": "water-heating/solar",
+      "screen": "water",
+      "fields": [],
+      "tables": [
+        "water.collector"
       ]
     },
     {
