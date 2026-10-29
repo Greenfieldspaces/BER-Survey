@@ -1,8 +1,8 @@
 {
-  "_about": "Starting guesses at how DEAP labels each survey value. Keys are the survey app's field ids. 'labels' are DEAP label texts to look for, 'selector' pins an exact DEAP field, 'values' maps a survey answer to DEAP's wording, 'skip' leaves a value out. Fields you teach in the side panel are saved on top of this file.",
+  "_about": "Starting guesses at how DEAP labels each survey value. Keys are the survey app's field ids. 'labels' are DEAP label texts to look for, 'selector' pins an exact DEAP field, 'values' maps a survey answer to DEAP's wording, 'skip' leaves a value out. Fields you teach in the side panel are saved on top of this file. Tables are filled one row at a time into DEAP's Add dialog unless the table key has \"dialog\": false. Walls selectors confirmed from live DEAP on 2026-10-28.",
   "screens": {
     "details": {
-      "url": "dwelling|details|general|property|assessment-details"
+      "url": "/details|dwelling"
     },
     "dims": {
       "url": "building/(floors?|dimensions)"
@@ -34,85 +34,52 @@
   },
   "fields": {
     "details.address": {
-      "labels": [
-        "Address",
-        "Address line 1",
-        "Dwelling address"
-      ]
+      "skip": true
     },
     "details.mprn": {
-      "labels": [
-        "MPRN"
-      ]
+      "selector": "input[name=\"MPRN\"]"
     },
     "details.eircode": {
-      "labels": [
-        "Eircode",
-        "Postcode"
-      ]
+      "selector": "input[name=\"Eircode\"]"
     },
     "details.county": {
-      "labels": [
-        "County"
-      ]
+      "selector": "mat-select[name=\"CountyID\"]"
     },
     "details.dtype": {
-      "labels": [
-        "Dwelling type",
-        "Property type"
-      ]
+      "selector": "mat-select[name=\"DwellingTypeID\"]"
     },
     "details.year": {
-      "labels": [
-        "Year of construction",
-        "Dwelling age",
-        "Year built",
-        "Age band"
-      ]
+      "selector": "input[name=\"Year\"]"
     },
     "details.extyear": {
-      "labels": [
-        "Extension year of construction",
-        "Extension age"
-      ]
+      "skip": true
     },
     "details.storeys": {
-      "labels": [
-        "Number of storeys",
-        "No. of storeys"
-      ]
+      "skip": true
     },
     "details.rooms": {
-      "labels": [
-        "Number of habitable rooms",
-        "Habitable rooms"
-      ]
+      "skip": true
     },
     "details.purpose": {
-      "labels": [
-        "Purpose of rating",
-        "Purpose of assessment"
-      ]
+      "selector": "mat-select[name=\"RatingPurposeId\"]",
+      "values": {
+        "Letting": "Private letting",
+        "Grant support": "Grant Support"
+      }
     },
     "details.rtype": {
-      "labels": [
-        "Type of rating",
-        "Rating type"
-      ]
+      "selector": "mat-select[name=\"RatingTypeId\"]",
+      "values": {
+        "Existing": "Existing Dwelling",
+        "Provisional": "New Dwelling - Provisional",
+        "New final": "New Dwelling - Final"
+      }
     },
     "details.date": {
-      "labels": [
-        "Date of survey",
-        "Survey date",
-        "Date of assessment",
-        "Date of site visit"
-      ]
+      "skip": true
     },
     "details.planning": {
-      "labels": [
-        "Planning reference",
-        "Planning permission reference"
-      ]
+      "selector": "input[name=\"PlanningReference\"]"
     },
     "details.notes": {
       "skip": true
@@ -124,116 +91,86 @@
       "skip": true
     },
     "dims.calc.living-area-fraction": {
-      "labels": [
-        "Living area fraction"
-      ]
+      "skip": true
     },
     "dims.living": {
-      "labels": [
-        "Living area",
-        "Living room area"
-      ]
+      "selector": "input[name=\"LivingArea\"]"
     },
     "dims.storeys.level": {
-      "labels": [
-        "Floor",
-        "Storey",
-        "Level"
-      ]
+      "skip": true
     },
     "dims.storeys.area": {
-      "labels": [
-        "Floor area",
-        "Area"
-      ]
+      "skip": true
     },
     "dims.storeys.height": {
-      "labels": [
-        "Storey height",
-        "Room height",
-        "Height"
-      ]
+      "selector": "input[formcontrolname=\"AverageStoreyHeight\"]"
     },
     "dims.notes": {
       "skip": true
     },
     "walls.types.name": {
+      "selector": "input[name=\"Description\"]",
       "labels": [
-        "Description",
-        "Name",
-        "Wall description"
+        "Description"
       ]
     },
     "walls.types.net": {
+      "selector": "input[name=\"Area\"]",
       "labels": [
-        "Area",
-        "Net area",
-        "Wall area"
+        "Area"
       ]
     },
     "walls.types.cons": {
+      "selector": "mat-select[name=\"WallTypeID\"]",
       "labels": [
-        "Wall type",
-        "Construction type",
-        "Construction"
+        "Wall Type"
       ]
     },
     "walls.types.thick": {
-      "labels": [
-        "Thickness",
-        "Wall thickness"
-      ]
-    },
-    "walls.types.ins": {
-      "labels": [
-        "Insulation type",
-        "Insulation"
-      ]
-    },
-    "walls.types.insmm": {
-      "labels": [
-        "Insulation thickness"
-      ]
-    },
-    "walls.types.year": {
       "skip": true
     },
-    "walls.types.u": {
+    "walls.types.ins": {
+      "skip": true
+    },
+    "walls.types.insmm": {
+      "skip": true
+    },
+    "walls.types.year": {
+      "selector": "mat-select[name=\"AgeBandID\"]",
       "labels": [
-        "U-value",
-        "U value"
+        "Age Band"
+      ]
+    },
+    "walls.types.u": {
+      "selector": "input[name=\"UValue\"]",
+      "labels": [
+        "U-Value"
       ]
     },
     "walls.types.ev": {
       "skip": true
     },
     "dims.floors.type": {
-      "labels": [
-        "Floor type"
-      ]
+      "selector": "mat-select[name=\"FloorTypeID\"]",
+      "values": {
+        "Solid ground floor": "Ground Floor - Solid",
+        "Suspended timber": "Ground Floor - Suspended",
+        "Suspended concrete": "Ground Floor - Suspended",
+        "Exposed floor (over outside air)": "Exposed / Semi Exposed",
+        "Semi-exposed (over garage)": "Exposed / Semi Exposed"
+      }
     },
     "dims.floors.area": {
-      "labels": [
-        "Area",
-        "Floor area"
-      ]
+      "selector": "input[name=\"Area\"]"
     },
     "dims.floors.perim": {
-      "labels": [
-        "Exposed perimeter",
-        "Perimeter"
-      ]
+      "selector": "input[name=\"ExposedPerimeter\"]"
     },
     "dims.floors.ins": {
-      "labels": [
-        "Insulation thickness",
-        "Insulation"
-      ]
+      "skip": true
     },
     "dims.floors.u": {
-      "labels": [
-        "U-value"
-      ]
+      "selector": "input[name=\"UValue\"]"
     },
     "dims.floors.part": {
       "skip": true
@@ -242,25 +179,24 @@
       "skip": true
     },
     "roofs.roofs.type": {
-      "labels": [
-        "Roof type"
-      ]
+      "selector": "mat-select[name=\"TGDLRoofTypeId\"]",
+      "values": {
+        "Pitched, insulated at joists": "Pitched Roof - Insulated on Ceiling",
+        "Pitched, insulated at rafters": "Pitched Roof - Insulated on Rafter",
+        "Flat roof": "Flat Roof",
+        "Room in roof, sloping": "Pitched Roof - Insulated on Rafter",
+        "Room in roof, flat ceiling": "Pitched Roof - Insulated on Ceiling",
+        "Room in roof, stud wall": "Room in Roof - Insulated on side"
+      }
     },
     "roofs.roofs.area": {
-      "labels": [
-        "Area",
-        "Roof area"
-      ]
+      "selector": "input[name=\"Area\"]"
     },
     "roofs.roofs.ins": {
-      "labels": [
-        "Insulation thickness"
-      ]
+      "skip": true
     },
     "roofs.roofs.u": {
-      "labels": [
-        "U-value"
-      ]
+      "selector": "input[name=\"UValue\"]"
     },
     "roofs.roofs.part": {
       "skip": true
@@ -281,54 +217,28 @@
       "skip": true
     },
     "openings.glazing": {
-      "labels": [
-        "Glazing type",
-        "Glazing"
-      ]
+      "skip": true
     },
     "openings.frame": {
-      "labels": [
-        "Frame type",
-        "Frame material",
-        "Frame"
-      ]
+      "skip": true
     },
     "openings.gap": {
-      "labels": [
-        "Gap",
-        "Air gap",
-        "Gap width"
-      ]
+      "skip": true
     },
     "openings.fill": {
-      "labels": [
-        "Gas fill",
-        "Gas"
-      ]
+      "skip": true
     },
     "openings.shading": {
-      "labels": [
-        "Overshading",
-        "Window overshading"
-      ]
+      "skip": true
     },
     "openings.doortype": {
-      "labels": [
-        "Door type"
-      ]
+      "skip": true
     },
     "openings.op_total": {
-      "labels": [
-        "Total number of windows and doors",
-        "Number of windows and doors"
-      ]
+      "skip": true
     },
     "openings.op_strip": {
-      "labels": [
-        "Number draught stripped",
-        "Draught stripped windows and doors",
-        "Number of windows and doors draught stripped"
-      ]
+      "skip": true
     },
     "openings.calc.draught-stripped": {
       "skip": true
@@ -337,43 +247,27 @@
       "skip": true
     },
     "openings.windows-for-deap.faces": {
-      "labels": [
-        "Orientation"
-      ]
+      "selector": "mat-select[name=\"OrientationID\"]"
     },
     "openings.windows-for-deap.total-area-m2": {
-      "labels": [
-        "Area",
-        "Window area",
-        "Total area"
-      ]
+      "selector": "input[name=\"Area\"]"
     },
     "openings.windows-for-deap.no": {
-      "labels": [
-        "Count",
-        "Number",
-        "No. of windows"
-      ]
+      "selector": "input[name=\"Number\"]"
     },
     "openings.doors-for-deap.total-area-m2": {
-      "labels": [
-        "Area",
-        "Door area"
-      ]
+      "selector": "input[name=\"DoorArea\"]"
     },
     "openings.doors-for-deap.no": {
-      "labels": [
-        "Count",
-        "Number",
-        "No. of doors"
-      ]
+      "selector": "input[name=\"Number\"]"
     },
     "fabric.tb": {
-      "labels": [
-        "Thermal bridging factor",
-        "Thermal bridging",
-        "y-value"
-      ]
+      "selector": "mat-select[name=\"ThermalBridgingFactorID\"]",
+      "values": {
+        "Default 0.15": "Default",
+        "Acceptable Construction Details 0.08": "Acceptable Construction Details 2008, 2011, 2019 and 2022 TGDL",
+        "Calculated value": "User Defined"
+      }
     },
     "fabric.y": {
       "labels": [
@@ -382,10 +276,7 @@
       ]
     },
     "fabric.mass": {
-      "labels": [
-        "Thermal mass category",
-        "Thermal mass"
-      ]
+      "selector": "mat-select[name=\"ThermalMassCategoryID\"]"
     },
     "fabric.notes": {
       "skip": true
@@ -422,17 +313,10 @@
       ]
     },
     "vent.lobby": {
-      "labels": [
-        "Draught lobby",
-        "Is there a draught lobby"
-      ]
+      "selector": "input[name=\"DraughtLobby\"]"
     },
     "vent.tested": {
-      "labels": [
-        "Has a permeability test been carried out",
-        "Permeability test",
-        "Air tightness test"
-      ]
+      "selector": "input[name=\"AirPermeabilityTest\"]"
     },
     "vent.q50": {
       "labels": [
@@ -443,51 +327,43 @@
       ]
     },
     "vent.structure": {
-      "labels": [
-        "Structure type",
-        "Structural infiltration"
-      ]
+      "selector": "mat-select[name=\"StructuralInfiltrationID\"]",
+      "values": {
+        "Timber frame or steel frame": "Timber or Steel Frame"
+      }
     },
     "vent.susfloor": {
-      "labels": [
-        "Suspended wooden ground floor",
-        "Ground floor"
-      ]
+      "selector": "mat-select[name=\"WoodenFloorID\"]",
+      "values": {
+        "Solid": "No",
+        "Suspended, sealed": "Yes (Sealed)",
+        "Suspended, unsealed": "Yes (Unsealed)"
+      }
     },
     "vent.hatches": {
-      "labels": [
-        "Number of attic hatches"
-      ]
+      "skip": true
     },
     "vent.hatches_ds": {
-      "labels": [
-        "Number of attic hatches draught stripped"
-      ]
+      "skip": true
     },
     "vent.sheltered": {
-      "labels": [
-        "Number of sides sheltered",
-        "Sheltered sides"
-      ]
+      "selector": "input[name=\"NoOfSidesSheltered\"]"
     },
     "vent.mech": {
-      "labels": [
-        "Ventilation method",
-        "Mechanical ventilation",
-        "Ventilation type"
-      ]
+      "selector": "mat-select[name=\"VentilationMethodID\"]",
+      "values": {
+        "Positive input from loft": "Positive input ventilation from loft",
+        "Positive input from outside": "Positive input ventilation from outside",
+        "Whole-house extract": "Whole-house extract ventilation",
+        "Balanced, with heat recovery (MVHR)": "Balanced whole-house mechanical ventilation with heat recovery",
+        "Balanced, no heat recovery": "Balanced whole-house mechanical ventilation, no heat recovery"
+      }
     },
     "vent.sfp": {
-      "labels": [
-        "Specific fan power",
-        "SFP"
-      ]
+      "selector": "input[name=\"FanPower\"]"
     },
     "vent.hre": {
-      "labels": [
-        "Heat exchanger efficiency",
-        "Heat recovery efficiency"
-      ]
+      "selector": "input[name=\"HeatExchanger\"]"
     },
     "vent.mv_model": {
       "skip": true
@@ -533,14 +409,10 @@
       "skip": true
     },
     "heat.cond": {
-      "labels": [
-        "Condensing"
-      ]
+      "skip": true
     },
     "heat.flue": {
-      "labels": [
-        "Flue type"
-      ]
+      "skip": true
     },
     "heat.inside": {
       "labels": [
@@ -559,41 +431,26 @@
       ]
     },
     "heat.emit": {
-      "labels": [
-        "Heat emitter type",
-        "Heat emitters",
-        "Emitter type"
-      ]
+      "selector": "mat-select[name=\"HeatEmitterType\"]",
+      "values": {
+        "Radiators and underfloor": "Both radiators and underfloor heating in concrete slab - living area heated by rads",
+        "Underfloor heating": "Underfloor heating, pipes in screed above insulation"
+      }
     },
     "heat.pump": {
-      "labels": [
-        "Central heating pump",
-        "Number of central heating pumps"
-      ]
+      "skip": true
     },
     "heat.pump_in": {
-      "labels": [
-        "Pump in heated space",
-        "Central heating pump in heated space"
-      ]
+      "selector": "input[name=\"CentralHeatingInsideDwelling\"]"
     },
     "heat.oilpump_in": {
-      "labels": [
-        "Oil boiler fuel pump inside dwelling",
-        "Oil fuel pump inside"
-      ]
+      "selector": "input[name=\"OilBoilerInsideDwelling\"]"
     },
     "heat.fluefan": {
-      "labels": [
-        "Gas boiler flue fan",
-        "Flue fan"
-      ]
+      "skip": true
     },
     "heat.warmair": {
-      "labels": [
-        "Warm air heating system fans",
-        "Warm air heating"
-      ]
+      "selector": "input[name=\"WarmAirHeatingOrFanCoilRadiator\"]"
     },
     "heat.sec": {
       "labels": [
@@ -626,28 +483,16 @@
       ]
     },
     "water.combi": {
-      "labels": [
-        "Combi boiler",
-        "Combination boiler"
-      ]
+      "selector": "input[name=\"IsCombiBoiler\"]"
     },
     "water.distloss": {
-      "labels": [
-        "Distribution losses",
-        "Include distribution losses"
-      ]
+      "selector": "input[name=\"Distribution\"]"
     },
     "water.storeloss": {
-      "labels": [
-        "Storage losses",
-        "Include storage losses"
-      ]
+      "selector": "input[name=\"Storage\"]"
     },
     "water.summer_imm": {
-      "labels": [
-        "Supplementary electric water heating in summer",
-        "Summer immersion"
-      ]
+      "selector": "input[name=\"ElecImmersionInSummer\"]"
     },
     "water.imm": {
       "labels": [
@@ -656,60 +501,35 @@
       ]
     },
     "water.cyl": {
-      "labels": [
-        "Hot water cylinder",
-        "Storage cylinder",
-        "Is there a hot water cylinder"
-      ]
+      "skip": true
     },
     "water.vol": {
-      "labels": [
-        "Cylinder volume",
-        "Hot water storage volume",
-        "Storage volume"
-      ]
+      "selector": "input[name=\"StorageVolume\"]"
     },
     "water.cylins": {
-      "labels": [
-        "Insulation type",
-        "Cylinder insulation type"
-      ]
+      "selector": "mat-select[name=\"InsulationTypeID\"]",
+      "values": {
+        "Factory insulated": "Factory insulated",
+        "Loose jacket": "Loose jacket"
+      }
     },
     "water.cylmm": {
-      "labels": [
-        "Insulation thickness",
-        "Cylinder insulation thickness"
-      ]
+      "selector": "input[name=\"CylinderThickness\"]"
     },
     "water.indoors": {
-      "labels": [
-        "Hot water storage indoors",
-        "Storage indoors",
-        "Cylinder in heated space"
-      ]
+      "selector": "input[name=\"StorageIndoorGroupScheme\"]"
     },
     "water.cylstat": {
-      "labels": [
-        "Cylinder thermostat"
-      ]
+      "selector": "input[name=\"CylinderThermostat\"]"
     },
     "water.primins": {
-      "labels": [
-        "Primary circuit loss insulation",
-        "Primary pipework insulation"
-      ]
+      "skip": true
     },
     "water.primcirc": {
-      "labels": [
-        "Primary circuit",
-        "Primary circuit type"
-      ]
+      "skip": true
     },
     "water.septime": {
-      "labels": [
-        "Water separately timed",
-        "Hot water separately timed"
-      ]
+      "selector": "input[name=\"CylinderHeatedByBoiler\"]"
     },
     "water.baths": {
       "labels": [
@@ -786,38 +606,32 @@
       "skip": true
     },
     "gen.pv.kwp": {
-      "labels": [
-        "Peak power",
-        "kWp",
-        "Installed peak power"
-      ]
+      "skip": true
     },
     "gen.pv.orient": {
-      "labels": [
-        "Orientation",
-        "Collector orientation"
-      ]
+      "selector": "mat-select[name=\"OrientationId\"]",
+      "values": {
+        "S": "South",
+        "SE": "SE/SW",
+        "SW": "SE/SW",
+        "E": "East/West",
+        "W": "East/West",
+        "NE": "NE/NW",
+        "NW": "NE/NW",
+        "N": "North"
+      }
     },
     "gen.pv.pitch": {
-      "labels": [
-        "Pitch",
-        "Tilt",
-        "Collector pitch"
-      ]
+      "selector": "input[name=\"Tilt\"]"
     },
     "gen.pv.shade": {
-      "labels": [
-        "Overshading"
-      ]
+      "selector": "mat-select[name=\"OvershadingId\"]"
     },
     "gen.pv.ev": {
       "skip": true
     },
     "gen.battery": {
-      "labels": [
-        "Battery capacity",
-        "Battery storage"
-      ]
+      "selector": "input[name=\"BatteryCapacity\"]"
     },
     "gen.pvmodel": {
       "skip": true
@@ -835,6 +649,449 @@
     },
     "gen.notes": {
       "skip": true
+    },
+    "walls.types": {
+      "dialog": true,
+      "add": "ADD WALL"
+    },
+    "walls.types.semi": {
+      "selector": "input[name=\"SemiExposed\"]",
+      "labels": [
+        "Wall is semi-exposed"
+      ]
+    },
+    "details.ext": {
+      "selector": "input[name=\"Extended\"]"
+    },
+    "details.client": {
+      "skip": true
+    },
+    "details.client_tel": {
+      "skip": true
+    },
+    "dims.nstoreys": {
+      "selector": "input[name=\"NumberOfStoreys\"]"
+    },
+    "dims.storeys": {
+      "dialog": false
+    },
+    "dims.floors": {
+      "dialog": true,
+      "add": "ADD FLOOR"
+    },
+    "dims.floors.name": {
+      "selector": "input[name=\"Description\"]"
+    },
+    "dims.floors.loc": {
+      "selector": "mat-select[name=\"FloorLocationID\"]"
+    },
+    "dims.floors.year": {
+      "selector": "mat-select[name=\"AgeBandID\"]"
+    },
+    "roofs.roofs": {
+      "dialog": true,
+      "add": "ADD ROOF"
+    },
+    "roofs.roofs.name": {
+      "selector": "input[name=\"Description\"]"
+    },
+    "roofs.roofs.year": {
+      "selector": "mat-select[name=\"AgeBandID\"]"
+    },
+    "openings.doors-for-deap": {
+      "dialog": true,
+      "add": "ADD DOOR",
+      "library": true
+    },
+    "openings.doors-for-deap.door-type": {
+      "selector": "input[name=\"Description\"]"
+    },
+    "openings.doors-for-deap.u-value": {
+      "selector": "input[name=\"UValue\"]"
+    },
+    "openings.windows-for-deap": {
+      "dialog": true,
+      "add": "ADD WINDOW",
+      "library": true
+    },
+    "openings.windows-for-deap.desc": {
+      "selector": "input[name=\"Description\"]"
+    },
+    "openings.windows-for-deap.u-value": {
+      "selector": "input[name=\"UValue\"]"
+    },
+    "openings.windows-for-deap.shading": {
+      "selector": "mat-select[name=\"OvershadingID\"]",
+      "values": {
+        "None or very little": "Very Little",
+        "Modest": "Average or Unknown",
+        "Significant": "More Than Average",
+        "Heavy": "Heavy"
+      }
+    },
+    "openings.windows-for-deap.glazing": {
+      "skip": true
+    },
+    "openings.windows-for-deap.frame": {
+      "skip": true
+    },
+    "openings.windows-for-deap.gap": {
+      "skip": true
+    },
+    "openings.windows-for-deap.gas": {
+      "skip": true
+    },
+    "openings.windows-for-deap.u-value-evidence": {
+      "skip": true
+    },
+    "openings.ops": {
+      "selector": "input[name=\"NumberOfOpenings\"]"
+    },
+    "vent.ducts": {
+      "skip": true
+    },
+    "vent.ductins": {
+      "skip": true
+    },
+    "heat.cat": {
+      "selector": "mat-select[name=\"HeatingSystemCategoryID\"]"
+    },
+    "heat.sub1": {
+      "selector": "mat-select[name=\"SubCategory1ID\"]"
+    },
+    "heat.sub2": {
+      "selector": "mat-select[name=\"SubCategory2ID\"]"
+    },
+    "heat.system": {
+      "selector": "mat-select[name=\"HeatingSystem\"]"
+    },
+    "heat.ctrl": {
+      "selector": "mat-select[name=\"HeatingSystemControlsID\"]"
+    },
+    "heat.interlock": {
+      "selector": "input[name=\"BoilerInterlockPresent\"]"
+    },
+    "heat.delayed": {
+      "selector": "input[name=\"DelayedThermostat\"]"
+    },
+    "heat.pumpn": {
+      "selector": "input[name=\"PumpsCentralHeating\"]"
+    },
+    "heat.oilpumpn": {
+      "selector": "input[name=\"PumpsOilBoiler\"]"
+    },
+    "heat.fluefann": {
+      "selector": "input[name=\"PumpsGasBoilerFlueFan\"]"
+    },
+    "heat.controls": {
+      "skip": true
+    },
+    "gen.battery_yes": {
+      "selector": "input[name=\"IsBatteryPresent\"]"
+    },
+    "gen.pv": {
+      "dialog": true,
+      "add": "ADD SOLAR PV ARRAY"
+    },
+    "gen.pv.tech": {
+      "selector": "input[name=\"Technology\"]"
+    },
+    "gen.pv.n": {
+      "selector": "input[name=\"NumberOfPanels\"]"
+    },
+    "gen.pv.w": {
+      "selector": "input[name=\"PowerOutputPerPanel\"]"
+    },
+    "heat.sources": {
+      "dialog": true,
+      "add": "ADD HEAT SOURCE",
+      "library": true,
+      "after": "check DEAP's efficiency against the survey's {eff}%",
+      "autopick": false
+    },
+    "heat.sources.search": {
+      "skip": true
+    },
+    "heat.sources.eff": {
+      "skip": true
+    },
+    "heat.sources.fuel": {
+      "selector": "mat-select[name=\"FuelTypeID\"]"
+    },
+    "heat.sources.water": {
+      "selector": "input[name=\"LinkToWater\"]"
+    },
+    "vent.items": {
+      "dialog": true,
+      "add": "ADD VENTILATION ITEM",
+      "library": true
+    },
+    "vent.items.search": {
+      "skip": true
+    },
+    "vent.items.n": {
+      "labels": [
+        "Number of items",
+        "Number",
+        "Quantity",
+        "Count"
+      ]
+    },
+    "water.wet": {
+      "dialog": true,
+      "add": "ADD SHOWERS & BATHS",
+      "library": true
+    },
+    "water.wet.search": {
+      "skip": true
+    },
+    "water.wet.n": {
+      "labels": [
+        "Number of items",
+        "Number",
+        "Quantity",
+        "Count"
+      ]
+    },
+    "water.collector": {
+      "dialog": true,
+      "add": "ADD SOLAR COLLECTOR",
+      "library": true
+    },
+    "water.collector.search": {
+      "skip": true
+    },
+    "water.collector.aper": {
+      "labels": [
+        "Aperture area",
+        "Collector aperture area",
+        "Area"
+      ]
+    },
+    "water.collector.orient": {
+      "labels": [
+        "Orientation"
+      ]
+    },
+    "water.collector.tilt": {
+      "labels": [
+        "Tilt",
+        "Pitch"
+      ]
+    },
+    "water.collector.shade": {
+      "labels": [
+        "Overshading"
+      ]
+    },
+    "water.showers": {
+      "skip": true
+    },
+    "openings.windows-for-deap.search": {
+      "skip": true
+    },
+    "openings.doors-for-deap.search": {
+      "skip": true
+    },
+    "gen.pv.panels": {
+      "skip": true
+    },
+    "gen.pv.wp": {
+      "skip": true
+    },
+    "openings.strip": {
+      "selector": "input[name=\"NumberOfDraftStrippedOpenings\"]"
+    },
+    "water.primtype": {
+      "selector": "mat-select[name=\"SystemTypeID\"]"
+    },
+    "heat.sources.exact": {
+      "skip": true
+    },
+    "openings.windows-for-deap.want": {
+      "skip": true
     }
-  }
+  },
+  "transfer": [
+    {
+      "name": "Survey details",
+      "path": "details",
+      "screen": "details"
+    },
+    {
+      "name": "Floors",
+      "path": "building/floors",
+      "screen": "dims",
+      "tables": [
+        "dims.storeys",
+        "dims.floors"
+      ]
+    },
+    {
+      "name": "Roofs",
+      "path": "building/roofs",
+      "screen": "roofs",
+      "tables": [
+        "roofs.roofs"
+      ]
+    },
+    {
+      "name": "Walls",
+      "path": "building/walls",
+      "screen": "walls",
+      "tables": [
+        "walls.types"
+      ]
+    },
+    {
+      "name": "Doors",
+      "path": "building/doors",
+      "screen": "openings",
+      "fields": [],
+      "tables": [
+        "openings.doors-for-deap"
+      ]
+    },
+    {
+      "name": "Windows",
+      "path": "building/windows",
+      "screen": "openings",
+      "fields": [],
+      "tables": [
+        "openings.windows-for-deap"
+      ]
+    },
+    {
+      "name": "Global factors",
+      "path": "building/global-factors",
+      "screen": "fabric"
+    },
+    {
+      "name": "Ventilation: lobby, chimneys and fans",
+      "path": "ventilation/infiltration",
+      "screen": "vent",
+      "fields": [
+        "vent.lobby"
+      ],
+      "tables": [
+        "vent.items"
+      ]
+    },
+    {
+      "name": "Ventilation: air tightness",
+      "path": "ventilation/air-tightness",
+      "screen": "vent",
+      "fields": [
+        "vent.tested",
+        "vent.q50",
+        "vent.structure",
+        "vent.susfloor",
+        "vent.sheltered",
+        "openings.ops",
+        "openings.strip"
+      ]
+    },
+    {
+      "name": "Ventilation: method",
+      "path": "ventilation/method",
+      "screen": "vent",
+      "fields": [
+        "vent.mech",
+        "vent.sfp",
+        "vent.hre"
+      ]
+    },
+    {
+      "name": "Space heating: controls",
+      "path": "space-heating/ctrl-resp",
+      "screen": "heat",
+      "fields": [
+        "heat.cat",
+        "heat.sub1",
+        "heat.sub2",
+        "heat.system",
+        "heat.emit",
+        "heat.ctrl",
+        "heat.interlock",
+        "heat.delayed"
+      ]
+    },
+    {
+      "name": "Space heating: heat sources",
+      "path": "space-heating/heat-sources",
+      "screen": "heat",
+      "fields": [],
+      "tables": [
+        "heat.sources"
+      ]
+    },
+    {
+      "name": "Space heating: pumps and fans",
+      "path": "space-heating/pumps-fans",
+      "screen": "heat",
+      "fields": [
+        "heat.pumpn",
+        "heat.pump_in",
+        "heat.oilpumpn",
+        "heat.oilpump_in",
+        "heat.fluefann",
+        "heat.warmair"
+      ]
+    },
+    {
+      "name": "Water heating: combi",
+      "path": "water-heating/combi-boiler",
+      "screen": "water",
+      "fields": [
+        "water.combi"
+      ]
+    },
+    {
+      "name": "Water heating: options",
+      "path": "water-heating/options",
+      "screen": "water",
+      "fields": [
+        "water.storeloss",
+        "water.indoors",
+        "water.distloss",
+        "water.summer_imm",
+        "water.vol",
+        "water.cylstat",
+        "water.septime",
+        "water.cylins",
+        "water.cylmm",
+        "water.primtype"
+      ]
+    },
+    {
+      "name": "Water heating: showers and baths",
+      "path": "water-heating/showers-bath",
+      "screen": "water",
+      "fields": [],
+      "tables": [
+        "water.wet"
+      ]
+    },
+    {
+      "name": "Water heating: solar",
+      "path": "water-heating/solar",
+      "screen": "water",
+      "fields": [],
+      "tables": [
+        "water.collector"
+      ]
+    },
+    {
+      "name": "Solar PV",
+      "path": "renewables/solar-pv",
+      "screen": "gen",
+      "fields": [
+        "gen.battery_yes",
+        "gen.battery"
+      ],
+      "tables": [
+        "gen.pv"
+      ]
+    }
+  ]
 }

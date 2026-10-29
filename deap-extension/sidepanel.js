@@ -6,7 +6,7 @@ function h(tag, attrs, ...kids) {
   for (const c of kids.flat()) { if (c == null || c === false) continue; e.append(c.nodeType ? c : document.createTextNode(c)) }
   return e;
 }
-function toast(t) { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => e.hidden = true, 2200) }
+function toast(t) { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => e.hidden = true, Math.max(2200, t.length * 70)) }
 const slug = t => String(t).toLowerCase().replace(/²/g, '2').replace(/³/g, '3').replace(/\(.*?\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const DEFAULT_SKIP = /(\.ev|_src|\.notes|\.make|model|\.harp|\.hyear|\.testcert)$/;
 const STATUS = { filled: 'Filled', same: 'Already set', kept: 'Kept DEAP value', nomatch: 'Not found on this page', norow: 'Add more rows in DEAP, then fill again', nooption: 'DEAP has no matching option', error: 'Could not fill', skipped: 'Left out' };
@@ -23,6 +23,7 @@ async function init() {
   document.addEventListener('dragover', e => { e.preventDefault(); const d = $('.drop'); if (d) d.classList.add('on') });
   document.addEventListener('dragleave', () => { const d = $('.drop'); if (d) d.classList.remove('on') });
   document.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) f.text().then(loadText) });
+  await loadRec();
   await findTab();
   render();
 }
@@ -65,8 +66,23 @@ function fullMap(keys) { const m = {}; keys.forEach(k => { const v = mapFor(k); 
 
 // ---------- what to send for one screen ----------
 // Multi-choice answers become one Yes per ticked option; wall types become a table (one row per type)
+const surveyValue = (screen, key) => ((st.survey.screens.find(x => x.id === screen) || { fields: [] }).fields.find(f => f.key === key) || {}).value || '';
+const dwellingYear = () => surveyValue('details', 'details.year');
+// the survey's wall construction in DEAP's Wall Type wording
+function deapWallType(cons, thick, name) {
+  const t = parseFloat(thick) || 0, c = String(cons || '');
+  if (/semi/i.test(name) && /block/i.test(c)) return t && t < 150 ? 'Semi Exposed 100mm Block Wall adjacent unheated circulation space' : 'Semi Exposed 215mm Block Wall adjacent unheated circulation space';
+  if (/cavity, unfilled/i.test(c)) return t >= 400 ? '425 mm Cavity Wall' : '300mm Cavity';
+  if (/cavity, filled/i.test(c)) return t >= 400 ? '425mm Filled Cavity' : '300mm Filled Cavity';
+  if (/hollow block/i.test(c)) return 'Concrete Hollow Block';
+  if (/solid masonry/i.test(c)) return t >= 300 ? '325mm Solid Brick' : t ? '225mm Solid Brick' : 'Solid Mass Concrete';
+  if (/stone/i.test(c)) return 'Stone';
+  if (/timber/i.test(c)) return 'Timber Frame';
+  if (/steel|other/i.test(c)) return 'Other';
+  return c;
+}
 function job(sc) {
-  const fields = [], tables = sc.tables.map(t => Object.assign({}, t));
+  const fields = [], tables = sc.tables.map(t => Object.assign({}, t, { columns: t.columns.slice(), rows: t.rows.map(r => r.slice()) }));
   sc.fields.filter(f => !f.group).forEach(f => {
     if (Array.isArray(f.value)) f.value.forEach(o => fields.push({ key: f.key + '.' + slug(o), label: o, value: 'Yes', parent: f.label }));
     else fields.push({ key: f.key, label: f.label, value: f.value });
@@ -75,8 +91,53 @@ function job(sc) {
   if (grouped.length) {
     const groups = [...new Set(grouped.map(f => f.group))], cols = [{ key: 'name', label: 'Description' }];
     grouped.forEach(f => { const ck = f.key.split('.').pop(); if (!cols.some(c => c.key === ck)) cols.push({ key: ck, label: f.label }) });
-    tables.unshift({ key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => c.key === 'name' ? g : (grouped.find(f => f.group === g && f.key.endsWith('.' + c.key)) || {}).value || '')) });
+    // DEAP's Add Wall dialog also wants the age band (wall year, else the dwelling's) and a semi-exposed tick
+    if (!cols.some(c => c.key === 'year')) cols.push({ key: 'year', label: 'Year built' });
+    cols.push({ key: 'semi', label: 'Semi-exposed' });
+    const dyear = ((st.survey.screens.find(x => x.id === 'details') || { fields: [] }).fields.find(f => f.key === 'details.year') || {}).value || '';
+    const raw = (g, k) => (grouped.find(f => f.group === g && f.key.endsWith('.' + k)) || {}).value || '';
+    const val = (g, k) => k === 'name' ? g : k === 'semi' ? (/semi/i.test(g) ? 'Yes' : 'No') : k === 'cons' ? deapWallType(raw(g, 'cons'), raw(g, 'thick'), g) : raw(g, k) || (k === 'year' ? dyear : '');
+    tables.unshift({ key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => val(g, c.key))) });
   }
+  // extra columns DEAP's dialogs ask for that the survey holds elsewhere
+  const add = (t, key, label, fn) => { if (!t.columns.some(c => c.key === key)) { t.columns.push({ key, label }); t.rows = t.rows.map((r, i) => r.concat([fn(r, i)])) } };
+  const col = (t, r, k) => r[t.columns.findIndex(c => c.key === k)] || '';
+  tables.forEach(t => {
+    if (t.key === 'dims.floors') {
+      add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
+      add(t, 'loc', 'Floor location', r => /ground|solid|suspended/i.test(col(t, r, 'type')) ? 'Storey 1' : '');
+      add(t, 'year', 'Year built', () => dwellingYear());
+    }
+    if (t.key === 'roofs.roofs') {
+      add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
+      add(t, 'year', 'Year built', () => dwellingYear());
+    }
+    if (t.key === 'gen.pv') {
+      // DEAP wants number of panels and watts per panel. Older surveys only have one number, which is the array kWp,
+      // unless it is too big to be kWp (then it is the panel's watts); a count of panels can also be in the notes
+      const notes = String(surveyValue('gen', 'gen.notes') || ''), nm = /(\d+)\s*(?:x\s*)?(?:pv\s*|solar\s*)?panels?/i.exec(notes);
+      const calc = t.rows.map(r => {
+        let n = parseInt(col(t, r, 'panels')) || 0, w = parseFloat(col(t, r, 'wp')) || 0, k = parseFloat(col(t, r, 'kwp')) || 0;
+        if (k > 30 && !w) { w = k; k = 0 }
+        if (!n && nm && t.rows.length === 1) n = +nm[1];
+        if (!w && k && n) w = Math.round(k * 1000 / n);
+        if (!n && k && w) n = Math.round(k * 1000 / w);
+        if (!n && !w && k) { n = 1; w = Math.round(k * 1000) }
+        return { n, w };
+      });
+      add(t, 'tech', 'Technology/Comment', (r, i) => calc[i].n && calc[i].w ? calc[i].n + ' x ' + calc[i].w + ' W panels' : '');
+      add(t, 'n', 'Number of panels', (r, i) => calc[i].n ? String(calc[i].n) : '');
+      add(t, 'w', 'Peak power per panel W', (r, i) => calc[i].w ? String(calc[i].w) : '');
+    }
+    if (t.key === 'openings.windows-for-deap') {
+      add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
+      const sh = surveyValue('openings', 'openings.shading'); if (sh) add(t, 'shading', 'Overshading', () => sh);
+      add(t, 'search', 'Library search', r => col(t, r, 'glazing'));
+      add(t, 'want', 'Library match', r => [col(t, r, 'glazing'), col(t, r, 'frame')].filter(Boolean).join(' '));
+    }
+    if (t.key === 'openings.doors-for-deap') add(t, 'search', 'Library search', r => col(t, r, 'door-type'));
+  });
+  if (sc.id === 'dims') { const n = surveyValue('details', 'details.storeys') || String((sc.tables.find(t => t.key === 'dims.storeys') || { rows: [] }).rows.length || ''); if (n) fields.unshift({ key: 'dims.nstoreys', label: 'Number of storeys', value: n }) }
   const keys = fields.map(f => f.key).concat(tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))));
   return { fields, tables, mapping: fullMap(keys) };
 }
@@ -84,9 +145,15 @@ function job(sc) {
 // ---------- actions ----------
 function loadText(txt) {
   let d;
-  try { d = JSON.parse(txt) } catch (e) { toast('That is not a transfer file.'); return }
-  if (d && Array.isArray(d.walls)) { toast('That is a Backup. In the app use Enter in DEAP, then Share transfer file.'); return }
-  if (!d || d.format !== 'ber-survey-deap' || !Array.isArray(d.screens)) { toast('That is not a BER Survey transfer file.'); return }
+  const want = ' I need the file called "DEAP transfer - <survey name>.json". In the app on the iPad open the survey, go to the Enter in DEAP tab and press Share transfer file.';
+  const t = String(txt || '').trim();
+  if (!t) { toast('That file is empty.' + want); return }
+  if (t.startsWith('%PDF')) { toast('That is the PDF report, not the transfer file.' + want); return }
+  if (/^</.test(t)) { toast('That is a web page, not the transfer file.' + want); return }
+  try { d = JSON.parse(t) } catch (e) { toast('That is not the transfer file.' + want); return }
+  if (d && Array.isArray(d.walls)) { toast('That is a survey Backup, not the transfer file.' + want); return }
+  if (d && d.format === 'deap-fields-recorded' || d && d.recorded) { toast('That is a DEAP recording, not the transfer file.' + want); return }
+  if (!d || d.format !== 'ber-survey-deap' || !Array.isArray(d.screens)) { toast('That is not the transfer file.' + want); return }
   st.survey = d; results = {};
   st.screen = (deapTab && screenForUrl(deapTab.url)) || d.screens[0]?.id;
   save(); render(); toast('Loaded ' + d.survey.name);
@@ -96,11 +163,29 @@ async function fillScreen() {
   busy = true; render();
   try {
     const j = job(sc);
+    j.tables = j.tables.filter(t => !isDialog(j, t));
     const r = await send(Object.assign({ cmd: 'fill', options: { overwrite: st.overwrite } }, j));
     if (r && r.error) throw new Error(r.error);
-    results[sc.id] = r.results;
+    const dk = new Set(job(sc).tables.filter(t => isDialog(j, t)).map(t => t.key));
+    results[sc.id] = (results[sc.id] || []).filter(x => dk.has(x.key)).concat(r.results);
     const n = c => r.results.filter(x => c.includes(x.status)).length;
     toast(n(['filled', 'same']) + ' filled, ' + n(['nomatch', 'norow', 'nooption', 'error']) + ' to do by hand');
+  } catch (e) { toast(String(e.message || e)) }
+  busy = false; render();
+}
+// DEAP adds walls, windows and so on one at a time in a dialog, so a table row is filled into the open dialog
+const isDialog = (j, t) => (j.mapping[t.key] || {}).dialog !== false;
+async function fillRow(t, ri) {
+  const sc = cur(); if (!sc || busy) return;
+  busy = true; render();
+  try {
+    const j = job(sc);
+    const r = await send({ cmd: 'fill', options: { overwrite: st.overwrite }, fields: [], tables: [Object.assign({}, t, { rows: [t.rows[ri]] })], mapping: j.mapping });
+    if (r && r.error) throw new Error(r.error);
+    const got = r.results.map(x => Object.assign(x, x.row != null ? { row: ri } : {}));
+    results[sc.id] = (results[sc.id] || []).filter(x => !(x.key === t.key && x.row === ri)).concat(got);
+    const ok = got.filter(x => /filled|same/.test(x.status)).length, bad = got.filter(x => /nomatch|norow|nooption|error/.test(x.status)).length;
+    toast(ok ? ok + ' filled' + (bad ? ', ' + bad + ' by hand' : '') + '. Check it, then save in DEAP.' : 'Nothing filled. Is the DEAP dialog open?');
   } catch (e) { toast(String(e.message || e)) }
   busy = false; render();
 }
@@ -121,14 +206,19 @@ async function scan() {
 }
 async function clearMarks() { try { await send({ cmd: 'clear' }) } catch (e) { } }
 const copy = t => navigator.clipboard.writeText(String(t)).then(() => toast('Copied ' + String(t).slice(0, 40)), () => toast('Could not copy'));
-function download(name, obj) { const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' })), download: name }); document.body.append(a); a.click(); a.remove() }
+function download(name, obj) {
+  // chrome.downloads works from the side panel, where a plain link download can be blocked
+  const url = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' }));
+  if (chrome.downloads) chrome.downloads.download({ url, filename: name, saveAs: true }).then(() => toast('Saved ' + name), () => toast('Could not save. Use Copy instead.'));
+  else { const a = h('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove() }
+}
 
 // ---------- render ----------
 const cur = () => st.survey && st.survey.screens.find(s => s.id === st.screen) || (st.survey && st.survey.screens[0]);
 function render() {
   const bar = $('#surveyBar'), main = $('#main');
   bar.replaceChildren();
-  if (!st.survey) { main.replaceChildren(loadCard(true), helpCard(), toolsCard()); return }
+  if (!st.survey) { main.replaceChildren(recordCard(), loadCard(true), helpCard(), toolsCard()); return }
   const sv = st.survey.survey;
   bar.append(h('div', { class: 'row' }, h('div', { style: 'flex:1;min-width:0' }, h('b', null, sv.name), h('div', { class: 'note' }, [sv.eircode, sv.date].filter(Boolean).join(' · ') || 'Exported ' + new Date(st.survey.exported).toLocaleString('en-IE'))),
     h('button', { class: 'btn ghost', onclick: () => { st.survey = null; save(); render() } }, 'Change')));
@@ -137,7 +227,7 @@ function render() {
     const r = results[x.id], bad = r ? r.filter(q => /nomatch|norow|nooption|error/.test(q.status)).length : 0;
     return h('button', { 'aria-pressed': String(x.id === sc.id), onclick: () => { st.screen = x.id; save(); clearMarks(); render() } }, x.name, r ? h('span', { class: 'n' }, bad ? bad + ' left' : '✓') : null);
   })));
-  main.replaceChildren(screenCard(sc), toolsCard());
+  main.replaceChildren(transferCard(), screenCard(sc), recordCard(), toolsCard());
 }
 function loadCard(first) {
   const ta = h('textarea', { placeholder: 'Or paste the transfer text here' });
@@ -151,7 +241,7 @@ function helpCard() {
   return h('div', { class: 'card' }, h('h2', null, 'How it works'), h('ol', { class: 'steps' },
     h('li', null, 'Log in to DEAP and open the assessment.'),
     h('li', null, 'Go to a DEAP screen. The panel picks the same screen from your survey.'),
-    h('li', null, 'Press Fill this DEAP screen. Green outlines show what it filled.'),
+    h('li', null, 'Press Fill this DEAP screen. Green outlines show what it filled. For walls, windows and other lists, open DEAP\'s Add dialog and press Fill on that row.'),
     h('li', null, 'Check the screen and save it in DEAP yourself. Red items are left for you, tap a value to copy it.'),
     h('li', null, 'If a value went in the wrong place or was not found, press Pick and click the right DEAP field. It remembers that for every survey.')));
 }
@@ -184,9 +274,17 @@ function screenCard(sc) {
     const skip = j.mapping[t.key] && j.mapping[t.key].skip;
     card.append(h('h3', null, t.title + (skip ? ' (left out)' : '')));
     if (skip) { card.append(h('div', { class: 'row' }, h('button', { class: 'teach', onclick: () => setSkip(t.key, false) }, 'Fill this table'))); }
-    const tb = h('table', null, h('thead', null, h('tr', null, t.columns.map(c => h('th', null, c.label, h('br'), h('button', { class: 'teach', onclick: () => teach(t.key + '.' + c.key, c.label + ' (' + t.title + ')', true) }, 'Pick'))))),
-      h('tbody', null, t.rows.map((row, ri) => h('tr', null, row.map((v, ci) => { const res = resultFor(t.key, ri, t.columns[ci].key); return h('td', { class: res ? res.status : '', title: res ? STATUS[res.status] + (res.detail ? ': ' + res.detail : '') : '' }, v === '' ? '' : h('button', { class: 'v', onclick: () => copy(v) }, v)) })))));
+    const dlg = !skip && isDialog(j, t);
+    if (dlg) card.append(h('p', { class: 'note' }, 'One at a time: press ADD in DEAP (or open the item), press Fill on its row here, check it and save in DEAP.'));
+    const tb = h('table', null, h('thead', null, h('tr', null, dlg ? h('th') : null, t.columns.map(c => h('th', null, c.label, h('br'), h('button', { class: 'teach', onclick: () => teach(t.key + '.' + c.key, c.label + ' (' + t.title + ')', !dlg) }, 'Pick'))))),
+      h('tbody', null, t.rows.map((row, ri) => {
+        const rr = (results[sc.id] || []).filter(x => x.key === t.key && x.row === ri);
+        return h('tr', null, dlg ? h('td', null, h('button', { class: 'btn small' + (rr.length ? '' : ' primary'), disabled: busy || !deapTab, title: 'Fill this row into the open DEAP dialog', onclick: () => fillRow(t, ri) }, rr.length ? 'Again' : 'Fill')) : null,
+          row.map((v, ci) => { const res = resultFor(t.key, ri, t.columns[ci].key); return h('td', { class: res ? res.status : '', title: res ? STATUS[res.status] + (res.detail ? ': ' + res.detail : '') : '' }, v === '' ? '' : h('button', { class: 'v', onclick: () => copy(v) }, v)) }));
+      })));
     card.append(h('div', { class: 'tbl' }, tb));
+    const why = (results[sc.id] || []).filter(x => x.key === t.key && x.detail && !/filled|same/.test(x.status));
+    why.forEach(x => card.append(h('div', { class: 'why ' + x.status, style: 'grid-column:auto' }, 'Row ' + (x.row + 1) + ', ' + (t.columns.find(c => c.key === x.col) || {}).label + ': ' + x.detail)));
     const bad = (results[sc.id] || []).filter(x => x.key === t.key && x.status === 'norow').length;
     if (bad) card.append(h('p', { class: 'note' }, 'DEAP shows fewer rows than the survey. Add the missing rows in DEAP, then fill again.'));
     if (!skip) card.append(h('div', { class: 'row' }, h('button', { class: 'teach', onclick: () => setSkip(t.key, true) }, 'Leave this table out')));
@@ -197,6 +295,28 @@ function screenCard(sc) {
 }
 const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
+// ---------- record DEAP once: walk through one assessment and every screen's fields are kept ----------
+let rec = { recording: false, recorded: {} };
+async function loadRec() { Object.assign(rec, await chrome.storage.local.get(['recording', 'recorded'])); rec.recorded = rec.recorded || {} }
+chrome.storage.onChanged.addListener(ch => { if (ch.recorded || ch.recording) loadRec().then(render) });
+async function setRecording(on) {
+  await chrome.storage.local.set({ recording: on });
+  if (on) { try { await send({ cmd: 'ping' }) } catch (e) { } }
+}
+function recordCard() {
+  const scr = Object.values(rec.recorded), nf = scr.reduce((a, s) => a + s.fields.length, 0), nopt = scr.reduce((a, s) => a + s.fields.filter(f => f.options).length, 0);
+  const all = () => ({ recorded: new Date().toISOString(), version: chrome.runtime.getManifest().version, screens: rec.recorded, taught: st.userMap });
+  return h('div', { class: 'card' + (rec.recording ? ' rec' : '') }, h('h2', null, rec.recording ? '● Recording DEAP fields' : 'Record DEAP fields (one time)'),
+    rec.recording ? h('p', { class: 'note' }, 'Click through DEAP: every tab, every Add dialog (then Cancel), and open each dropdown once. Nothing is typed or saved in DEAP.')
+      : h('p', { class: 'note' }, 'Press Start, then click through one assessment in DEAP. When you are done, press Save file and send it to Claude once.'),
+    h('p', { class: 'sum' }, scr.length + ' screens · ' + nf + ' fields · ' + nopt + ' dropdown lists'),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn' + (rec.recording ? '' : ' primary'), onclick: () => setRecording(!rec.recording) }, rec.recording ? 'Stop' : 'Start recording'),
+      scr.length ? h('button', { class: 'btn' + (rec.recording ? '' : ' primary'), onclick: () => download('deap-fields-recorded.json', all()) }, 'Save file') : null,
+      scr.length ? h('button', { class: 'btn', onclick: () => copy(JSON.stringify(all())) }, 'Copy') : null,
+      scr.length ? h('button', { class: 'btn ghost', onclick: e => { if (e.target.dataset.armed) chrome.storage.local.set({ recorded: {} }); else { e.target.dataset.armed = 1; e.target.textContent = 'Click again to clear' } } }, 'Clear') : null),
+    scr.length ? h('details', null, h('summary', { class: 'note' }, 'What it has seen'), h('div', { class: 'scan' }, scr.map(s => s.key + '  (' + s.fields.length + ')').join('\n'))) : null);
+}
 function toolsCard() {
   const file = h('input', { type: 'file', accept: '.json', hidden: true, onchange: async e => { const f = e.target.files[0]; if (!f) return; try { const m = JSON.parse(await f.text()); Object.assign(st.userMap, m.fields || m); save(); render(); toast('Field mapping imported') } catch (x) { toast('That is not a mapping file') } } });
   const taught = Object.keys(st.userMap).length;
@@ -219,4 +339,4 @@ function toolsCard() {
   return d;
 }
 
-init();
+document.addEventListener('DOMContentLoaded', init);
