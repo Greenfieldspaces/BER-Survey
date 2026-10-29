@@ -307,7 +307,7 @@
         else if (c.kind === 'select') now = el.selectedIndex >= 0 ? clean(el.options[el.selectedIndex].text) : '';
         else if (c.kind === 'combo') now = clean(textOf(el));
         else now = el.value;
-        return { deap: (name ? name + ' ' : '') + '"' + clean((c.labels || [])[0] || '') + '"', now };
+        return { deap: (name ? name + ' ' : '') + '"' + clean(((c.labels || [])[0] || {}).t || '') + '"', now };
       } catch (e) { return {} }
     }
     // tables: column N of row i goes into the i-th DEAP field that matches the column, in page order
@@ -405,6 +405,13 @@
     scr.buttons = scr.buttons || [];
     btns.forEach(b => { if (!scr.buttons.some(x => x.text === b.text && x.href === b.href && x.inDialog === b.inDialog)) scr.buttons.push(b) });
     scr.buttons = scr.buttons.slice(0, 150);
+    // rows in a dialog's list or table (DEAP's library), with the tag and classes of each, so library picks can be automated
+    const dlg = topDialog();
+    if (dlg) {
+      const rows = [...dlg.querySelectorAll('mat-row,.mat-mdc-row,tr,[role=row],mat-list-option,mat-list-item,.mat-mdc-list-item,mat-radio-button,mat-card')].filter(r => visible(r) && clean(textOf(r)).length > 2)
+        .slice(0, 25).map(r => ({ tag: r.tagName.toLowerCase(), cls: [...r.classList].filter(c => !shaky(c)).slice(0, 4).join(' ') || undefined, role: r.getAttribute('role') || undefined, text: clean(textOf(r)).slice(0, 160), box: (r.querySelector('input,mat-radio-button,mat-checkbox') || {}).tagName }));
+      if (rows.length) scr.rows = rows;
+    }
     if (exp) {
       const sel = selectorFor(exp), lab = (labelCands(exp)[0] || {}).t;
       for (const sc of Object.values(recorded)) { const f = sc.fields.find(x => sel && x.selector === sel || !sel && x.label === lab); if (f) f.options = open.slice(0, 80) }
@@ -502,9 +509,38 @@
     for (const t of ['keydown', 'keypress', 'keyup']) inp.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
     return { ok: true };
   }
+  // pick the library row that best matches the search words, then press ADD; refuses when nothing matches well
+  async function libPick(want, min) {
+    const d = topDialog(); if (!d) return { error: 'No dialog' };
+    let rows = [];
+    for (let t = 0; t < 20; t++) {
+      rows = [...d.querySelectorAll('mat-row,.mat-mdc-row,tbody tr,[role=row],mat-list-option,mat-list-item,.mat-mdc-list-item')]
+        .filter(r => visible(r) && !r.closest('thead') && !r.matches('.mat-mdc-header-row,mat-header-row') && clean(textOf(r)).length > 2 && !r.querySelector('mat-row,.mat-mdc-row,tr'));
+      if (rows.length) break;
+      await new Promise(r => setTimeout(r, 250));
+    }
+    if (!rows.length) return { error: 'No library rows seen' };
+    const W = toks(want);
+    const score = r => { const R = new Set(toks(textOf(r))); return W.length ? W.filter(w => R.has(w)).length / W.length : 0 };
+    let bi = 0, bs = -1; rows.forEach((r, i) => { const v = score(r); if (v > bs) { bs = v; bi = i } });
+    if (bs < (min ?? 0.5)) return { error: 'No close match', best: clean(textOf(rows[bi])).slice(0, 120), rows: rows.length };
+    const row = rows[bi], pickText = clean(textOf(row)).slice(0, 160);
+    const box = row.querySelector('input[type=radio],input[type=checkbox],mat-radio-button,mat-checkbox');
+    (box || row).click();
+    await new Promise(r => setTimeout(r, 400));
+    const r1 = press('ADD SELECTED ITEM', true);
+    if (r1.error) { const r2 = press('ADD', true); if (r2.error) return { error: 'Could not press ADD (' + r2.error + ')', picked: pickText } }
+    return { ok: true, picked: pickText, score: bs };
+  }
   function dialogErrors() {
     const d = topDialog(); if (!d) return [];
-    return [...d.querySelectorAll('mat-error,.mat-mdc-form-field-error,.mat-error')].filter(visible).map(textOf).filter(Boolean);
+    const errs = [...d.querySelectorAll('mat-error,.mat-mdc-form-field-error,.mat-error')].filter(visible).map(textOf).filter(Boolean);
+    // boxes DEAP marks as required or invalid that are still empty
+    const empty = [...d.querySelectorAll('.mat-mdc-form-field-invalid,.mat-form-field-invalid,[required],[aria-required=true]')].filter(visible).filter(f => {
+      const c = f.matches('input,textarea,mat-select') ? f : f.querySelector('input,textarea,mat-select'); if (!c) return false;
+      return c.matches('mat-select') ? !clean(textOf(c.querySelector('.mat-mdc-select-value-text,.mat-select-value-text') || c)) : !String(c.value || '').trim();
+    }).map(f => { const ff = f.closest('mat-form-field,.mat-mdc-form-field') || f; return clean(textOf(ff.querySelector('mat-label,label')) || f.getAttribute('name') || '') }).filter(Boolean);
+    return [...new Set(errs.concat(empty.map(x => x + ' is empty')))];
   }
 
   chrome.runtime.onMessage.addListener((msg, _s, reply) => {
@@ -513,6 +549,7 @@
     if (msg.cmd === 'press') { reply(press(msg.text, msg.inDialog)); return }
     if (msg.cmd === 'errors') { reply(dialogErrors()); return }
     if (msg.cmd === 'libsearch') { libSearch(msg.text).then(reply); return true }
+    if (msg.cmd === 'libpick') { libPick(msg.text, msg.min).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'ping') { reply({ ok: true, url: location.href }); return }
     if (msg.cmd === 'fill') { fill(msg).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'scan') { reply({ fields: scan(), url: location.href, title: document.title }); return }

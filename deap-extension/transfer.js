@@ -2,7 +2,7 @@
 // Goes through DEAP's screens in order, fills each one, and for walls, floors, roofs, doors and windows
 // presses ADD, fills the dialog and presses SAVE, one item at a time. It never presses Publish or Submit:
 // content.js refuses those buttons whatever it is asked.
-const tx = { overwrite: true, running: false, stop: false, steps: [], waitingFor: null, skipWait: false, included: {} };
+const tx = { library: 'pick', overwrite: true, running: false, stop: false, steps: [], waitingFor: null, skipWait: false, included: {} };
 const pause = ms => new Promise(r => setTimeout(r, ms));
 
 // values DEAP asks for that the survey records in another shape
@@ -57,9 +57,9 @@ function synthTables() {
   const tbl = (key, title, cols, rows) => { if (rows.length) out.push({ key, title, columns: cols.map(([k, l]) => ({ key: k, label: l })), rows }) };
   const fuel = f => FUEL_DEAP[f] || f || '';
   const heats = [];
-  if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '']);
-  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([v('heat.sec'), fuel(v('heat.secfuel')), v('heat.seceff'), '']);
-  tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water']], heats);
+  if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), v('heat.make') ? '1' : '', fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '']);
+  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '']);
+  tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['exact', 'Make and model given'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water']], heats);
   const vent = [['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0).map(([k, q]) => [q, String(n('vent.' + k))]);
   tbl('vent.items', 'Ventilation items', [['search', 'Library search'], ['n', 'Number of items']], vent);
   const wsc = st.survey.screens.find(x => x.id === 'water'), sh = wsc && wsc.tables.find(t => t.key === 'water.showers'), wet = [];
@@ -156,9 +156,17 @@ async function addItems(step, t) {
     if (!s) throw new Error(m.add + ' did not open a dialog');
     if (m.library && /library/i.test(s.dialog)) {
       const si = t.columns.findIndex(c => c.key === 'search'), phrase = si >= 0 ? t.rows[ri][si] : '';
-      if (phrase) { await pause(500); await send({ cmd: 'libsearch', text: phrase }) }
+      if (phrase) { await pause(500); await send({ cmd: 'libsearch', text: phrase }); await pause(1500) }
       const desc = t.rows[ri].filter(Boolean).slice(0, 5).join(', ');
-      const got = await waitForYou('Pick the DEAP library item for ' + what + ' (' + desc + ') and press ADD. ' + (phrase ? 'I searched the library for "' + phrase + '". ' : '') + 'I fill in the rest.', x => x.dialog && !/library/i.test(x.dialog) || !x.dialog);
+      // try the best matching library row first; hand over to the person only when nothing matches well
+      const ei = t.columns.findIndex(c => c.key === 'exact'), wi = t.columns.findIndex(c => c.key === 'want'), want = wi >= 0 && t.rows[ri][wi] || phrase;
+      const pk = phrase && tx.library === 'pick' && (m.autopick !== false || ei >= 0 && t.rows[ri][ei] === '1') ? await send({ cmd: 'libpick', text: want, min: m.autopickMin }) : null;
+      let got = false;
+      if (pk && pk.ok) {
+        got = !!(await waitState(x => !x.dialog || !/library/i.test(x.dialog), 6000));
+        if (got) tx.log.push(step.name + ': ' + what + ', picked library item "' + pk.picked + '" (check it is the right one)');
+      }
+      if (!got) got = await waitForYou((pk && pk.error ? 'I could not find a sure match in the library. ' : '') + 'Pick the DEAP library item for ' + what + ' (' + desc + ') and press ADD, or add it with ADD NEW ITEM TO LIBRARY. ' + (phrase ? 'I searched the library for "' + phrase + '". ' : '') + 'I fill in the rest.', x => x.dialog && !/library/i.test(x.dialog) || !x.dialog);
       s = await send({ cmd: 'state' });
       if (!got) { tx.log.push(step.name + ': ' + what + ' skipped'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }
       if (!s.dialog) { // added straight from the library: whatever else the survey has for it is left to enter in DEAP
@@ -188,6 +196,14 @@ async function addItems(step, t) {
   }
 }
 
+function libraryList(step, t) {
+  const m = step.mapping[t.key] || {}, label = t.title.replace(/ \(.*\)$/, '').replace(/s$/, '');
+  const hide = c => /^(search|exact|want)$/.test(c.key);
+  t.rows.forEach((r, ri) => {
+    const d = t.columns.map((c, i) => [c, r[i]]).filter(([c, x]) => x && !hide(c)).map(([c, x]) => c.label + ' ' + x).join(', ');
+    tx.log.push('Add from the DEAP library: ' + label + ' ' + (ri + 1) + ' of ' + t.rows.length + ' (' + d + ')' + (m.add ? ' with ' + m.add : '') + (m.after ? ', ' + after(m.after, t, ri) : ''));
+  });
+}
 async function runTransfer() {
   if (tx.running) return;
   tx.running = true; tx.stop = false; tx.log = []; tx.report = []; tx.startedAt = new Date().toISOString();
@@ -214,7 +230,12 @@ async function runTransfer() {
           res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => { const f = step.fields.find(q => q.key === x.key); tx.log.push(step.name + ': ' + (f ? f.label + ' ' + f.value : x.key) + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')) });
           await pause(1500); // DEAP saves these screens itself
         }
-        for (const t of step.dlg) await addItems(step, t);
+        for (const t of step.dlg) {
+          // library items (doors, windows, heat sources, chimneys and fans, showers and baths, solar collector) are
+          // picked by the person in DEAP; unless they ask the transfer to stop for each, they go on the by-hand list
+          if ((step.mapping[t.key] || {}).library && tx.library === 'list') { libraryList(step, t); continue }
+          await addItems(step, t);
+        }
         setStep(step, 'done', '');
       } catch (e) {
         if (tx.stop) { setStep(step, 'stopped', ''); break }
@@ -251,6 +272,11 @@ function transferCard() {
       : h('button', { class: 'btn primary', disabled: !deapTab, onclick: runTransfer }, tx.steps.length ? 'Run again' : 'Start')));
   if (!tx.running && !tx.steps.length) card.append(h('p', { class: 'note' }, 'Open this assessment in DEAP, then press Start. It goes through each screen, adds the walls, floors, roofs, doors and windows, and saves each one. It never publishes. Untick anything already in DEAP so it is not added twice.'));
   if (tx.waitingFor) card.append(h('div', { class: 'needs' }, h('b', null, 'Your turn: '), tx.waitingFor, h('div', { class: 'row', style: 'margin-top:6px' }, h('button', { class: 'btn small', onclick: () => { tx.skipWait = true } }, 'Skip this one'))));
+  if (!tx.running) {
+    const sel = h('select', { onchange: e => { tx.library = e.target.value } },
+      ...[['pick', 'Pick them for me when the match is sure, otherwise stop for me'], ['stop', 'Stop at each one so I pick it'], ['list', 'Skip them and list them for me to add']].map(([v, l]) => h('option', { value: v, selected: tx.library === v }, l)));
+    card.append(h('label', { class: 'chk', style: 'display:block' }, 'Library items (doors, windows, heat sources, chimneys, showers): ', sel));
+  }
   if (!tx.running) card.append(h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: tx.overwrite, onchange: e => { tx.overwrite = e.target.checked } }), 'Replace values already in DEAP (untick to keep what DEAP has)'));
   const list = h('div', { class: 'steps2' });
   steps.forEach(s => {

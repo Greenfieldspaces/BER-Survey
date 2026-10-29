@@ -133,6 +133,7 @@ function job(sc) {
       add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
       const sh = surveyValue('openings', 'openings.shading'); if (sh) add(t, 'shading', 'Overshading', () => sh);
       add(t, 'search', 'Library search', r => col(t, r, 'glazing'));
+      add(t, 'want', 'Library match', r => [col(t, r, 'glazing'), col(t, r, 'frame')].filter(Boolean).join(' '));
     }
     if (t.key === 'openings.doors-for-deap') add(t, 'search', 'Library search', r => col(t, r, 'door-type'));
   });

@@ -226,10 +226,7 @@
       "skip": true
     },
     "openings.fill": {
-      "labels": [
-        "Gas fill",
-        "Gas"
-      ]
+      "skip": true
     },
     "openings.shading": {
       "skip": true
@@ -809,7 +806,8 @@
       "dialog": true,
       "add": "ADD HEAT SOURCE",
       "library": true,
-      "after": "check DEAP's efficiency against the survey's {eff}%"
+      "after": "check DEAP's efficiency against the survey's {eff}%",
+      "autopick": false
     },
     "heat.sources.search": {
       "skip": true
@@ -906,6 +904,12 @@
     },
     "water.primtype": {
       "selector": "mat-select[name=\"SystemTypeID\"]"
+    },
+    "heat.sources.exact": {
+      "skip": true
+    },
+    "openings.windows-for-deap.want": {
+      "skip": true
     }
   },
   "transfer": [
