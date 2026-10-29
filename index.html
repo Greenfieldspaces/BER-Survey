@@ -107,6 +107,13 @@ span.chip{min-height:28px;cursor:default;font-size:13px}
 .tchip[aria-pressed=true]{border:2px solid var(--accent);background:var(--accent-soft)}
 .tchip.add{border-style:dashed;color:var(--muted);font-weight:400}
 .otype{background:var(--surface)}
+.rir{background:var(--surface)}
+.rir-in{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important}
+input.calc{border:1px dashed var(--accent);background:var(--accent-soft)}
+input.calc::placeholder{color:var(--accent);opacity:.9}
+.label.calc{color:var(--accent)}
+.rir-ins{display:grid;grid-template-columns:130px repeat(4,minmax(110px,1fr));gap:8px 10px;align-items:center;min-width:560px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .x{min-height:40px;width:40px;border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer;border-radius:8px}
 
 .wall-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:12px}
@@ -284,6 +291,7 @@ const SECTIONS=[
           PART,S_('type','Roof type',['Pitched, insulated at joists','Pitched, insulated at rafters','Flat roof','Room in roof, sloping','Room in roof, flat ceiling','Room in roof, stud wall']),
           S_('attic','Attic space',['Ventilated','Unventilated','No attic']),
           N('area','Area m²'),N('ins','Insulation mm'),S_('mat','Insulation type',['Mineral wool','PIR / PUR board','EPS','Sheep wool','Unknown']),N('u','U-value (if known)'),S_('ev','Evidence',EVID)]})]},
+      {title:'Room in roof',custom:'rir'},
       NOTES()]},
     {id:'walls',name:'Walls',walls:true},
     {id:'openings',name:'Windows & doors',groups:[
@@ -515,7 +523,7 @@ function wallTypesEl(){
   });
   return card;
 }
-const sizeText=w=>w.shape==='area'?f2(n(w.area))+' m² typed in':f2(n(w.L))+' × '+f2(wallH(w))+(w.shape==='gable'?' + apex '+f2(n(w.apex)):'');
+const sizeText=w=>w.shape==='area'?f2(n(w.area))+(w.rir?' m² from room in roof':' m² typed in'):f2(n(w.L))+' × '+f2(wallH(w))+(w.shape==='gable'?' + apex '+f2(n(w.apex)):'');
 function opChip(o,onclick){
   const t=opType(o);
   return el(onclick?'button':'span',{class:'chip',onclick:onclick||null,'aria-label':onclick?'Edit '+o.kind+(o.name?' '+o.name:''):null},
@@ -600,7 +608,8 @@ function wallCard(w,i){
     setTimeout(()=>{const x=document.getElementById('nt-'+w.id);x&&x.focus()},30);
   }
   const setShape=k=>()=>{w.shape=k;save();render()};
-  card.append(el('div',{class:'row'},
+  if(w.rir)card.append(el('div',{class:'row'},el('span',{class:'note'},'Area comes from the room in roof on the Roofs tab and updates with it.'),el('span',{class:'note num','data-calc':1,style:'margin-left:auto'},calcText(w))));
+  else card.append(el('div',{class:'row'},
     w.shape==='area'?el('button',{class:'btn small ghost',onclick:setShape('rect')},'Use length × height instead')
       :[el('span',{class:'note'},'Gable top'),
         el('div',{class:'seg',role:'group','aria-label':'Gable top'},[['rect','None'],['gable','Apex']].map(([k,lab])=>el('button',{'aria-pressed':String(w.shape===k),onclick:setShape(k)},lab))),
@@ -692,7 +701,7 @@ const REPORT_CALCS={
   openings:()=>[]
 };
 function groupParts(groups,key){
-  const d=cur().data[key]||{},parts=[];
+  const s=cur(),d=s.data[key]||{},parts=[];
   groups.forEach(g=>{
     if(g.custom)return;
     let kv=[];
@@ -700,7 +709,7 @@ function groupParts(groups,key){
     (g.fields||[]).forEach(f=>{
       if(f.id==='_name'||(f.show&&!f.show(d)))return;
       if(f.type==='calc'){kv.push(...REPORT_CALCS[f.calc]());return}
-      const v=d[f.id];if(!hasVal(v))return;
+      const v=fieldVal(f,d,key,s);if(!hasVal(v))return;
       if(f.type==='list'){flush();const cols=f.cols.filter(c=>v.some(r=>hasVal(r[c.id])));parts.push({table:{title:f.label,head:cols.map(c=>c.label),num:cols.map(c=>c.type==='num'),rows:v.map(r=>cols.map(c=>r[c.id]||''))}});return}
       kv.push([f.id==='notes'?'Notes':f.label.replace(' (if certified)','').replace(' (if known)',''),fmtVal(f,v)]);
     });
@@ -959,7 +968,7 @@ function siteChecks(s){
     if(!(gross(w)>0))add('miss',nm+' has no dimensions','building','walls');
     else if(net(w)<0)add('check',nm+': openings are bigger than the wall','building','walls');
     w.ops.forEach(o=>{if(!(opArea(o)>0))add('miss',nm+': a '+o.kind+' has no size','building','walls')})});
-  const roofs=D('roofs').roofs||[],floors=D('dims').floors||[];
+  const roofs=fieldVal({id:'roofs'},D('roofs'),'roofs',s),floors=D('dims').floors||[];
   if(!roofs.length&&!noRoof)add('miss','Roof details','building','roofs');
   roofs.forEach((r,i)=>{if(!n(r.area))add('miss','Roof '+(i+1)+' has no area','building','roofs');if(!hasVal(r.ins)&&!hasVal(r.u))add('miss','Roof '+(i+1)+' has no insulation thickness or U-value','building','roofs')});
   if(!floors.length&&!noFloor)add('miss','Heat loss floors','building','dims');
@@ -1130,7 +1139,7 @@ function groupsEl(groups,key){
   const d=dataFor(key);
   const box=el('div',{class:'two'});
   groups.forEach(g=>{
-    if(g.custom){box.append(g.custom==='images'?imagesEl():g.custom==='deaplines'?deapLinesEl():opTypesEl(g.custom==='doortypes'?'door':'window'));return}
+    if(g.custom){box.append(g.custom==='images'?imagesEl():g.custom==='deaplines'?deapLinesEl():g.custom==='rir'?rirEl():opTypesEl(g.custom==='doortypes'?'door':'window'));return}
     const vis=g.fields.filter(f=>!f.show||f.show(d));
     const grid=el('div',{class:'grid'});
     vis.forEach(f=>grid.append(fieldEl(f,d,key)));
@@ -1153,6 +1162,107 @@ function renderSection(sec){
   }else box.append(groupsEl(sec.groups,sec.id));
   const i=SECTIONS.indexOf(sec),nx=SECTIONS[i+1];
   if(nx&&!nx.util)box.append(el('div',null,el('button',{class:'btn',onclick:()=>{db.tab=nx.id;save();render();scrollTo(0,0)}},'Next: '+nx.name+' →')));
+  return box;
+}
+// ---- room in roof ----
+// any two of ceiling height, flat ceiling width, pitch or slope length fix the cross-section;
+// it gives sloping ceiling, flat ceiling and knee wall areas (as room-in-roof roof lines) and the gable end area
+const RIR_IN=[['L','Room length m','along the ridge'],['W','Floor width m','knee wall to knee wall'],['k','Knee wall height m','0 if none'],['H','Ceiling height m','floor to flat ceiling'],['p','Roof pitch °',''],['f','Flat ceiling width m',''],['s','Slope length m','along the slope, each side']];
+const RIR_PARTS=[['slope','Sloping ceiling','Room in roof, sloping'],['flat','Flat ceiling','Room in roof, flat ceiling'],['knee','Knee walls','Room in roof, stud wall']];
+const rirList=s=>{const d=s.data.roofs||(s.data.roofs={});return d.rir||(d.rir=[])};
+function rirSolve(r){
+  const v=k=>hasVal(r[k])?n(r[k]):null,m=r.sides==='1'?1:2,rad=Math.PI/180;
+  let L=v('L'),W=v('W'),k=v('k'),H=v('H'),p=v('p'),f=v('f'),s=v('s');
+  let rise=H!=null&&k!=null?H-k:null,run=W!=null&&f!=null?(W-f)/m:null;
+  const used=[];
+  if(rise==null||run==null){
+    if(rise!=null&&p){run=rise/Math.tan(p*rad);used.push('pitch')}
+    else if(run!=null&&p){rise=run*Math.tan(p*rad);used.push('pitch')}
+    else if(rise!=null&&s!=null&&s>rise){run=Math.sqrt(s*s-rise*rise);used.push('slope length')}
+    else if(run!=null&&s!=null&&s>run){rise=Math.sqrt(s*s-run*run);used.push('slope length')}
+    else if(p&&s!=null){run=s*Math.cos(p*rad);rise=s*Math.sin(p*rad);used.push('pitch','slope length')}
+  }
+  const out={m,ok:false,need:[]};
+  if(k==null)out.need.push('knee wall height (0 if none)');
+  if(rise==null||run==null){out.need.push('two of ceiling height, flat ceiling width, pitch or slope length');return out}
+  if(W==null&&f!=null)W=f+m*run;
+  if(f==null&&W!=null)f=W-m*run;
+  if(H==null&&k!=null)H=k+rise;
+  if(W==null)out.need.push('floor width');
+  if(L==null)out.need.push('room length');
+  Object.assign(out,{L,W,k,H,f,rise,run,s:Math.hypot(run,rise),p:Math.atan2(rise,run)/rad});
+  if(out.need.length)return out;
+  out.ok=true;
+  out.bad=f<-0.005||rise<0?'The flat ceiling or slope comes out negative. Check the measurements.':null;
+  out.area={slope:Math.max(0,m*out.s*L-n(r.rl)),flat:Math.max(0,f*L),knee:m*k*L};
+  out.gable=W*k+(W+f)/2*rise;
+  return out;
+}
+// roof lines DEAP gets from each room in roof, added after the roofs entered by hand
+function rirRoofRows(s){
+  const rows=[];
+  rirList(s).forEach(r=>{const x=rirSolve(r);if(!x.ok||x.bad)return;const pt=r.parts||{};
+    RIR_PARTS.forEach(([id,,type])=>{if(!(x.area[id]>0))return;const q=pt[id]||{},row={part:r.part||'Original',type,area:f2(x.area[id])};['ins','mat','u','ev'].forEach(c=>{if(hasVal(q[c]))row[c]=q[c]});rows.push(row)})});
+  return rows;
+}
+const fieldVal=(f,d,key,s)=>key==='roofs'&&f.id==='roofs'?(d.roofs||[]).concat(rirRoofRows(s||cur())):d[f.id];
+// exposed gable ends become wall rows (area kept in step) so windows can go on them
+function rirSyncWalls(s){
+  rirList(s).forEach((r,i)=>{
+    const x=rirSolve(r),want=x.ok&&!x.bad?Math.round(n(r.gables)||0):0;
+    let mine=s.walls.filter(w=>w.rir===r.id);
+    while(mine.length>want){const w=mine.pop();s.walls=s.walls.filter(y=>y!==w)}
+    while(mine.length<want){const w=blankWall({name:'Room in roof gable',shape:'area',type:s.walls[0]?s.walls[0].type:s.types[0],orient:'E',rir:r.id});mine.push(w);s.walls.push(w)}
+    mine.forEach(w=>{w.shape='area';w.area=f2(x.gable)});
+  });
+  const ids=new Set(rirList(s).map(r=>r.id));s.walls=s.walls.filter(w=>!w.rir||ids.has(w.rir));
+}
+function rirEl(){
+  const s=cur(),list=rirList(s);
+  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,'Room in roof'),
+    el('p',{class:'hint',style:'margin:0'},'Type what you can measure. Once it has enough, the app works out the rest (shown in green) and adds the sloping ceiling, flat ceiling and knee walls to the roofs for DEAP.'));
+  list.forEach((r,i)=>card.append(rirCard(r,i)));
+  card.append(el('div',null,el('button',{class:'btn',onclick:()=>{list.push({id:uid(),sides:'2',gables:'0',parts:{}});save();render()}},list.length?'+ Another room in roof':'+ Room in roof')));
+  return card;
+}
+function rirCard(r,i){
+  const s=cur(),x=rirSolve(r);r.parts=r.parts||{};
+  const again=id=>{const c=$('[data-rir="'+r.id+'"]');if(!c)return;const a=document.activeElement,pos=a&&a.selectionStart;c.replaceWith(rirCard(r,i));const e=id&&document.getElementById(id);if(e){e.focus();try{e.setSelectionRange(pos,pos)}catch(_){}}};
+  const set=(k,v,id)=>{r[k]=v;rirSyncWalls(s);save();again(id);const p=$('#panel');if(p)p.replaceWith(summaryPanel(true))};
+  const seg=(k,opts,label)=>el('div',{class:'seg',role:'group','aria-label':label},opts.map(([v,t])=>el('button',{'aria-pressed':String((r[k]||opts[0][0])===v),onclick:()=>set(k,v)},t)));
+  const g=el('div',{class:'grid rir-in'});
+  RIR_IN.forEach(([k,lab,hint])=>{
+    const id='rir-'+k+'-'+r.id,calc=!hasVal(r[k])&&x[k]!=null&&isFinite(x[k]);
+    const inp=el('input',{id,inputmode:'decimal',value:r[k]||'',autocomplete:'off',class:calc?'calc':null,placeholder:calc?(k==='p'?x[k].toFixed(0):f2(x[k]))+' worked out':'',oninput:e=>set(k,e.target.value,id)});
+    g.append(el('div',{class:'field'},el('label',{class:'label'+(calc?' calc':''),for:id},lab),inp,hint?el('span',{class:'hint'},hint):null));
+  });
+  const box=el('div',{class:'lrow rir','data-rir':r.id},
+    el('div',{class:'row'},el('b',{style:'font-size:18px;margin-right:auto'},'Room in roof '+(i+1)),
+      el('span',{class:'note'},'Slopes on'),seg('sides',[['2','Both sides'],['1','One side']],'Slopes on'),
+      armButton('Delete',()=>{rirList(s).splice(rirList(s).indexOf(r),1);rirSyncWalls(s);save();render()})),
+    el('div',{class:'row'},el('label',{class:'note',for:'rir-part-'+r.id},'Part of house'),
+      el('select',{id:'rir-part-'+r.id,style:'width:auto',onchange:e=>set('part',e.target.value)},PART.options.map(o=>el('option',{value:o,selected:(r.part||'Original')===o},o)))),
+    g,
+    el('div',{class:x.ok&&!x.bad?'intro':'warn'},x.bad||(x.ok?'✓ Enough to work it out.':'Still needs: '+x.need.join(', ')+'.')));
+  if(x.ok&&!x.bad){
+    const m=x.m,L=f2(x.L);
+    const t=el('table',null,el('tbody',null,
+      el('tr',null,el('td',null,'Sloping ceiling ',el('span',{class:'note'},(m>1?m+' × ':'')+f2(x.s)+' × '+L+(n(r.rl)?' − '+f2(n(r.rl))+' roof lights':''))),el('td',{class:'n'},f2(x.area.slope))),
+      el('tr',null,el('td',null,'Flat ceiling ',el('span',{class:'note'},f2(x.f)+' × '+L)),el('td',{class:'n'},f2(x.area.flat))),
+      el('tr',null,el('td',null,'Knee walls ',el('span',{class:'note'},(m>1?m+' × ':'')+f2(x.k)+' × '+L)),el('td',{class:'n'},f2(x.area.knee))),
+      el('tr',null,el('td',null,'Each gable end ',el('span',{class:'note'},'cross-section')),el('td',{class:'n'},f2(x.gable)))));
+    box.append(el('div',{class:'two'},
+      el('div',{class:'stack',style:'gap:6px'},el('span',{class:'label'},'Areas worked out m²'),el('div',{class:'tbl-wrap'},t)),
+      el('div',{class:'stack',style:'gap:10px'},
+        el('div',{class:'row'},el('span',{style:'flex:1'},'Gable ends that are outside walls'),seg('gables',[['0','0'],['1','1'],['2','2']],'Gable ends that are outside walls')),
+        el('span',{class:'note'},'Each one is added to Walls as its own row, so you can put windows on it. Measure the main wall below it only up to the room in roof floor, so the two don\'t overlap.'),
+        el('div',{class:'row'},el('label',{for:'rir-rl-'+r.id,style:'flex:1'},'Roof lights in the slopes m²'),el('input',{id:'rir-rl-'+r.id,inputmode:'decimal',value:r.rl||'',placeholder:'0.00',style:'width:110px',oninput:e=>set('rl',e.target.value,'rir-rl-'+r.id)})),
+        el('span',{class:'note'},'Taken off the sloping ceiling.'))));
+  }
+  const cols=BSUBS.find(b=>b.id==='roofs').groups[0].fields[0].cols.filter(c=>['mat','ins','u','ev'].includes(c.id));
+  const ins=el('div',{class:'rir-ins'},el('span'),cols.map(c=>el('span',{class:'label'},c.label)));
+  RIR_PARTS.forEach(([id,lab])=>{const q=r.parts[id]||(r.parts[id]={});ins.append(el('b',null,lab),...cols.map(c=>{const f=fieldEl(c,q,'rir'+id+r.id);f.querySelector('label')&&f.querySelector('label').classList.add('sr');return f}))});
+  box.append(el('span',{class:'label'},'Insulation for each part'),el('div',{class:'tbl-wrap'},ins));
   return box;
 }
 // window and door types: describe each kind once; each opening points at one with o.t
@@ -1218,12 +1328,12 @@ function opText(L){
 }
 function fmtVal(f,v){return Array.isArray(v)?v.join(', '):v}
 function sectionText(groups,key,L){
-  const d=cur().data[key]||{};
+  const s=cur(),d=s.data[key]||{};
   groups.forEach(g=>(g.fields||[]).forEach(f=>{
     if(f.show&&!f.show(d))return;
     if(f.type==='calc'){if(f.calc==='openings')return;L.push('  '+CALCS[f.calc]().replace(/\n/g,'\n  '));return}
     if(f.id==='_name')return;
-    const v=d[f.id];if(!hasVal(v))return;
+    const v=fieldVal(f,d,key,s);if(!hasVal(v))return;
     if(f.type==='list'){L.push('  '+f.label+':');v.forEach((r,i)=>L.push('    '+(i+1)+'. '+f.cols.filter(c=>hasVal(r[c.id])).map(c=>c.label+' '+r[c.id]).join(', ')))}
     else L.push('  '+f.label+': '+fmtVal(f,v));
   }));
@@ -1263,7 +1373,7 @@ function deapExport(s){
       if(f.show&&!f.show(d))return;
       if(f.type==='calc'){REPORT_CALCS[f.calc]().forEach(([k,v])=>x.fields.push({key:key+'.calc.'+slug(k),label:k,kind:'num',value:plainVal(v)}));return}
       if(f.id==='_name'){if(hasVal(s.name)&&!s.example)x.fields.push({key:key+'.address',label:f.label,kind:'text',value:s.name});return}
-      const v=d[f.id];if(!hasVal(v))return;
+      const v=fieldVal(f,d,key,s);if(!hasVal(v))return;
       if(f.type==='list'){x.tables.push({key:key+'.'+f.id,title:f.label,columns:f.cols.map(c=>({key:c.id,label:c.label,kind:c.type})),rows:v.map(r=>f.cols.map(c=>hasVal(r[c.id])?plainVal(r[c.id]):''))});return}
       x.fields.push({key:key+'.'+f.id,label:f.label.replace(' (if certified)','').replace(' (if known)',''),kind:f.type,value:Array.isArray(v)?v.slice():(f.type==='num'?plainVal(v):String(v)),options:f.options||undefined});
     }));
