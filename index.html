@@ -229,7 +229,7 @@ textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
 (function(){
 const KEY='ber-survey-v1';
 const ORIENTS=['N','NE','E','SE','S','SW','W','NW'];
-const DEFAULT_TYPES=['Cavity wall','Solid wall','Timber frame','Hollow block','Semi-exposed wall'];
+const DEFAULT_TYPES=['Cavity wall','Solid wall','Timber frame','Hollow block','Semi-exposed wall','Unknown'];
 // ---- DEAP survey schema ----
 const YN={type:'yn'};
 const OVERSHADE=['None or very little','Modest','Significant','Heavy'];
@@ -243,10 +243,10 @@ const is=(k,...v)=>d=>v.includes(d[k]);
 
 const EVID=['Measured on site','Photo taken','Receipt / cert','Homeowner info','Assumed / default'];
 const WALL_FIELDS=[
-  S_('cons','Construction',['Cavity, unfilled','Cavity, filled','Solid masonry','Hollow block','Stone','Timber frame','Steel frame','Other']),
+  S_('cons','Construction',['Unknown','Cavity, unfilled','Cavity, filled','Solid masonry','Hollow block','Stone','Timber frame','Steel frame','Other']),
   N('thick','Thickness mm',{int:1}),
-  S_('ins','Added insulation',['None','Cavity fill (pumped bead / fibre)','Internal dry-lining','External insulation','Built-in insulation (new build)']),
-  N('insmm','Insulation mm',{int:1,show:d=>d.ins&&d.ins!=='None'}),
+  S_('ins','Added insulation',['Unknown','None','Cavity fill (pumped bead / fibre)','Internal dry-lining','External insulation','Built-in insulation (new build)']),
+  N('insmm','Insulation mm',{int:1,show:d=>d.ins&&d.ins!=='None'&&d.ins!=='Unknown'}),
   F('year','Year built'),N('u','U-value (if known)'),S_('ev','Evidence',EVID)];
 
 const WIN_FIELDS=[
@@ -428,6 +428,7 @@ function load(){
     if(d.water&&d.water.src==='Main space heating system')d.water.src='Same as main space heating';
     if(d.water&&d.water.src==='Combi boiler'){d.water.src='Same as main space heating';d.water.combi='Yes'}
     if(d.details&&d.details.extyear&&!d.details.ext)d.details.ext='Yes';
+    if(s.types&&!s.types.includes('Unknown'))s.types.push('Unknown');
     migrateOps(s)});
   if(db.tab==='walls'){db.tab='building';db.sub='walls'}
   if(!SECTIONS.some(x=>x.id===db.tab))db.tab='details';
@@ -509,7 +510,7 @@ function renderWalls(){
 }
 // construction details are recorded once per wall type in use (DEAP takes a U-value per wall type)
 const usedTypes=s=>[...new Set(s.walls.filter(w=>gross(w)>0||w.ops.length).map(w=>w.type))];
-const wtData=t=>{const d=dataFor('walltypes');return d[t]||(d[t]={})};
+const wtData=t=>{const d=dataFor('walltypes');return d[t]||(d[t]=t==='Unknown'?{cons:'Unknown'}:{})};
 function wallTypesEl(){
   const s=cur(),types=usedTypes(s);
   const card=el('section',{class:'group'},el('h3',null,'Wall construction'),
