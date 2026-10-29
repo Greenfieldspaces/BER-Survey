@@ -6,7 +6,7 @@ function h(tag, attrs, ...kids) {
   for (const c of kids.flat()) { if (c == null || c === false) continue; e.append(c.nodeType ? c : document.createTextNode(c)) }
   return e;
 }
-function toast(t) { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => e.hidden = true, 2200) }
+function toast(t) { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => e.hidden = true, Math.max(2200, t.length * 70)) }
 const slug = t => String(t).toLowerCase().replace(/²/g, '2').replace(/³/g, '3').replace(/\(.*?\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const DEFAULT_SKIP = /(\.ev|_src|\.notes|\.make|model|\.harp|\.hyear|\.testcert)$/;
 const STATUS = { filled: 'Filled', same: 'Already set', kept: 'Kept DEAP value', nomatch: 'Not found on this page', norow: 'Add more rows in DEAP, then fill again', nooption: 'DEAP has no matching option', error: 'Could not fill', skipped: 'Left out' };
@@ -134,9 +134,15 @@ function job(sc) {
 // ---------- actions ----------
 function loadText(txt) {
   let d;
-  try { d = JSON.parse(txt) } catch (e) { toast('That is not a transfer file.'); return }
-  if (d && Array.isArray(d.walls)) { toast('That is a Backup. In the app use Enter in DEAP, then Share transfer file.'); return }
-  if (!d || d.format !== 'ber-survey-deap' || !Array.isArray(d.screens)) { toast('That is not a BER Survey transfer file.'); return }
+  const want = ' I need the file called "DEAP transfer - <survey name>.json". In the app on the iPad open the survey, go to the Enter in DEAP tab and press Share transfer file.';
+  const t = String(txt || '').trim();
+  if (!t) { toast('That file is empty.' + want); return }
+  if (t.startsWith('%PDF')) { toast('That is the PDF report, not the transfer file.' + want); return }
+  if (/^</.test(t)) { toast('That is a web page, not the transfer file.' + want); return }
+  try { d = JSON.parse(t) } catch (e) { toast('That is not the transfer file.' + want); return }
+  if (d && Array.isArray(d.walls)) { toast('That is a survey Backup, not the transfer file.' + want); return }
+  if (d && d.format === 'deap-fields-recorded' || d && d.recorded) { toast('That is a DEAP recording, not the transfer file.' + want); return }
+  if (!d || d.format !== 'ber-survey-deap' || !Array.isArray(d.screens)) { toast('That is not the transfer file.' + want); return }
   st.survey = d; results = {};
   st.screen = (deapTab && screenForUrl(deapTab.url)) || d.screens[0]?.id;
   save(); render(); toast('Loaded ' + d.survey.name);
