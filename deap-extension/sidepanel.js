@@ -22,7 +22,6 @@ async function init() {
   chrome.tabs.onActivated.addListener(() => findTab());
   document.addEventListener('dragover', e => { e.preventDefault(); const d = $('.drop'); if (d) d.classList.add('on') });
   document.addEventListener('dragleave', () => { const d = $('.drop'); if (d) d.classList.remove('on') });
-  document.addEventListener('dragover', e => e.preventDefault());
   document.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) f.text().then(loadText) });
   await loadRec();
   await findTab();
