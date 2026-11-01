@@ -57,9 +57,11 @@ function synthTables() {
   const tbl = (key, title, cols, rows) => { if (rows.length) out.push({ key, title, columns: cols.map(([k, l]) => ({ key: k, label: l })), rows }) };
   const fuel = f => FUEL_DEAP[f] || f || '';
   const heats = [];
-  if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), v('heat.make') ? '1' : '', fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '']);
-  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '']);
-  tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['exact', 'Make and model given'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water']], heats);
+  // DEAP's library heat source types, for a boiler that has to be added to the library
+  const htype = src => /heat pump/i.test(src) ? 'Heat pumps' : /storage/i.test(src) ? 'Electric storage systems' : /underfloor/i.test(src) ? 'Electric underfloor heating' : /group|district/i.test(src) ? 'Group heating systems' : /warm air/i.test(src) ? 'Warm air systems' : /stove|fire|room|heater/i.test(src) ? 'Room heaters' : /electric/i.test(src) ? 'Electric boilers' : /solid|biomass|range/i.test(src) && !/\boil\b|gas|lpg/i.test(src) ? 'Solid fuel boilers' : 'Gas and oil boilers';
+  if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), v('heat.make') ? '1' : '', fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '', v('heat.make'), htype(v('heat.src'))]);
+  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec'))]);
+  tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['exact', 'Make and model given'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water'], ['make', 'Make and model'], ['htype', 'Heat source type']], heats);
   const vent = [['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0).map(([k, q]) => [q, String(n('vent.' + k))]);
   tbl('vent.items', 'Ventilation items', [['search', 'Library search'], ['n', 'Number of items']], vent);
   const wsc = st.survey.screens.find(x => x.id === 'water'), sh = wsc && wsc.tables.find(t => t.key === 'water.showers'), wet = [];
@@ -144,6 +146,32 @@ async function pressWait(text, inDialog, ms) {
   }
 }
 const after = (txt, t, ri) => txt.replace(/\{(\w+)\}/g, (_, k) => t.rows[ri][t.columns.findIndex(c => c.key === k)] || '?');
+async function newLibraryItem(step, t, ri, m, col, what) {
+  const r = await pressWait('ADD NEW ITEM TO LIBRARY', true, 3000);
+  if (r && r.error) return false;
+  if (!await waitState(x => /library item/i.test(x.dialog || ''), 6000)) return false;
+  await pause(800);
+  const make = col('make').trim(), sp = make.indexOf(' ');
+  const vals = { type: m.newItem.type, name: make, maker: sp > 0 ? make.slice(0, sp) : make, model: sp > 0 ? make.slice(sp + 1) : '', htype: col('htype'), eff: col('eff') };
+  const fields = Object.keys(m.newItem.fields).filter(k => vals[k]).map(k => ({ key: 'newitem.' + k, label: k, value: vals[k] }));
+  const mapping = {}; Object.entries(m.newItem.fields).forEach(([k, sel]) => mapping['newitem.' + k] = { selector: sel });
+  const res = (await send({ cmd: 'fill', scope: 'dialog', options: { overwrite: true, scroll: false }, mapping, fields, tables: [] })).results || [];
+  tx.report.push({ step: step.name, item: what + ' (new library item)', results: res.map(x => Object.assign({ label: x.key.replace('newitem.', '') }, x)) });
+  await pause(500);
+  const sv = await pressWait('SAVE', true, 3000);
+  if (sv && sv.error) return false;
+  // after saving, DEAP either goes on to the heat source dialog or back to the library list with the new item in it
+  const s = await waitState(x => !/library item/i.test(x.dialog || ''), 8000);
+  if (!s) return false;
+  tx.log.push(step.name + ': ' + what + ', added "' + make + '" to your DEAP library at ' + col('eff') + '% (check it)');
+  if (s.dialog && /library/i.test(s.dialog)) {
+    await send({ cmd: 'press', text: 'NEW & MODIFIED ITEMS', inDialog: true }); await pause(1200);
+    const pk = await send({ cmd: 'libpick', text: make, min: 1 });
+    if (!(pk && pk.ok)) return false;
+    return !!(await waitState(x => !x.dialog || !/library/i.test(x.dialog), 6000));
+  }
+  return true;
+}
 async function addItems(step, t) {
   const m = step.mapping[t.key] || {}, label = t.title.replace(/ \(.*\)$/, '').replace(/s$/, '');
   for (let ri = 0; ri < t.rows.length; ri++) {
@@ -166,6 +194,9 @@ async function addItems(step, t) {
         got = !!(await waitState(x => !x.dialog || !/library/i.test(x.dialog), 6000));
         if (got) tx.log.push(step.name + ': ' + what + ', picked library item "' + pk.picked + '" (check it is the right one)');
       }
+      // not in the library: add it as a new library item from the survey (boilers with make, model and efficiency)
+      const col = k => { const i = t.columns.findIndex(c => c.key === k); return i >= 0 ? t.rows[ri][i] : '' };
+      if (!got && m.newItem && tx.library === 'pick' && col('make') && col('eff')) got = await newLibraryItem(step, t, ri, m, col, what);
       if (!got) got = await waitForYou((pk && pk.error ? 'I could not find a sure match in the library. ' : '') + 'Pick the DEAP library item for ' + what + ' (' + desc + ') and press ADD, or add it with ADD NEW ITEM TO LIBRARY. ' + (phrase ? 'I searched the library for "' + phrase + '". ' : '') + 'I fill in the rest.', x => x.dialog && !/library/i.test(x.dialog) || !x.dialog);
       s = await send({ cmd: 'state' });
       if (!got) { tx.log.push(step.name + ': ' + what + ' skipped'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }

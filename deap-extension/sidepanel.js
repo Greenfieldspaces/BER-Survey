@@ -107,6 +107,17 @@ function job(sc) {
       add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
       add(t, 'loc', 'Floor location', r => /ground|solid|suspended/i.test(col(t, r, 'type')) ? 'Storey 1' : '');
       add(t, 'year', 'Year built', () => dwellingYear());
+      // a room in roof storey goes into DEAP as its own floor with Room in Roof ticked
+      add(t, 'inroof', 'Room in roof', () => '');
+      const stt = sc.tables.find(x => x.key === 'dims.storeys');
+      if (stt) {
+        const li = stt.columns.findIndex(c => c.key === 'level'), ai = stt.columns.findIndex(c => c.key === 'area');
+        stt.rows.forEach((sr, si) => {
+          if (!/room in roof/i.test(sr[li] || '')) return;
+          const v = { part: 'Room in roof', type: 'Non-Heat Loss Floor', area: sr[ai] || '', name: 'Room in roof', loc: 'Storey ' + (si + 1), year: dwellingYear(), inroof: 'Yes' };
+          t.rows.push(t.columns.map(c => v[c.key] || ''));
+        });
+      }
     }
     if (t.key === 'roofs.roofs') {
       add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));

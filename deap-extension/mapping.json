@@ -807,7 +807,18 @@
       "add": "ADD HEAT SOURCE",
       "library": true,
       "after": "check DEAP's efficiency against the survey's {eff}%",
-      "autopick": false
+      "autopick": false,
+      "newItem": {
+        "type": "Heat Source",
+        "fields": {
+          "type": "mat-select[name=\"LibraryItemTypeID\"]",
+          "name": "input[name=\"MarketingName\"]",
+          "maker": "input[name=\"Manufacturer\"]",
+          "model": "input[name=\"Model\"]",
+          "htype": "mat-select[name=\"HeatingSourceTypeId\"]",
+          "eff": "input[name=\"DEAPSeasonalEfficiency\"]"
+        }
+      }
     },
     "heat.sources.search": {
       "skip": true
@@ -910,6 +921,15 @@
     },
     "openings.windows-for-deap.want": {
       "skip": true
+    },
+    "heat.sources.make": {
+      "skip": true
+    },
+    "heat.sources.htype": {
+      "skip": true
+    },
+    "dims.floors.inroof": {
+      "selector": "input[name=\"InRoof\"]"
     }
   },
   "transfer": [
