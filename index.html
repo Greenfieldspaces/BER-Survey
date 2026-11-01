@@ -87,7 +87,27 @@ input.auto::placeholder{color:var(--muted);font-size:15px}
 input.auto{border-style:dashed;background:var(--bg)}
 .wnetbox{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;min-height:44px}
 .wnet{font-family:var(--f-num);font-size:21px;color:var(--accent)}
-.wall.open{border:2px solid var(--accent)}
+.wall.floor{gap:12px}
+.fline{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 16px minmax(0,1fr) 16px 84px 40px;gap:8px;align-items:end}
+.fline.old{grid-template-columns:minmax(0,1fr) 72px minmax(0,1.2fr) minmax(0,.8fr) 16px minmax(0,.8fr) 16px 84px 40px}
+.sym{align-self:end;padding-bottom:11px;color:var(--muted);text-align:center;font-size:18px;white-space:nowrap}
+.gross{display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;min-height:44px}
+.gross .v{font-family:var(--f-num);font-size:18px}
+.xsp{width:40px}
+.btn.dashed{border-style:dashed}
+.ftbl{display:flex;flex-direction:column;gap:6px}
+.oprow{display:grid;grid-template-columns:64px 62px minmax(150px,1.2fr) 52px minmax(0,1.3fr) 64px 40px;gap:6px;align-items:center}
+.oprow.inw{grid-template-columns:60px 56px minmax(136px,1fr) 48px minmax(0,1.5fr) minmax(0,.8fr) 56px 36px}
+.oprow select,.oprow input{min-height:40px;padding:6px 6px}
+.oph{font-family:var(--f-display);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.oprow .r{text-align:right}
+.oprow .wh{display:flex;align-items:center;gap:4px}.oprow .wh .sym{padding:0;font-size:15px}
+.kind{font-size:14px}.kind.door{color:var(--muted)}
+@media (max-width:640px){
+  .fline,.fline.old{grid-template-columns:1fr 1fr;row-gap:6px}.fline .sym{display:none}.fline .xsp{display:none}
+  .oprow,.oprow.inw{grid-template-columns:64px 1fr 1fr 40px;padding:8px;background:var(--bg);border-radius:8px}.oph{display:none}
+  .oprow .wh{grid-column:1/-1;order:-1}
+}
 .wrow{display:grid;grid-template-columns:52px minmax(0,1fr) auto 84px;gap:12px;align-items:center;padding:10px 14px}
 .wrow .dir{min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--accent-soft);font-weight:700;font-size:17px}
 .wrow-m{display:flex;flex-direction:column;gap:6px;min-width:0}
@@ -407,11 +427,12 @@ function exampleSurvey(){
   const s=newSurvey('Example: 2-storey semi');
   s.example=true;
   s.data={details:{dtype:'Semi-detached house',year:'1998',storeys:'2'},dims:{storeys:[{level:'Ground floor',area:'48.5',height:'2.40'},{level:'First floor',area:'48.5',height:'2.45'}],living:'16.2'},walltypes:{'Cavity wall':{cons:'Cavity, filled',thick:'300',ins:'Cavity fill (pumped bead / fibre)',insmm:'100',year:'1998',ev:'Photo taken'}},openings:{glazing:'Double',frame:'PVC',gap:'16 mm or more',doortype:'Composite'}};
+  const A=(o)=>blankOp('window',o),D=(o)=>blankOp('door',o);
   s.walls=[
-    blankWall({name:'Front',orient:'S',L:'7.20',H:'5.10',ops:[blankOp('window',{name:'Living',w:'1.80',h:'1.20'}),blankOp('window',{name:'Bedrooms',w:'1.20',h:'1.20',qty:'2'}),blankOp('door',{name:'Front door',w:'0.90',h:'2.10'})]}),
-    blankWall({name:'Gable',orient:'E',shape:'gable',L:'8.40',H:'5.10',apex:'2.60',ops:[blankOp('window',{name:'Landing',w:'0.60',h:'1.05'})]}),
-    blankWall({name:'Rear',orient:'N',L:'7.20',H:'5.10',ops:[blankOp('window',{name:'Kitchen',w:'1.50',h:'1.10',g:{glazing:'Single',frame:'Wood'}}),blankOp('window',{name:'Patio (glazed)',w:'1.80',h:'2.10'})]}),
-    blankWall({name:'Party to garage',orient:'W',type:'Semi-exposed wall',L:'3.00',H:'2.40'})
+    blankWall({level:'Ground floor',name:'Ground floor',orient:'',L:'31.20',ops:[A({orient:'S',name:'Living',w:'1.80',h:'1.20'}),D({orient:'S',name:'Front door',w:'0.90',h:'2.10'}),A({orient:'N',name:'Kitchen',w:'1.50',h:'1.10',g:{glazing:'Single',frame:'Wood'}}),A({orient:'N',name:'Patio (glazed)',w:'1.80',h:'2.10'})]}),
+    blankWall({level:'Ground floor',name:'Ground floor',orient:'',type:'Semi-exposed wall',L:'3.00'}),
+    blankWall({level:'First floor',name:'First floor',orient:'',L:'31.20',ops:[A({orient:'S',name:'Bedrooms',w:'1.20',h:'1.20',qty:'2'}),A({orient:'E',name:'Landing',w:'0.60',h:'1.05'})]}),
+    blankWall({shape:'tri',name:'Gable top',orient:'',L:'8.40',apex:'2.60'})
   ];
   return s;
 }
@@ -441,9 +462,10 @@ const cur=()=>db.surveys[db.current];
 // ---- geometry ----
 // a wall with no height of its own takes the storey heights added up (room in roof and basement left out)
 const autoH=s=>(((s.data||{}).dims||{}).storeys||[]).filter(r=>!/roof|basement/i.test(r.level||'')).reduce((a,r)=>a+n(r.height),0);
-const wallH=w=>hasVal(w.H)?n(w.H):autoH(cur());
+const wallH=w=>hasVal(w.H)?n(w.H):w.level?levelH(cur(),w.level):autoH(cur());
 function gross(w){
   if(w.shape==='area')return n(w.area);
+  if(w.shape==='tri')return 0.5*n(w.L)*n(w.apex);
   const r=n(w.L)*wallH(w);
   return w.shape==='gable'?r+0.5*n(w.L)*n(w.apex):r;
 }
@@ -480,33 +502,127 @@ $('#surveySel').addEventListener('change',e=>{db.current=e.target.value;save();r
 $('#newSurvey').addEventListener('click',()=>{const s=newSurvey('Survey '+new Date().toLocaleDateString('en-IE'));s.data.details={date:new Date().toISOString().slice(0,10)};db.surveys[s.id]=s;db.current=s.id;db.tab='details';save();render();setTimeout(()=>{const i=$('#svName');i&&i.focus();i&&i.select()},50)});
 
 // ---- walls ----
-// one wall is open for editing at a time; the others show as one-line rows
-let openWall=null,opDraft=null,addingType=null;
-const lastT={};
-const nextOrient=s=>{const last=s.walls[s.walls.length-1];return last?ORIENTS[(ORIENTS.indexOf(last.orient)+2)%8]:'S'};
-const oppOf=o=>ORIENTS[(ORIENTS.indexOf(o)+4)%8];
-function addWall(s,from){
-  const last=s.walls[s.walls.length-1],o=nextOrient(s);
-  const w=blankWall(from?{orient:o,type:from.type,shape:from.shape,L:from.L,H:from.H,apex:from.apex,area:from.area}
-    :{orient:o,type:last?last.type:s.types[0],H:last&&!autoH(s)?last.H:''});
-  s.walls.push(w);openWall=w.id;opDraft=null;save();render();
-  setTimeout(()=>{const c=$('[data-wall="'+w.id+'"]');c&&c.scrollIntoView({behavior:'smooth',block:'start'});const i=c&&c.querySelector('#wn-'+w.id);i&&i.focus()},50);
+// measured the way it's done on site: per floor, room height × exposed perimeter, less that floor's windows and doors.
+// each line is a wall in s.walls (level set); gable tops are shape 'tri'; walls without a level are from older surveys
+let addingType=null;
+const LEVELS=['Basement','Ground floor','First floor','Second floor','Third floor'];
+const levelH=(s,lv)=>{const r=(((s.data||{}).dims||{}).storeys||[]).find(x=>x.level===lv);return r?n(r.height):0};
+const opDir=(o,w)=>o.orient||w.orient||'';
+const lastOp={};
+function floorLevels(s){
+  const st=(((s.data||{}).dims||{}).storeys||[]).map(r=>r.level).filter(l=>l&&!/roof/i.test(l));
+  const used=s.walls.filter(w=>w.level).map(w=>w.level);
+  const all=[...new Set(st.concat(used))];
+  return all.length?all.sort((a,b)=>LEVELS.indexOf(a)-LEVELS.indexOf(b)):['Ground floor'];
+}
+const addLine=(s,o)=>{const w=blankWall(Object.assign({shape:'rect',orient:''},o));s.walls.push(w);return w};
+function typeSel(w,s){
+  const tsel=el('select',{id:'wt-'+w.id,'aria-label':'Wall type',onchange:e=>{if(e.target.value==='__new'){addingType=w.id}else{w.type=e.target.value;addingType=null}save();render()}});
+  const types=s.types.includes(w.type)?s.types:s.types.concat(w.type);
+  types.forEach(t=>tsel.append(el('option',{value:t,selected:t===w.type&&addingType!==w.id},t)));
+  tsel.append(el('option',{value:'__new',selected:addingType===w.id},'+ New wall type…'));
+  return tsel;
+}
+function newTypeEl(w,s){
+  const ni=el('input',{id:'nt-'+w.id,value:'',placeholder:'e.g. Extension cavity wall 2005'});
+  const addT=()=>{const v=ni.value.trim();if(!v)return;if(!s.types.includes(v))s.types.push(v);w.type=v;addingType=null;save();render();toast('Wall type added. Fill in its construction and year below')};
+  ni.addEventListener('keydown',e=>{if(e.key==='Enter')addT()});
+  setTimeout(()=>{const x=document.getElementById('nt-'+w.id);x&&x.focus()},30);
+  return el('div',{class:'intro',style:'display:flex;flex-direction:column;gap:8px'},el('label',{for:'nt-'+w.id,style:'font-weight:600'},'Name the new wall type'),
+    el('span',{class:'hint'},'Use a separate type for an extension or any wall built differently, so it gets its own year and construction.'),
+    el('div',{class:'row'},ni,el('button',{class:'btn primary',onclick:addT},'Add'),el('button',{class:'btn ghost',onclick:()=>{addingType=null;render()}},'Cancel')));
+}
+const upd=(w,k)=>e=>{w[k]=e.target.value;save();refresh()};
+const lab=(t,f)=>el('label',{class:'label',for:f},t);
+const fl=(t,id,inp,cls)=>el('div',{class:'field'+(cls?' '+cls:'')},lab(t,id),inp);
+const sym=t=>el('span',{class:'sym','aria-hidden':'true'},t);
+const grossEl=w=>el('div',{class:'gross'},el('span',{class:'label'},w.shape==='tri'?'Area':'Gross'),el('span',{class:'v','data-gross':w.id},f2(gross(w))));
+const delLine=(w,s)=>el('button',{class:'x','aria-label':'Remove this line',onclick:()=>{s.walls=s.walls.filter(x=>x!==w);save();render()}},'×');
+// one measured line: wall type, room height × exposed perimeter = gross
+function lineEl(w,s,opts){
+  const out=[];
+  if(w.rir){
+    out.push(el('div',{class:'fline'},fl('Wall type','wt-'+w.id,typeSel(w,s)),el('span',{class:'note',style:'align-self:center'},'Gable end from the room in roof (Roofs tab)'),grossEl(w)));
+  }else if(w.shape==='tri'){
+    out.push(el('div',{class:'fline'},fl('Wall type','wt-'+w.id,typeSel(w,s)),
+      fl('Width m','wl-'+w.id,numInput('wl-'+w.id,w.L,'Width',upd(w,'L'))),sym('×'),
+      fl('Height m','wp-'+w.id,numInput('wp-'+w.id,w.apex,'Height',upd(w,'apex'))),sym('÷ 2 ='),grossEl(w),delLine(w,s)));
+  }else{
+    const hi=numInput('wh-'+w.id,w.H,'Room height',upd(w,'H')),ah=w.level?levelH(s,w.level):0;
+    if(ah){hi.placeholder=f2(ah);hi.classList.add('auto')}
+    const first=[fl('Wall type','wt-'+w.id,typeSel(w,s))];
+    if(!w.level)first.unshift(fl('Wall','wn-'+w.id,el('input',{id:'wn-'+w.id,value:w.name,oninput:upd(w,'name')})),
+      fl('Faces','wo-'+w.id,el('select',{id:'wo-'+w.id,onchange:e=>{w.orient=e.target.value;save();render()}},ORIENTS.map(o=>el('option',{value:o,selected:o===w.orient},o)))));
+    out.push(el('div',{class:'fline'+(w.level?'':' old')},...first,
+      fl(w.level?'Room height m':'Height m','wh-'+w.id,hi),sym('×'),
+      fl(w.level?'Exposed perimeter m':'Length m','wl-'+w.id,numInput('wl-'+w.id,w.L,w.level?'Exposed perimeter':'Length',upd(w,'L'))),sym('='),
+      grossEl(w),opts&&opts.del?delLine(w,s):el('span',{class:'xsp'})));
+  }
+  if(addingType===w.id)out.push(newTypeEl(w,s));
+  return out;
+}
+// the windows and doors of a group of lines, edited in place
+function opsEl(lines,s,dir){
+  const box=el('div',{class:'ftbl'});
+  const rows=[];lines.forEach(w=>w.ops.forEach(o=>rows.push([w,o])));
+  const multi=lines.length>1;
+  if(rows.length)box.append(el('div',{class:'oprow oph'+(multi?' inw':'')},el('span',null,'Faces'),el('span',null,'What'),el('span',null,'Width × height m'),el('span',null,'Qty'),el('span',null,'Type'),multi?el('span',null,'In wall'):null,el('span',{class:'r'},'m²'),el('span')));
+  rows.forEach(([w,o])=>{
+    const u=k=>e=>{o[k]=e.target.value;save();refresh()};
+    const ts=opTypes(o.kind);
+    const tsel=el('select',{'aria-label':'Type',onchange:e=>{if(e.target.value==='__new'){const t=newOpType(o.kind);o.t=t.id;toast('Type '+t.code+' added. Describe it on Windows & doors')}else o.t=e.target.value;lastOp[o.kind+'t']=o.t;save();render()}},
+      ts.map(t=>el('option',{value:t.id,selected:o.t===t.id},typeLabel(t,o.kind))),el('option',{value:'__new'},'+ New type'));
+    box.append(el('div',{class:'oprow'+(multi?' inw':''),'data-op':o.id},
+      el('select',{'aria-label':'Faces',onchange:e=>{o.orient=e.target.value;lastOp.orient=o.orient;save();refresh()}},el('option',{value:''},'–'),ORIENTS.map(d=>el('option',{value:d,selected:opDir(o,w)===d},d))),
+      el('span',{class:o.kind==='door'?'kind door':'kind'},o.kind==='door'?'Door':'Window'),
+      el('div',{class:'wh'},numInput('ow-'+o.id,o.w,'Width',u('w')),sym('×'),numInput('oh-'+o.id,o.h,'Height',u('h'))),
+      el('input',{inputmode:'numeric',value:o.qty,'aria-label':'How many',oninput:u('qty')}),
+      tsel,
+      multi?el('select',{'aria-label':'In wall',onchange:e=>{const to=lines.find(x=>x.id===e.target.value);if(to&&to!==w){w.ops=w.ops.filter(x=>x!==o);to.ops.push(o);save();render()}}},lines.map(x=>el('option',{value:x.id,selected:x===w},x.level||x.shape==='tri'?x.type:x.name||x.type))):null,
+      el('span',{class:'r num','data-oa':o.id},f2(opArea(o))),
+      el('button',{class:'x','aria-label':'Remove '+o.kind,onclick:()=>{w.ops=w.ops.filter(x=>x!==o);save();render()}},'×')));
+  });
+  const add=kind=>()=>{
+    const w=lines[0],ts=opTypes(kind);
+    const t=ts.find(x=>x.id===lastOp[kind+'t'])||ts[0]||newOpType(kind);
+    const o=blankOp(kind,{t:t.id,orient:lastOp.orient||dir||''});w.ops.push(o);save();render();
+    setTimeout(()=>{const i=document.getElementById('ow-'+o.id);i&&i.focus()},40);
+  };
+  box.append(el('div',{class:'row'},el('button',{class:'btn small',onclick:add('window')},'+ Window'),el('button',{class:'btn small',onclick:add('door')},'+ Door'),
+    el('span',{style:'flex:1'}),el('span',{class:'note num','data-gcalc':lines.map(w=>w.id).join(' ')},groupCalc(lines))));
+  return box;
+}
+const groupCalc=ls=>f2(ls.reduce((a,w)=>a+gross(w),0))+' gross − '+f2(ls.reduce((a,w)=>a+opsArea(w),0))+' openings';
+const groupNet=ls=>ls.reduce((a,w)=>a+net(w),0);
+function groupCard(title,lines,s,extra,opts){
+  const card=el('section',{class:'wall floor'},
+    el('div',{class:'row'},el('h3',{style:'font-size:20px;margin-right:auto'},title),opts&&opts.head,el('span',{class:'label'},'Net'),el('span',{class:'wnet','data-gnet':lines.map(w=>w.id).join(' ')},f2(groupNet(lines)))));
+  lines.forEach(w=>card.append(...lineEl(w,s,{del:lines.length>1||(opts&&opts.delAll)})));
+  if(extra)card.append(extra);
+  if(lines.length)card.append(opsEl(lines,s,opts&&opts.dir));
+  card.append(el('div',{class:'warn','data-warn':lines.map(w=>w.id).join(' '),hidden:groupNet(lines)>=0},'Openings exceed the gross area'));
+  return card;
 }
 function renderWalls(){
-  const s=cur(),ah=autoH(s);
-  const col=el('div',{class:'stack'});
-  col.append(el('div',{class:'intro'},el('b',null,'Walk round the outside, one row per wall.'),' ',
-    ah?['Height fills in from your storey heights (',el('span',{class:'num'},f2(ah)),' m, room in roof left out). Type over it if a wall is different.']
-      :'Add storey heights on Dimensions and the wall height fills in by itself.'));
-  if(openWall==null||(openWall!=='none'&&!s.walls.some(w=>w.id===openWall)))openWall=s.walls.length?s.walls[s.walls.length-1].id:null;
-  s.walls.forEach((w,i)=>col.append(w.id===openWall?wallCard(w,i):wallRow(w,i)));
-  const o=nextOrient(s),opp=[...s.walls].reverse().find(w=>w.orient===oppOf(o));
-  col.append(el('div',{class:'row'},
-    el('button',{class:'btn primary',onclick:()=>addWall(s)},s.walls.length?'+ Next wall (faces '+o+')':'+ Add wall'),
-    opp?el('button',{class:'btn',onclick:()=>addWall(s,opp)},'+ Same size as '+(opp.name||'wall '+(s.walls.indexOf(opp)+1))):null));
+  const s=cur(),col=el('div',{class:'stack'});
+  col.append(el('div',{class:'intro'},el('b',null,'One line per floor: room height × exposed perimeter, minus the windows and doors.'),' Room height comes from Dimensions (dashed box). Type over it if needed.'));
+  const hasOld=s.walls.some(w=>!w.level&&w.shape!=='tri'&&!w.rir);
+  floorLevels(s).forEach(lv=>{
+    let lines=s.walls.filter(w=>w.level===lv&&w.shape!=='tri'&&!w.rir);
+    if(!lines.length){if(hasOld)return;lines=[addLine(s,{level:lv,name:lv,type:s.types[0]})]}
+    col.append(groupCard(lv,lines,s,el('button',{class:'btn small dashed',style:'align-self:flex-start',onclick:()=>{addLine(s,{level:lv,name:lv,type:lines[lines.length-1].type});save();render()}},'+ Another wall type on this floor')));
+  });
+  const tops=s.walls.filter(w=>w.shape==='tri'||w.rir);
+  const gc=groupCard('Gable tops',tops,s,el('div',{class:'row'},el('span',{class:'note',style:'flex:1'},'The triangle above the top floor. Skip this if there is a room in roof: it adds its own gable ends.'),
+    el('button',{class:'btn small dashed',onclick:()=>{addLine(s,{shape:'tri',name:'Gable top',type:(tops[0]||s.walls[0]||{}).type||s.types[0]});save();render()}},'+ Gable top')),{delAll:true});
+  col.append(gc);
+  const old=s.walls.filter(w=>!w.level&&w.shape!=='tri'&&!w.rir);
+  if(old.length)col.append(groupCard('Measured by wall (older survey)',old,s,el('p',{class:'note',style:'margin:0'},'This survey was measured wall by wall before the floor layout. These still count. You can delete them once the floors above are filled in.'),{delAll:true}));
+  const lv=LEVELS.filter(l=>!floorLevels(s).includes(l));
+  if(lv.length){const sel=el('select',{'aria-label':'Floor to add',style:'width:auto'},lv.map(l=>el('option',{value:l},l)));
+    col.append(el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>{addLine(s,{level:sel.value,name:sel.value,type:s.types[0]});save();render()}},'+ Floor'),sel))}
   col.append(wallTypesEl());
-  const wrap=el('div',{class:'layout'},col,summaryPanel(true));
-  return wrap;
+  return el('div',{class:'layout'},col,summaryPanel(true));
 }
 // construction details are recorded once per wall type in use (DEAP takes a U-value per wall type)
 const usedTypes=s=>[...new Set(s.walls.filter(w=>gross(w)>0||w.ops.length).map(w=>w.type))];
@@ -524,114 +640,6 @@ function wallTypesEl(){
   });
   return card;
 }
-const sizeText=w=>w.shape==='area'?f2(n(w.area))+(w.rir?' m² from room in roof':' m² typed in'):f2(n(w.L))+' × '+f2(wallH(w))+(w.shape==='gable'?' + apex '+f2(n(w.apex)):'');
-function opChip(o,onclick){
-  const t=opType(o);
-  return el(onclick?'button':'span',{class:'chip',onclick:onclick||null,'aria-label':onclick?'Edit '+o.kind+(o.name?' '+o.name:''):null},
-    el('b',{class:'code'+(o.kind==='door'?' door':'')},t?t.code:o.kind==='door'?'Door':'?'),
-    el('span',{class:'num'},(hasVal(o.a)?f2(n(o.a))+' m²':f2(n(o.w))+'×'+f2(n(o.h)))+(n(o.qty)>1?' ×'+o.qty:'')),
-    o.name?el('span',{class:'muted'},o.name):null);
-}
-function wallRow(w,i){
-  return el('section',{class:'wall wrow','data-wall':w.id},
-    el('span',{class:'dir'},w.orient),
-    el('div',{class:'wrow-m'},
-      el('div',null,el('b',null,w.name||'Wall '+(i+1)),' ',el('span',{class:'num muted'},sizeText(w)),el('span',{class:'muted'},' · '+w.type)),
-      el('div',{class:'chips'},w.ops.length?w.ops.map(o=>opChip(o)):el('span',{class:'note'},'No openings'))),
-    el('button',{class:'btn small',onclick:()=>{openWall=w.id;opDraft=null;addingType=null;render()}},'Edit'),
-    el('span',{class:'wnet','data-net':1},f2(net(w))));
-}
-function startDraft(w,kind,o){
-  if(o){opDraft={wall:w.id,id:o.id,kind:o.kind,w:o.w||'',h:o.h||'',a:o.a||'',qty:o.qty||'1',name:o.name||'',t:o.t}}
-  else{
-    const ts=opTypes(kind);
-    const t=ts.find(x=>x.id===lastT[kind])||ts[0]||newOpType(kind);
-    opDraft={wall:w.id,id:null,kind,w:'',h:'',a:'',qty:'1',name:'',t:t.id};save();
-  }
-  render();setTimeout(()=>{const i=$('#dw');i&&i.focus()},40);
-}
-function opPanel(w){
-  const d=opDraft,door=d.kind==='door',ts=opTypes(d.kind),what=door?'door':'window';
-  const area=el('span',{class:'num note'});
-  const upd=()=>{area.textContent=opArea(d)>0?'= '+f2(opArea(d))+' m²':''};upd();
-  const commit=()=>{
-    if(!(opEach(d)>0)){toast('Enter the width and height');return false}
-    const v={kind:d.kind,name:d.name.trim(),w:d.w,h:d.h,qty:hasVal(d.qty)?d.qty:'1',t:d.t};
-    const o=d.id&&w.ops.find(x=>x.id===d.id);
-    if(o){Object.assign(o,v);if(hasVal(d.a))o.a=d.a;else delete o.a}
-    else{if(hasVal(d.a))v.a=d.a;w.ops.push(blankOp(d.kind,v))}
-    lastT[d.kind]=d.t;save();return true;
-  };
-  const next=()=>{if(!commit())return;opDraft=Object.assign({},d,{id:null,w:'',h:'',a:'',qty:'1',name:''});render();setTimeout(()=>{const i=$('#dw');i&&i.focus()},40)};
-  const done=()=>{if((hasVal(d.w)||hasVal(d.h)||hasVal(d.a))&&!commit())return;opDraft=null;render()};
-  const inp=(id,k,label,mode,ph)=>el('div',{class:'field'},el('label',{class:'label',for:id},label),
-    el('input',{id,inputmode:mode,value:d[k],placeholder:ph||'',autocomplete:'off',oninput:e=>{d[k]=e.target.value;upd()},onkeydown:e=>{if(e.key==='Enter'){e.preventDefault();d.id?done():next()}}}));
-  const tb=el('div',{class:'tchips',role:'group','aria-label':door?'Door type':'Window type'},
-    ts.map(t=>el('button',{class:'tchip','aria-pressed':String(d.t===t.id),onclick:()=>{d.t=t.id;render()}},typeLabel(t,d.kind))),
-    el('button',{class:'tchip add',onclick:()=>{const t=newOpType(d.kind);d.t=t.id;save();render();toast('Type '+t.code+' added. Describe it on Windows & doors')}},'+ New type'));
-  return el('div',{class:'oppanel'},
-    el('h4',null,d.id?'Edit '+what:'Add a '+what+' to '+(w.name||'this wall')),
-    el('div',{class:'opgrid'},inp('dw','w','Width m','decimal','0.00'),inp('dh','h','Height m','decimal','0.00'),inp('dq','qty','How many','numeric'),inp('da','a','Or area each m²','decimal','')),
-    el('div',{class:'field'},el('span',{class:'label'},door?'Door type':'Window type'),tb),
-    el('div',{class:'row'},el('label',{class:'note',for:'dn'},'Label'),el('input',{id:'dn',value:d.name,placeholder:door?'e.g. Back door':'e.g. Kitchen',style:'width:200px;flex:0 1 200px',oninput:e=>{d.name=e.target.value}}),area,
-      el('span',{style:'flex:1'}),
-      d.id?armButton('Delete',()=>{w.ops=w.ops.filter(x=>x.id!==d.id);opDraft=null;save();render()}):null,
-      el('button',{class:'btn ghost',onclick:d.id?()=>{opDraft=null;render()}:done},d.id?'Cancel':'Done'),
-      el('button',{class:'btn primary',onclick:d.id?done:next},d.id?'Save':'Add and next '+what)));
-}
-function wallCard(w,i){
-  const s=cur(),ah=autoH(s);
-  const card=el('section',{class:'wall open','data-wall':w.id});
-  const tsel=el('select',{id:'wt-'+w.id,onchange:e=>{if(e.target.value==='__new'){addingType=w.id}else{w.type=e.target.value;addingType=null}save();render()}});
-  const types=s.types.includes(w.type)?s.types:s.types.concat(w.type);
-  types.forEach(t=>tsel.append(el('option',{value:t,selected:t===w.type&&addingType!==w.id},t)));
-  tsel.append(el('option',{value:'__new',selected:addingType===w.id},'+ New wall type…'));
-  const osel=el('select',{id:'wo-'+w.id,class:'dirsel',onchange:e=>{w.orient=e.target.value;save();render()}});
-  ORIENTS.forEach(o=>osel.append(el('option',{value:o,selected:o===w.orient},o)));
-  const upd=k=>e=>{w[k]=e.target.value;save();refresh()};
-  const fld=(lab,id,inp,cls)=>el('div',{class:'field'+(cls?' '+cls:'')},el('label',{class:'label',for:id},lab),inp);
-  const hi=numInput('wh-'+w.id,w.H,'Height',upd('H'));
-  if(ah){hi.placeholder=f2(ah)+' auto';hi.classList.add('auto')}
-  card.append(el('div',{class:'wall-head'},
-    fld('Faces','wo-'+w.id,osel),
-    fld('Wall '+(i+1),'wn-'+w.id,el('input',{id:'wn-'+w.id,value:w.name,placeholder:'e.g. Front, Rear, Gable',oninput:e=>{w.name=e.target.value;save();refresh()}})),
-    w.shape==='area'?fld('Gross area m²','wa-'+w.id,numInput('wa-'+w.id,w.area,'Gross area',upd('area')),'span2')
-      :[fld('Length m','wl-'+w.id,numInput('wl-'+w.id,w.L,'Length',upd('L'))),fld(w.shape==='gable'?'Eaves height m':'Height m','wh-'+w.id,hi)],
-    fld('Wall type','wt-'+w.id,tsel,'wtype'),
-    el('div',{class:'wnetbox'},el('span',{class:'label'},'Net m²'),el('span',{class:'wnet','data-net':1},f2(net(w))))));
-  if(addingType===w.id){
-    const ni=el('input',{id:'nt-'+w.id,value:'',placeholder:'e.g. Extension cavity wall 2005'});
-    const addT=()=>{const v=ni.value.trim();if(!v)return;if(!s.types.includes(v))s.types.push(v);w.type=v;addingType=null;save();render();toast('Wall type added. Fill in its construction and year below')};
-    ni.addEventListener('keydown',e=>{if(e.key==='Enter')addT()});
-    card.append(el('div',{class:'intro',style:'display:flex;flex-direction:column;gap:8px'},el('label',{for:'nt-'+w.id,style:'font-weight:600'},'Name the new wall type'),
-      el('span',{class:'hint'},'Use a separate type for an extension or any wall built differently, so it gets its own year and construction.'),
-      el('div',{class:'row'},ni,el('button',{class:'btn primary',onclick:addT},'Add'),el('button',{class:'btn ghost',onclick:()=>{addingType=null;render()}},'Cancel'))));
-    setTimeout(()=>{const x=document.getElementById('nt-'+w.id);x&&x.focus()},30);
-  }
-  const setShape=k=>()=>{w.shape=k;save();render()};
-  if(w.rir)card.append(el('div',{class:'row'},el('span',{class:'note'},'Area comes from the room in roof on the Roofs tab and updates with it.'),el('span',{class:'note num','data-calc':1,style:'margin-left:auto'},calcText(w))));
-  else card.append(el('div',{class:'row'},
-    w.shape==='area'?el('button',{class:'btn small ghost',onclick:setShape('rect')},'Use length × height instead')
-      :[el('span',{class:'note'},'Gable top'),
-        el('div',{class:'seg',role:'group','aria-label':'Gable top'},[['rect','None'],['gable','Apex']].map(([k,lab])=>el('button',{'aria-pressed':String(w.shape===k),onclick:setShape(k)},lab))),
-        w.shape==='gable'?[el('label',{class:'note',for:'wp-'+w.id},'eaves to apex m'),Object.assign(numInput('wp-'+w.id,w.apex,'Eaves to apex',upd('apex')),{style:'width:96px'})]:null,
-        el('button',{class:'btn small ghost',onclick:setShape('area')},'Type the area instead')],
-    el('span',{class:'note num','data-calc':1,style:'margin-left:auto'},calcText(w))));
-  const chips=el('div',{class:'chips'},el('span',{class:'label',style:'margin-right:4px'},'Openings'),
-    w.ops.map(o=>opChip(o,()=>startDraft(w,o.kind,o))),
-    el('button',{class:'btn small',onclick:()=>startDraft(w,'window')},'+ Window'),
-    el('button',{class:'btn small',onclick:()=>startDraft(w,'door')},'+ Door'));
-  card.append(chips);
-  if(opDraft&&opDraft.wall===w.id)card.append(opPanel(w));
-  card.append(el('div',{class:'wall-foot'},
-    el('div',{class:'warn','data-warn':1,hidden:net(w)>=0},'Openings exceed gross area'),
-    el('span',{style:'flex:1'}),
-    el('button',{class:'btn small',onclick:()=>{const c=JSON.parse(JSON.stringify(w));c.id=uid();c.name=(w.name||'Wall')+' copy';c.ops.forEach(o=>o.id=uid());s.walls.splice(i+1,0,c);openWall=c.id;opDraft=null;save();render()}},'Duplicate'),
-    armButton('Delete',()=>{s.walls=s.walls.filter(x=>x!==w);openWall=null;opDraft=null;save();render()}),
-    el('button',{class:'btn small',onclick:()=>{openWall='none';opDraft=null;render()}},'Close')));
-  return card;
-}
-const calcText=w=>f2(gross(w))+' gross − '+f2(opsArea(w))+' openings';
 
 // ---- summary ----
 function summarise(s){
@@ -640,7 +648,7 @@ function summarise(s){
   s.walls.forEach(w=>{
     const t=byType[w.type]||(byType[w.type]={gross:0,ops:0,net:0});
     t.gross+=gross(w);t.ops+=opsArea(w);t.net+=net(w);g+=gross(w);o+=opsArea(w);
-    w.ops.forEach(op=>{const a=opArea(op);const r=byOrient[w.orient]||(byOrient[w.orient]={window:0,door:0,items:[]});r[op.kind]+=a;r.items.push({wall:w.name,op,a});if(op.kind==='window')win+=a;else door+=a});
+    w.ops.forEach(op=>{const a=opArea(op);const d=opDir(op,w),r=byOrient[d]||(byOrient[d]={window:0,door:0,items:[]});r[op.kind]+=a;r.items.push({wall:w.name,op,a});if(op.kind==='window')win+=a;else door+=a});
   });
   return {byType,byOrient,g,o,net:g-o,win,door};
 }
@@ -729,13 +737,13 @@ function wallsParts(s){
   const crow=types.map(t=>{const d=wt[t]||{};return [t,d.cons||'',d.thick||'',d.ins&&d.ins!=='None'?d.ins+(d.insmm?' '+d.insmm+' mm':''):(d.ins||''),d.year||'',d.u||'',d.ev||'']});
   if(crow.length){const head=['Wall type','Construction','Thickness mm','Insulation','Year built','U-value','Evidence'],num=[0,0,1,0,0,1,0];const keep=head.map((h,i)=>i<2||crow.some(r=>hasVal(r[i])));parts.push({table:{title:'Wall construction (for DEAP)',head:head.filter((h,i)=>keep[i]),num:num.filter((x,i)=>keep[i]),rows:crow.map(r=>r.filter((x,i)=>keep[i]))}})}
   parts.push({table:{title:'Walls measured (site record)',record:true,head:['Wall','Faces','Type','Size','Gross m²','Openings m²','Net m²'],num:[0,0,0,0,1,1,1],
-    rows:s.walls.map(w=>[w.name||'Wall',w.orient,w.type,w.shape==='area'?'area entered':f2(n(w.L))+' × '+f2(wallH(w))+(w.shape==='gable'?' + gable '+f2(n(w.apex)):''),f2(gross(w)),f2(opsArea(w)),f2(net(w))])}});
+    rows:s.walls.map(w=>[w.name||'Wall',w.orient,w.type,w.shape==='area'?'area entered':w.shape==='tri'?f2(n(w.L))+' × '+f2(n(w.apex))+' ÷ 2':f2(n(w.L))+' × '+f2(wallH(w))+(w.shape==='gable'?' + gable '+f2(n(w.apex)):''),f2(gross(w)),f2(opsArea(w)),f2(net(w))])}});
   return parts;
 }
 function openingParts(s){
   const S=summarise(s),parts=[],wins=[],doors=[];
   s.walls.forEach(w=>w.ops.forEach(o=>{
-    const base=[w.orient,w.name||'Wall',o.name||'',opSize(o),String(Math.max(0,Math.round(n(o.qty)||0))),f2(opArea(o))];
+    const base=[opDir(o,w),w.name||'Wall',o.name||'',opSize(o),String(Math.max(0,Math.round(n(o.qty)||0))),f2(opArea(o))];
     if(o.kind==='door')doors.push(base.concat([opEff(o,'doortype'),opEff(o,'door_u')+(opEff(o,'door_u_src')?' ('+opEff(o,'door_u_src')+')':'')]));
     else{const single=opEff(o,'glazing')==='Single';wins.push(base.concat([opEff(o,'glazing'),opEff(o,'frame'),single?'':opEff(o,'gap'),single?'':opEff(o,'fill'),opEff(o,'win_u'),opEff(o,'win_u_src'),opEff(o,'win_year')]))}
   }));
@@ -965,6 +973,7 @@ function siteChecks(s){
   else if(totA&&n(dims.living)>totA*0.6)add('check','Living area is over 60% of the total floor area','building','dims');
   if(!s.walls.some(w=>gross(w)>0))add('miss','Wall measurements','building','walls');
   usedTypes(s).forEach(t=>{const d=(s.data.walltypes||{})[t]||{};if(!hasVal(d.cons))add('miss',t+': construction not recorded','building','walls');else if(!hasVal(d.ins)&&!hasVal(d.u))add('miss',t+': insulation or U-value not recorded','building','walls')});
+  {const nd=s.walls.reduce((a,w)=>a+w.ops.filter(o=>!opDir(o,w)).length,0);if(nd)add('miss',nd+' window'+(nd>1?'s or doors have':' or door has')+' no direction','building','walls')}
   s.walls.forEach((w,i)=>{const nm=w.name||'Wall '+(i+1);
     if(!(gross(w)>0))add('miss',nm+' has no dimensions','building','walls');
     else if(net(w)<0)add('check',nm+': openings are bigger than the wall','building','walls');
@@ -1213,7 +1222,7 @@ function rirSyncWalls(s){
     const x=rirSolve(r),want=x.ok&&!x.bad?Math.round(n(r.gables)||0):0;
     let mine=s.walls.filter(w=>w.rir===r.id);
     while(mine.length>want){const w=mine.pop();s.walls=s.walls.filter(y=>y!==w)}
-    while(mine.length<want){const w=blankWall({name:'Room in roof gable',shape:'area',type:s.walls[0]?s.walls[0].type:s.types[0],orient:'E',rir:r.id});mine.push(w);s.walls.push(w)}
+    while(mine.length<want){const w=blankWall({name:'Room in roof gable',shape:'area',type:s.walls[0]?s.walls[0].type:s.types[0],orient:'',rir:r.id});mine.push(w);s.walls.push(w)}
     mine.forEach(w=>{w.shape='area';w.area=f2(x.gable)});
   });
   const ids=new Set(rirList(s).map(r=>r.id));s.walls=s.walls.filter(w=>!w.rir||ids.has(w.rir));
@@ -1299,7 +1308,7 @@ function opTypesEl(kind){
   ts.forEach(t=>{
     const used=[];s.walls.forEach(w=>w.ops.forEach(o=>{if(o.kind===kind&&o.t===t.id)used.push([w,o])}));
     const cnt=used.reduce((a,[,o])=>a+Math.max(0,Math.round(n(o.qty)||0)),0),area=used.reduce((a,[,o])=>a+opArea(o),0);
-    const dirs=ORIENTS.filter(x=>used.some(([w])=>w.orient===x));
+    const dirs=ORIENTS.filter(x=>used.some(([w,o])=>opDir(o,w)===x));
     const F=door?DOOR_FIELDS:WIN_FIELDS.filter(f=>!(t.glazing==='Single'&&(f.id==='gap'||f.id==='fill')));
     const g=el('div',{class:'grid'});F.forEach(f=>g.append(fieldEl(f,t,'ty'+t.id)));
     list.append(el('div',{class:'lrow otype'},
@@ -1324,7 +1333,7 @@ function deapLinesEl(){
 function opText(L){
   cur().walls.forEach(w=>w.ops.forEach(o=>{
     const d=opFields(o).map(f=>[f.label,opEff(o,f.id)]).filter(x=>hasVal(x[1])).map(x=>x[0].replace(' (if certified)','')+' '+x[1]).join(', ');
-    L.push('  '+(w.name||'Wall')+' ['+w.orient+'] '+(o.kind==='door'?'Door':'Window')+(o.name?' '+o.name:'')+': '+opSize(o)+(n(o.qty)>1?' x'+o.qty:'')+' = '+f2(opArea(o))+' m²'+(d?' | '+d:''));
+    L.push('  '+(w.name||'Wall')+' ['+opDir(o,w)+'] '+(o.kind==='door'?'Door':'Window')+(o.name?' '+o.name:'')+': '+opSize(o)+(n(o.qty)>1?' x'+o.qty:'')+' = '+f2(opArea(o))+' m²'+(d?' | '+d:''));
   }));
 }
 function fmtVal(f,v){return Array.isArray(v)?v.join(', '):v}
@@ -1463,13 +1472,12 @@ function renderEntry(){
 // live refresh without losing focus
 function refresh(){
   const s=cur();
-  s.walls.forEach(w=>{
-    const c=document.querySelector('[data-wall="'+w.id+'"]');if(!c)return;
-    const q=k=>c.querySelector('[data-'+k+']');
-    q('net').textContent=f2(net(w));
-    if(q('calc'))q('calc').textContent=calcText(w);
-    if(q('warn'))q('warn').hidden=net(w)>=0;
-  });
+  const ws=ids=>ids.split(' ').map(id=>s.walls.find(x=>x.id===id)).filter(Boolean);
+  document.querySelectorAll('[data-gross]').forEach(e=>{const w=s.walls.find(x=>x.id===e.dataset.gross);if(w)e.textContent=f2(gross(w))});
+  document.querySelectorAll('[data-gnet]').forEach(e=>e.textContent=f2(groupNet(ws(e.dataset.gnet))));
+  document.querySelectorAll('[data-gcalc]').forEach(e=>e.textContent=groupCalc(ws(e.dataset.gcalc)));
+  document.querySelectorAll('[data-warn]').forEach(e=>e.hidden=groupNet(ws(e.dataset.warn))>=0);
+  s.walls.forEach(w=>w.ops.forEach(o=>{const e=document.querySelector('[data-oa="'+o.id+'"]');if(e)e.textContent=f2(opArea(o))}));
   const p=$('#panel');if(p)p.replaceWith(summaryPanel(true));
   document.querySelectorAll('[data-fcalc]').forEach(e=>{const fn=CALCS[e.dataset.fcalc];if(fn)e.textContent=fn()});
 }
