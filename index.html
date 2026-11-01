@@ -627,7 +627,8 @@ function renderWalls(){
 }
 // construction details are recorded once per wall type in use (DEAP takes a U-value per wall type)
 const usedTypes=s=>[...new Set(s.walls.filter(w=>gross(w)>0||w.ops.length).map(w=>w.type))];
-const wtData=t=>{const d=dataFor('walltypes');return d[t]||(d[t]=t==='Unknown'?{cons:'Unknown'}:{})};
+// most walls are entered as Unknown, so a new wall type starts there
+const wtData=t=>{const d=dataFor('walltypes');return d[t]||(d[t]={cons:'Unknown',ins:'Unknown'})};
 function wallTypesEl(){
   const s=cur(),types=usedTypes(s);
   const card=el('section',{class:'group'},el('h3',null,'Wall construction'),
