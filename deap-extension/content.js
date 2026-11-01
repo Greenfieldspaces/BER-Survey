@@ -106,9 +106,10 @@
   }
   const optLabel = r => clean((r.labels && r.labels[0] ? ownText(r.labels[0]) : '') || ownText(r.closest('label,mat-radio-button,mat-checkbox')) || r.value);
 
-  function collect() {
+  function collect(root) {
+    root = root || document;
     const list = [], seenRadio = new Set();
-    document.querySelectorAll('input,select,textarea').forEach(el => {
+    root.querySelectorAll('input,select,textarea').forEach(el => {
       if (el.closest('#bsdf-ui') || el.disabled || el.readOnly && el.type !== 'radio') return;
       const type = (el.getAttribute('type') || 'text').toLowerCase();
       if (el.tagName === 'INPUT' && SKIP_TYPES.test(type)) return;
@@ -126,7 +127,7 @@
       const kind = el.tagName === 'SELECT' ? 'select' : type === 'checkbox' ? 'checkbox' : el.getAttribute('role') === 'combobox' && el.getAttribute('aria-autocomplete') ? 'comboinput' : 'text';
       list.push({ el, kind, labels: labelCands(el), options: kind === 'select' ? [...el.options].map(o => clean(o.text)) : null });
     });
-    document.querySelectorAll(CUSTOM).forEach(el => {
+    root.querySelectorAll(CUSTOM).forEach(el => {
       if (el.closest('#bsdf-ui') || !visible(el) || list.some(c => c.el === el || c.el.contains(el) || el.contains(c.el) && c.kind !== 'radio')) return;
       if (el.getAttribute('aria-disabled') === 'true') return;
       const host = el.closest('.ng-select') || el;
@@ -153,7 +154,20 @@
     if (COMPASS[v]) w.push(COMPASS[v], COMPASS[v].replace(' ', '-'), COMPASS[v].replace(' ', '').toLowerCase());
     return w.filter(Boolean).map(String);
   };
+  // a year picks the age band that contains it, e.g. 2002 -> "2000 - 2004", 1890 -> "Before 1900"
+  function yearBand(y, options) {
+    return options.findIndex(o => {
+      const t = String(o).toLowerCase(), n = (t.match(/\b(1[6-9]\d\d|20\d\d)\b/g) || []).map(Number);
+      if (n.length >= 2) return y >= n[0] && y <= n[1];
+      if (n.length === 1 && /before|pre|earlier|up to|</.test(t)) return /up to/.test(t) ? y <= n[0] : y < n[0];
+      if (n.length === 1 && /onward|after|later|since|\+|or later|>/.test(t)) return /after|>/.test(t) ? y > n[0] : y >= n[0];
+      return false;
+    });
+  }
   function pickOption(wants, options) {
+    for (const w of wants) if (/^(1[6-9]\d\d|20\d\d)$/.test(w.trim())) { const i = yearBand(+w, options); if (i >= 0) return i }
+    const low = s => String(s).toLowerCase().replace(/\s+/g, ' ').trim();
+    for (const w of wants) { const i = options.findIndex(o => low(o) === low(w)); if (i >= 0) return i }
     let bi = -1, bs = 0;
     options.forEach((o, i) => { for (const w of wants) { const s = sim(w, o); if (s > bs) { bs = s; bi = i } } });
     return bs >= 0.6 ? bi : -1;
@@ -210,17 +224,21 @@
       if (cur && wants.some(w => sim(w, cur) >= 0.8)) return { status: 'same' };
       if (cur && !o.overwrite && !/^(select|choose|please)/i.test(cur)) return { status: 'kept', detail: 'DEAP has ' + cur };
       if (c.kind === 'comboinput') { el.focus(); nativeSet(el, String(item.value)); el.dispatchEvent(new Event('input', { bubbles: true })) }
-      else { el.click(); el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })) }
+      // Angular Material opens from its inner trigger; other libraries open on mousedown
+      const trg = c.kind === 'combo' && el.querySelector('.mat-mdc-select-trigger,.mat-select-trigger,.p-dropdown-trigger') || el;
+      const listed = () => [...document.querySelectorAll(OPTION_SEL)].filter(x => visible(x) && !x.closest('#bsdf-ui'));
       let opts = [];
-      for (let t = 0; t < 15 && !opts.length; t++) { await sleep(100); opts = [...document.querySelectorAll(OPTION_SEL)].filter(x => visible(x) && !x.closest('#bsdf-ui')) }
-      const i = pickOption(wants, opts.map(textOf));
+      if (c.kind === 'combo') trg.click();
+      for (let t = 0; t < 15 && !opts.length; t++) { await sleep(100); opts = listed(); if (t === 3 && !opts.length && c.kind === 'combo') trg.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })) }
+      const texts = opts.map(textOf), i = pickOption(wants, texts);
       if (i < 0) {
-        document.activeElement && document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        return { status: 'nooption', detail: opts.length ? 'No option like "' + item.value + '"' : 'List did not open' };
+        [el, document.activeElement, document.body].forEach(t => t && t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true })));
+        await sleep(150);
+        const bd = document.querySelector('.cdk-overlay-backdrop'); if (bd && listed().length) bd.click();
+        return { status: 'nooption', detail: opts.length ? 'No option like "' + item.value + '". DEAP offers: ' + texts.slice(0, 15).join(' | ') + (texts.length > 15 ? ' …' : '') : 'List did not open' };
       }
       opts[i].click();
-      await sleep(80);
+      await sleep(350); // DEAP loads the next dropdown's choices from this one
       return { status: 'filled' };
     }
     return { status: 'error', detail: 'Unknown field type' };
@@ -242,14 +260,15 @@
 
   // ---------- fill one DEAP screen ----------
   const THRESH = 0.62;
-  function bySelector(sel) { try { return [...document.querySelectorAll(sel)] } catch (e) { return [] } }
+  function bySelector(sel, root) { try { return [...(root || document).querySelectorAll(sel)] } catch (e) { return [] } }
   function ctrlFor(all, el) {
     return all.find(c => c.el === el || (c.radios && c.radios.includes(el)) || c.el.contains(el) || el.contains(c.el));
   }
 
   async function fill(job) {
     clearMarks();
-    const o = job.options || {}, map = job.mapping || {}, all = collect(), used = new Set(), results = [];
+    if (job.scope === 'dialog' && !topDialog()) return { error: 'No DEAP dialog is open' };
+    const o = job.options || {}, map = job.mapping || {}, root = job.scope === 'dialog' ? topDialog() : null, all = collect(root || document), used = new Set(), results = [];
     const labelsFor = (key, base) => { const m = map[key] || {}; return [...(m.labels || []), ...(m.label ? [m.label] : []), ...base].filter(Boolean) };
     const pending = [];
     // scalar fields: taught selectors first, then best label matches, each DEAP field used once
@@ -257,7 +276,7 @@
       const m = map[it.key] || {};
       if (m.skip) { results.push({ key: it.key, status: 'skipped' }); continue }
       if (m.selector) {
-        const el = bySelector(m.selector).find(e => visible(e) || e.type === 'radio' || e.type === 'checkbox');
+        const el = bySelector(m.selector, root).find(e => visible(e) || e.type === 'radio' || e.type === 'checkbox');
         const c = el && ctrlFor(all, el);
         if (c && !used.has(c)) { used.add(c); pending.push({ it, c, via: 'taught' }); continue }
       }
@@ -265,7 +284,7 @@
       it._labels = labels;
     }
     const pairs = [];
-    job.fields.filter(it => it._labels).forEach(it => all.forEach(c => { if (used.has(c)) return; const b = best(it._labels, c.labels); if (b.s >= THRESH) pairs.push({ it, c, s: b.s, hit: b.hit }) }));
+    job.fields.filter(it => it._labels).forEach(it => all.forEach(c => { if (used.has(c)) return; if (/^-?\d+(\.\d+)?$/.test(String(it.value).trim()) && !isYes(it.value) && !isNo(it.value) && (c.kind === 'checkbox' || c.kind === 'radio' && (c.options || []).every(o => /^(yes|no)$/i.test(clean(o.text || o))))) return; const b = best(it._labels, c.labels); if (b.s >= THRESH) pairs.push({ it, c, s: b.s, hit: b.hit }) }));
     pairs.sort((a, b) => b.s - a.s);
     const done = new Set();
     for (const p of pairs) { if (done.has(p.it) || used.has(p.c)) continue; done.add(p.it); used.add(p.c); pending.push({ it: p.it, c: p.c, via: p.hit, s: p.s }) }
@@ -275,9 +294,22 @@
       let r;
       try { r = await setCtrl(p.c, p.it, Object.assign({}, o, { valueMap: (map[p.it.key] || {}).values })) } catch (e) { r = { status: 'error', detail: String(e.message || e) } }
       mark(p.c, r.status, p.it.key);
-      results.push(Object.assign({ key: p.it.key, matched: p.via === 'taught' ? 'taught field' : p.via }, r));
+      results.push(Object.assign({ key: p.it.key, matched: p.via === 'taught' ? 'taught field' : p.via, sent: String(p.it.value) }, r, readBack(p.c)));
     }
 
+    // what DEAP shows in the field now, for the run report
+    function readBack(c) {
+      try {
+        const el = c.el, name = el.getAttribute('name') || el.getAttribute('formcontrolname') || '';
+        let now;
+        if (c.kind === 'checkbox') now = el.checked ? 'ticked' : 'not ticked';
+        else if (c.kind === 'radio') { const r = (c.radios || [el]).find(x => x.checked); now = r ? clean(optLabel(r)) : '(none)' }
+        else if (c.kind === 'select') now = el.selectedIndex >= 0 ? clean(el.options[el.selectedIndex].text) : '';
+        else if (c.kind === 'combo') now = clean(textOf(el));
+        else now = el.value;
+        return { deap: (name ? name + ' ' : '') + '"' + clean(((c.labels || [])[0] || {}).t || '') + '"', now };
+      } catch (e) { return {} }
+    }
     // tables: column N of row i goes into the i-th DEAP field that matches the column, in page order
     for (const t of job.tables || []) {
       const tm = map[t.key] || {};
@@ -286,7 +318,7 @@
         const col = t.columns[ci], ck = t.key + '.' + col.key, cm = map[ck] || {};
         if (cm.skip) continue;
         let ctrls;
-        if (cm.selector) ctrls = bySelector(cm.selector).map(e => ctrlFor(all, e)).filter(Boolean);
+        if (cm.selector) ctrls = bySelector(cm.selector, root).map(e => ctrlFor(all, e)).filter(Boolean);
         else {
           const labels = [...(cm.labels || []), ...(cm.label ? [cm.label] : []), col.label];
           ctrls = all.filter(c => !used.has(c) && best(labels, c.labels).s >= THRESH);
@@ -300,7 +332,7 @@
           let r;
           try { r = await setCtrl(c, { key: ck, value: v }, Object.assign({}, o, { valueMap: cm.values })) } catch (e) { r = { status: 'error', detail: String(e.message || e) } }
           mark(c, r.status, ck + ' row ' + (ri + 1));
-          results.push(Object.assign(rk, r));
+          results.push(Object.assign(rk, { sent: String(v) }, r, readBack(c)));
         }
       }
     }
@@ -348,6 +380,56 @@
     return collect().map(c => ({ kind: c.kind, label: (c.labels[0] || {}).t || '', alsoSeen: c.labels.slice(1, 4).map(x => x.t), selector: selectorFor(c.el), options: c.options ? c.options.slice(0, 40) : undefined, value: c.kind === 'text' ? c.el.value : c.kind === 'select' ? clean(c.el.options[c.el.selectedIndex]?.text) : undefined }));
   }
 
+  // ---------- record: while on, every DEAP screen and dialog you open is listed, with dropdown choices you open ----------
+  // Saved straight into the extension's storage, so one walk through a survey gives the whole field list
+  let recObs = null, recT = null, lastTouched = null;
+  const touch = e => { const c = e.target.closest && e.target.closest(CUSTOM + ',select,input'); if (c && !c.closest('#bsdf-ui')) lastTouched = c.closest('mat-select') || c };
+  const screenKey = () => {
+    const path = location.pathname.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, '<id>');
+    const dlg = [...document.querySelectorAll('mat-dialog-container,[role=dialog],.mat-mdc-dialog-container')].filter(visible).pop();
+    const title = dlg ? clean(textOf(dlg.querySelector('h1,h2,h3,.mat-mdc-dialog-title,.mat-dialog-title')) || 'dialog') : '';
+    return { key: path + (title ? ' › ' + title : ''), path, dialog: title || undefined, heading: title ? undefined : [...document.querySelectorAll('h1,h2,[role=tab][aria-selected=true]')].filter(visible).slice(0, 3).map(textOf).join(' / ') };
+  };
+  async function snapshot() {
+    const sk = screenKey(), fields = scan();
+    // a dropdown that is open right now: keep its choices against the field that opened it
+    const open = [...document.querySelectorAll(OPTION_SEL)].filter(x => visible(x) && !x.closest('#bsdf-ui')).map(textOf).filter(Boolean);
+    const exp = open.length && ([...document.querySelectorAll('mat-select[aria-expanded=true],[role=combobox][aria-expanded=true]')].find(e => !e.closest('#bsdf-ui')) || lastTouched);
+    const { recorded = {} } = await chrome.storage.local.get('recorded');
+    const scr = recorded[sk.key] || (recorded[sk.key] = Object.assign({ fields: [] }, sk));
+    const same = (a, b) => a.selector && a.selector === b.selector || !a.selector && a.label === b.label;
+    fields.forEach(f => { const o = scr.fields.find(x => same(x, f)); if (o) { f.options = f.options || o.options; Object.assign(o, f) } else scr.fields.push(f) });
+    // buttons, tabs and menu links too, so a later version can move through DEAP and press Add and Save itself
+    const name = e => clean(textOf(e) || e.getAttribute('aria-label') || e.getAttribute('title') || e.getAttribute('mattooltip') || '').slice(0, 60);
+    const btns = [...document.querySelectorAll('button,[role=button],[role=tab],a[href]')].filter(e => visible(e) && !e.closest('#bsdf-ui')).map(e => ({ text: name(e), tag: e.tagName.toLowerCase(), role: e.getAttribute('role') || undefined, href: e.getAttribute('href') || undefined, inDialog: !!e.closest('mat-dialog-container,[role=dialog]') || undefined, cls: [...e.classList].filter(c => !shaky(c)).slice(0, 3).join(' ') || undefined })).filter(b => b.text || b.href);
+    scr.buttons = scr.buttons || [];
+    btns.forEach(b => { if (!scr.buttons.some(x => x.text === b.text && x.href === b.href && x.inDialog === b.inDialog)) scr.buttons.push(b) });
+    scr.buttons = scr.buttons.slice(0, 150);
+    // rows in a dialog's list or table (DEAP's library), with the tag and classes of each, so library picks can be automated
+    const dlg = topDialog();
+    if (dlg) {
+      const rows = [...dlg.querySelectorAll('mat-row,.mat-mdc-row,tr,[role=row],mat-list-option,mat-list-item,.mat-mdc-list-item,mat-radio-button,mat-card')].filter(r => visible(r) && clean(textOf(r)).length > 2)
+        .slice(0, 25).map(r => ({ tag: r.tagName.toLowerCase(), cls: [...r.classList].filter(c => !shaky(c)).slice(0, 4).join(' ') || undefined, role: r.getAttribute('role') || undefined, text: clean(textOf(r)).slice(0, 160), box: (r.querySelector('input,mat-radio-button,mat-checkbox') || {}).tagName }));
+      if (rows.length) scr.rows = rows;
+    }
+    if (exp) {
+      const sel = selectorFor(exp), lab = (labelCands(exp)[0] || {}).t;
+      for (const sc of Object.values(recorded)) { const f = sc.fields.find(x => sel && x.selector === sel || !sel && x.label === lab); if (f) f.options = open.slice(0, 80) }
+    }
+    await chrome.storage.local.set({ recorded });
+  }
+  function record(on) {
+    if (recObs) { recObs.disconnect(); recObs = null; document.removeEventListener('click', touch, true) }
+    if (!on) return;
+    document.addEventListener('click', touch, true);
+    const kick = () => { clearTimeout(recT); recT = setTimeout(() => snapshot().catch(() => {}), 600) };
+    recObs = new MutationObserver(kick);
+    recObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded'] });
+    kick();
+  }
+  chrome.storage.local.get('recording').then(r => record(!!r.recording));
+  chrome.storage.onChanged.addListener(ch => { if (ch.recording) record(!!ch.recording.newValue) });
+
   // ---------- teach: you click the DEAP field that should get a value ----------
   let picking = null;
   function pick(label, column) {
@@ -382,7 +464,92 @@
   }
   function stopPick() { if (picking) { picking(); picking = null } }
 
+  // ---------- moving through DEAP for a whole-survey transfer ----------
+  const DIALOGS = 'mat-dialog-container,.mat-mdc-dialog-container,[role=dialog]';
+  function topDialog() { return [...document.querySelectorAll(DIALOGS)].filter(visible).pop() || null }
+  const dialogTitle = d => d ? clean(textOf(d.querySelector('h1,h2,h3,.mat-mdc-dialog-title,.mat-dialog-title'))) || 'dialog' : null;
+  // never pressed by the transfer, whatever happens
+  const FORBIDDEN = /publish|submit|lodge|finali[sz]e|delete|remove|download|copy/i;
+  function state() {
+    const d = topDialog();
+    return { path: location.pathname, dialog: dialogTitle(d), saving: /saving/i.test(textOf(document.querySelector('main') || document.body).slice(0, 4000)) && !!document.querySelector('.mat-mdc-progress-spinner,mat-spinner,.saving,mat-progress-bar') };
+  }
+  function nav(path) {
+    const base = (location.pathname.match(/^\/survey\/[^/]+/) || [''])[0];
+    if (!base) return { error: 'Open the assessment in DEAP first' };
+    const want = base + '/' + path;
+    if (location.pathname === want) return { ok: true, already: true };
+    const a = [...document.querySelectorAll('a[href]')].find(x => x.getAttribute('href') === want);
+    if (a) a.click(); else location.assign(want);
+    return { ok: true };
+  }
+  function press(text, inDialog) {
+    if (FORBIDDEN.test(text)) return { error: 'Not allowed: ' + text };
+    const scope = inDialog ? topDialog() : document;
+    if (!scope) return { error: 'No dialog open' };
+    const T = text.toUpperCase();
+    // DEAP buttons can carry an icon whose name is part of their text ("add ADD WALL"), so the label may end the text
+    const btns = [...scope.querySelectorAll('button,[role=button]')].filter(b => visible(b) && !b.closest('#bsdf-ui') && (inDialog || !b.closest(DIALOGS)));
+    const txt = b => clean(textOf(b)).toUpperCase();
+    const btn = btns.find(b => txt(b) === T) || btns.find(b => txt(b).endsWith(' ' + T));
+    if (!btn) return { error: 'No ' + text + ' button', missing: true, seen: [...new Set(btns.map(txt).filter(t => /^ADD|SAVE|ADD /.test(t)))].slice(0, 8) };
+    if (FORBIDDEN.test(textOf(btn)) || FORBIDDEN.test(btn.getAttribute('aria-label') || '')) return { error: 'Not allowed' };
+    if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return { error: text + ' is greyed out in DEAP', disabled: true };
+    btn.click();
+    return { ok: true };
+  }
+  // type a search into DEAP's Add From Library dialog so the right items are listed; the person still picks
+  async function libSearch(phrase) {
+    const d = topDialog(); if (!d || !phrase) return { ok: false };
+    const tab = [...d.querySelectorAll('button,[role=tab]')].find(b => visible(b) && /^search items$/i.test(clean(textOf(b))));
+    if (tab) { tab.click(); await new Promise(r => setTimeout(r, 500)) }
+    const inp = d.querySelector('input[name="SearchPhrase"]') || [...d.querySelectorAll('input[type=text],input:not([type])')].find(visible);
+    if (!inp) return { ok: false };
+    inp.focus(); nativeSet(inp, phrase); fire(inp);
+    for (const t of ['keydown', 'keypress', 'keyup']) inp.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+    return { ok: true };
+  }
+  // pick the library row that best matches the search words, then press ADD; refuses when nothing matches well
+  async function libPick(want, min) {
+    const d = topDialog(); if (!d) return { error: 'No dialog' };
+    let rows = [];
+    for (let t = 0; t < 20; t++) {
+      rows = [...d.querySelectorAll('mat-row,.mat-mdc-row,tbody tr,[role=row],mat-list-option,mat-list-item,.mat-mdc-list-item')]
+        .filter(r => visible(r) && !r.closest('thead') && !r.matches('.mat-mdc-header-row,mat-header-row') && clean(textOf(r)).length > 2 && !r.querySelector('mat-row,.mat-mdc-row,tr'));
+      if (rows.length) break;
+      await new Promise(r => setTimeout(r, 250));
+    }
+    if (!rows.length) return { error: 'No library rows seen' };
+    const W = toks(want);
+    const score = r => { const R = new Set(toks(textOf(r))); return W.length ? W.filter(w => R.has(w)).length / W.length : 0 };
+    let bi = 0, bs = -1; rows.forEach((r, i) => { const v = score(r); if (v > bs) { bs = v; bi = i } });
+    if (bs < (min ?? 0.5)) return { error: 'No close match', best: clean(textOf(rows[bi])).slice(0, 120), rows: rows.length };
+    const row = rows[bi], pickText = clean(textOf(row)).slice(0, 160);
+    const box = row.querySelector('input[type=radio],input[type=checkbox],mat-radio-button,mat-checkbox');
+    (box || row).click();
+    await new Promise(r => setTimeout(r, 400));
+    const r1 = press('ADD SELECTED ITEM', true);
+    if (r1.error) { const r2 = press('ADD', true); if (r2.error) return { error: 'Could not press ADD (' + r2.error + ')', picked: pickText } }
+    return { ok: true, picked: pickText, score: bs };
+  }
+  function dialogErrors() {
+    const d = topDialog(); if (!d) return [];
+    const errs = [...d.querySelectorAll('mat-error,.mat-mdc-form-field-error,.mat-error')].filter(visible).map(textOf).filter(Boolean);
+    // boxes DEAP marks as required or invalid that are still empty
+    const empty = [...d.querySelectorAll('.mat-mdc-form-field-invalid,.mat-form-field-invalid,[required],[aria-required=true]')].filter(visible).filter(f => {
+      const c = f.matches('input,textarea,mat-select') ? f : f.querySelector('input,textarea,mat-select'); if (!c) return false;
+      return c.matches('mat-select') ? !clean(textOf(c.querySelector('.mat-mdc-select-value-text,.mat-select-value-text') || c)) : !String(c.value || '').trim();
+    }).map(f => { const ff = f.closest('mat-form-field,.mat-mdc-form-field') || f; return clean(textOf(ff.querySelector('mat-label,label')) || f.getAttribute('name') || '') }).filter(Boolean);
+    return [...new Set(errs.concat(empty.map(x => x + ' is empty')))];
+  }
+
   chrome.runtime.onMessage.addListener((msg, _s, reply) => {
+    if (msg.cmd === 'state') { reply(state()); return }
+    if (msg.cmd === 'nav') { reply(nav(msg.path)); return }
+    if (msg.cmd === 'press') { reply(press(msg.text, msg.inDialog)); return }
+    if (msg.cmd === 'errors') { reply(dialogErrors()); return }
+    if (msg.cmd === 'libsearch') { libSearch(msg.text).then(reply); return true }
+    if (msg.cmd === 'libpick') { libPick(msg.text, msg.min).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'ping') { reply({ ok: true, url: location.href }); return }
     if (msg.cmd === 'fill') { fill(msg).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'scan') { reply({ fields: scan(), url: location.href, title: document.title }); return }
