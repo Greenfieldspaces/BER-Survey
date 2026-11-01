@@ -58,7 +58,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 
 main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
-@media (max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:1100px){.layout{grid-template-columns:minmax(0,1fr)}}
 .stack{display:flex;flex-direction:column;gap:14px;min-width:0}
 
 input[type=text],input[type=date],input:not([type]),input[inputmode],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-height:44px;width:100%;min-width:0}
@@ -96,8 +96,8 @@ input.auto{border-style:dashed;background:var(--bg)}
 .xsp{width:40px}
 .btn.dashed{border-style:dashed}
 .ftbl{display:flex;flex-direction:column;gap:6px}
-.oprow{display:grid;grid-template-columns:64px 62px minmax(150px,1.2fr) 52px minmax(0,1.3fr) 64px 40px;gap:6px;align-items:center}
-.oprow.inw{grid-template-columns:60px 56px minmax(136px,1fr) 48px minmax(0,1.5fr) minmax(0,.8fr) 56px 36px}
+.oprow{display:grid;grid-template-columns:60px 56px minmax(136px,1fr) 48px minmax(0,1.3fr) minmax(0,.9fr) 56px 36px;gap:6px;align-items:center}
+.oprow.inw{grid-template-columns:56px 54px minmax(130px,1fr) 44px minmax(0,1.3fr) minmax(0,.8fr) minmax(0,.8fr) 52px 34px}
 .oprow select,.oprow input{min-height:40px;padding:6px 6px}
 .oph{font-family:var(--f-display);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .oprow .r{text-align:right}
@@ -140,7 +140,7 @@ input.calc::placeholder{color:var(--accent);opacity:.9}
 .warn{background:var(--warn-soft);color:var(--warn);padding:6px 10px;border-radius:8px;font-size:14px}
 
 aside.panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 110px);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:14px}
-@media (max-width:860px){aside.panel{position:static}}
+@media (max-width:1100px){aside.panel{position:static}}
 .totals{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .totals div{background:var(--sunk);border-radius:8px;padding:8px 10px}
 .totals .v{font-family:var(--f-num);font-size:20px;display:block}
@@ -566,7 +566,7 @@ function opsEl(lines,s,dir){
   const box=el('div',{class:'ftbl'});
   const rows=[];lines.forEach(w=>w.ops.forEach(o=>rows.push([w,o])));
   const multi=lines.length>1;
-  if(rows.length)box.append(el('div',{class:'oprow oph'+(multi?' inw':'')},el('span',null,'Faces'),el('span',null,'What'),el('span',null,'Width × height m'),el('span',null,'Qty'),el('span',null,'Type'),multi?el('span',null,'In wall'):null,el('span',{class:'r'},'m²'),el('span')));
+  if(rows.length)box.append(el('div',{class:'oprow oph'+(multi?' inw':'')},el('span',null,'Faces'),el('span',null,'What'),el('span',null,'Width × height m'),el('span',null,'Qty'),el('span',null,'Type'),el('span',null,'Room'),multi?el('span',null,'In wall'):null,el('span',{class:'r'},'m²'),el('span')));
   rows.forEach(([w,o])=>{
     const u=k=>e=>{o[k]=e.target.value;save();refresh()};
     const ts=opTypes(o.kind);
@@ -578,6 +578,7 @@ function opsEl(lines,s,dir){
       el('div',{class:'wh'},numInput('ow-'+o.id,o.w,'Width',u('w')),sym('×'),numInput('oh-'+o.id,o.h,'Height',u('h'))),
       el('input',{inputmode:'numeric',value:o.qty,'aria-label':'How many',oninput:u('qty')}),
       tsel,
+      el('input',{value:o.name||'',placeholder:'optional','aria-label':'Room',oninput:e=>{o.name=e.target.value;save()}}),
       multi?el('select',{'aria-label':'In wall',onchange:e=>{const to=lines.find(x=>x.id===e.target.value);if(to&&to!==w){w.ops=w.ops.filter(x=>x!==o);to.ops.push(o);save();render()}}},lines.map(x=>el('option',{value:x.id,selected:x===w},x.level||x.shape==='tri'?x.type:x.name||x.type))):null,
       el('span',{class:'r num','data-oa':o.id},f2(opArea(o))),
       el('button',{class:'x','aria-label':'Remove '+o.kind,onclick:()=>{w.ops=w.ops.filter(x=>x!==o);save();render()}},'×')));
