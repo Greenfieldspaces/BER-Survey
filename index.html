@@ -12,8 +12,6 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
 <title>BER Site Survey</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>.offline-badge{font:600 12px/1 var(--f-body,system-ui);padding:5px 8px;border-radius:999px;white-space:nowrap}.offline-badge.ok{background:var(--accent-soft,#d6ede1);color:var(--accent,#0b7a45)}.offline-badge.wait{background:var(--warn-soft,#fdebd9);color:var(--warn,#b54708)}</style>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
 <style>
@@ -22,9 +20,9 @@
   --bg:#eef2f0; --surface:#ffffff; --sunk:#e3e9e6; --line:#c9d3ce;
   --ink:#16231d; --muted:#5a6b63; --accent:#0b7a45; --accent-ink:#ffffff; --accent-soft:#d6ede1;
   --warn:#b54708; --warn-soft:#fdebd9; --danger:#b42318;
-  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
-  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --f-display:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,"Segoe UI",Roboto,sans-serif;
+  --f-body:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+  --f-num:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
   --r:10px;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -36,11 +34,12 @@
   --ink:#e4ece8; --muted:#94a69d; --accent:#3cc47f; --accent-ink:#06170e; --accent-soft:#173828;
   --warn:#f59e4b; --warn-soft:#3a2413; --danger:#f0776b; color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:16px/1.4 var(--f-body);-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:17px/1.4 var(--f-body);-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+.num,td.n,.v,.wnet,.fcalc{font-variant-numeric:tabular-nums}
 button,input,select,textarea{font:inherit;color:inherit}
 .num,input[inputmode=decimal],input[inputmode=numeric]{font-family:var(--f-num);font-variant-numeric:tabular-nums}
-h1,h2,h3{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:.01em}
-.label{font-family:var(--f-display);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.label{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted)}
 
 header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px 0}
 .top-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:1200px;margin:0 auto}
@@ -99,7 +98,7 @@ input.auto{border-style:dashed;background:var(--bg)}
 .oprow{display:grid;grid-template-columns:60px 56px minmax(136px,1fr) 48px minmax(0,1.3fr) minmax(0,.9fr) 56px 36px;gap:6px;align-items:center}
 .oprow.inw{grid-template-columns:56px 54px minmax(130px,1fr) 44px minmax(0,1.3fr) minmax(0,.8fr) minmax(0,.8fr) 52px 34px}
 .oprow select,.oprow input{min-height:40px;padding:6px 6px}
-.oph{font-family:var(--f-display);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.oph{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted)}
 .oprow .r{text-align:right}
 .oprow .wh{display:flex;align-items:center;gap:4px}.oprow .wh .sym{padding:0;font-size:15px}
 .kind{font-size:14px}.kind.door{color:var(--muted)}
@@ -147,7 +146,7 @@ aside.panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 110px);backg
 .tbl-wrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:15px}
 th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
-th{font-family:var(--f-display);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+th{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted)}
 td.n,th.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
 tr.tot td{font-weight:600;border-bottom:0}
 .muted{color:var(--muted)}
@@ -181,7 +180,7 @@ textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
 .rhead h2{font-size:26px;margin-bottom:6px}
 .rsec{display:flex;flex-direction:column;gap:8px;padding-top:14px;min-width:0}
 .rsec h3{font-size:21px;border-bottom:2px solid var(--accent);padding-bottom:4px}
-.rsec h4{font-family:var(--f-display);font-size:16px;font-weight:700;color:var(--accent);margin:6px 0 0;text-transform:uppercase;letter-spacing:.06em}
+.rsec h4{font-family:var(--f-display);font-size:16px;font-weight:600;color:var(--accent);margin:6px 0 0}
 .rkv{display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:4px 18px;margin:0}
 .rkv dt{color:var(--muted)}.rkv dd{margin:0;font-weight:600;min-width:0;overflow-wrap:anywhere}
 .rcap{font-weight:600;margin-top:4px}
