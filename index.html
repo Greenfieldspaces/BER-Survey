@@ -1420,16 +1420,20 @@ function mainTypeFields(s){
   });
   return out;
 }
+// site photos ride along in the transfer file so the extension can upload them to DEAP's Evidence screen
+function transferPhotos(s){const seen={};return (s.images||[]).map((m,i)=>{let nm=(m.cap||'Photo '+(i+1)).replace(/[\\/:*?"<>|]+/g,'-').trim()||'Photo '+(i+1);seen[nm]=(seen[nm]||0)+1;if(seen[nm]>1)nm+=' '+seen[nm];return {name:nm+'.jpg',cap:m.cap||'',type:'image/jpeg',data:imgGet(m.id)}}).filter(p=>p.data)}
 function transferName(s){return ('DEAP transfer - '+(s.name||'Untitled')).replace(/[\\/:*?"<>|]+/g,'-')+'.json'}
 async function shareTransfer(s){
-  const txt=JSON.stringify(deapExport(s),null,1),file=new File([txt],transferName(s),{type:'application/json'});
+  const x=deapExport(s);if(s.xferPhotos!==false){const ph=transferPhotos(s);if(ph.length)x.photos=ph}
+  const txt=JSON.stringify(x,null,1),file=new File([txt],transferName(s),{type:'application/json'});
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:transferName(s)});return}}catch(e){if(e&&e.name==='AbortError')return}
   const a=el('a',{href:URL.createObjectURL(file),download:file.name});document.body.append(a);a.click();a.remove();toast('Transfer file saved');
 }
 function transferCard(s){
   return el('details',{class:'card xfer'},el('summary',null,el('b',null,'Fill DEAP from Chrome on your laptop')),
     el('p',{class:'note',style:'margin:0'},'Send this survey to your laptop (AirDrop, Mail or iCloud Drive), then load it in the BER Survey DEAP Fill extension. It fills the open DEAP screen for you to check and save.'),
-    el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>shareTransfer(s)},'Share transfer file'),el('button',{class:'btn',onclick:()=>copy(JSON.stringify(deapExport(s)))},'Copy transfer text')));
+    el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>shareTransfer(s)},'Share transfer file'),el('button',{class:'btn',onclick:()=>copy(JSON.stringify(deapExport(s)))},'Copy transfer text')),
+    (s.images||[]).length?el('label',{class:'row',style:'gap:8px'},el('input',{type:'checkbox',checked:s.xferPhotos!==false,onchange:e=>{s.xferPhotos=e.target.checked;save()}}),'Send the '+s.images.length+' photo'+(s.images.length>1?'s':'')+' and sketch'+(s.images.length>1?'es':'')+' too, so the extension uploads '+(s.images.length>1?'them':'it')+' to DEAP\'s Evidence screen'):null);
 }
 function renderEntry(){
   const s=cur(),done=s.entered||(s.entered={}),scrs=entryScreens(s);

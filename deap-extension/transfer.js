@@ -91,6 +91,8 @@ function transferSteps() {
     if (!fields.length && !flat.length && !items) return null;
     return { name: p.name, path: p.path, screen: sc.id, fields, flat, dlg, mapping, items, status: 'todo', note: '' };
   }).filter(Boolean);
+  const ph = st.survey.photos || [];
+  if (ph.length) steps.push({ name: 'Evidence photos', path: 'evidence', kind: 'evidence', screen: null, fields: [], flat: [], dlg: [], mapping: {}, items: ph.length, status: 'todo', note: '' });
   // anything the survey holds that no DEAP screen above takes: listed for doing by hand
   const used = new Set(steps.flatMap(s => s.fields.map(f => f.key)).concat(pool.filter(f => synthTables.uses.test(f.key)).map(f => f.key)));
   transferSteps.left = pool.filter(f => !used.has(f.key) && f.screen && !(fullMap([f.key])[f.key] || {}).skip && !/\.calc\.|^heat\.controls/.test(f.key));
@@ -235,6 +237,39 @@ function libraryList(step, t) {
     tx.log.push('Add from the DEAP library: ' + label + ' ' + (ri + 1) + ' of ' + t.rows.length + ' (' + d + ')' + (m.add ? ' with ' + m.add : '') + (m.after ? ', ' + after(m.after, t, ri) : ''));
   });
 }
+// site photos from the transfer file go up to DEAP's Evidence screen one at a time; DEAP's file count shows each landed
+const evCount = async () => { try { return (await send({ cmd: 'evidence' })).count } catch (e) { return null } };
+async function waitCount(n, ms) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) { if (tx.stop) throw new Error('Stopped'); const c = await evCount(); if (c != null && c >= n) return true; await pause(700) }
+  return false;
+}
+function savePhotos(list) {
+  const dir = ('BER evidence - ' + ((st.survey.survey && st.survey.survey.name) || 'survey')).replace(/[\\/:*?"<>|]+/g, '-');
+  list.forEach(p => chrome.downloads && chrome.downloads.download({ url: p.data, filename: dir + '/' + p.name, conflictAction: 'uniquify' }));
+  return dir;
+}
+async function uploadEvidence(step) {
+  const ph = st.survey.photos || [];
+  let have = await evCount(), done = 0;
+  for (let i = 0; i < ph.length; i++) {
+    if (tx.stop) throw new Error('Stopped');
+    setStep(step, 'running', 'Uploading ' + (i + 1) + ' of ' + ph.length);
+    let r = await send({ cmd: 'upload', file: ph[i] });
+    if (r && r.missing) { await pressWait('ADD EVIDENCE', false, 3000); await pause(1200); r = await send({ cmd: 'upload', file: ph[i] }) }
+    if (!r || r.error) { tx.log.push('Evidence: could not hand ' + ph[i].name + ' to DEAP (' + ((r && r.error) || 'no answer') + ')'); break }
+    // DEAP may ask about the file (type, description) before it keeps it
+    const s = await waitState(x => !!x.dialog || false, 2500);
+    if (s && s.dialog) await waitForYou('DEAP opened "' + s.dialog + '" for ' + ph[i].name + (ph[i].cap ? ' (' + ph[i].cap + ')' : '') + '. Fill it in and press SAVE in DEAP.', x => !x.dialog);
+    if (have != null) { if (await waitCount(have + 1, 60000)) { have++; done++ } else { tx.log.push('Evidence: ' + ph[i].name + ' did not show up in DEAP. Check the Evidence screen'); have = await evCount() } }
+    else done++;
+  }
+  if (done < ph.length) {
+    const left = ph.slice(done), dir = savePhotos(left);
+    tx.log.push('Evidence: ' + left.length + ' photo' + (left.length > 1 ? 's' : '') + ' saved to Downloads/' + dir + '. Drag them onto "Drop file(s) here" in DEAP');
+  }
+  step.note = done + ' of ' + ph.length + ' uploaded';
+}
 async function runTransfer() {
   if (tx.running) return;
   tx.running = true; tx.stop = false; tx.log = []; tx.report = []; tx.startedAt = new Date().toISOString();
@@ -251,6 +286,7 @@ async function runTransfer() {
       setStep(step, 'running', 'Opening');
       try {
         await goTo(step);
+        if (step.kind === 'evidence') { await uploadEvidence(step); setStep(step, 'done', step.note); continue }
         if (step.fields.length || step.flat.length) {
           setStep(step, 'running', 'Filling');
           let res = await fillOn(step, { fields: step.fields, tables: step.flat });

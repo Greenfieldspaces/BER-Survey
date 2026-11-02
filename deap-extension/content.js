@@ -474,6 +474,33 @@
     const d = topDialog();
     return { path: location.pathname, dialog: dialogTitle(d), saving: /saving/i.test(textOf(document.querySelector('main') || document.body).slice(0, 4000)) && !!document.querySelector('.mat-mdc-progress-spinner,mat-spinner,.saving,mat-progress-bar') };
   }
+  // Evidence screen: heading reads "EVIDENCE (3 FILES)"
+  function evidenceCount() {
+    const m = textOf(document.querySelector('main') || document.body).match(/EVIDENCE\s*\((\d+)\s*FILES?\)/i);
+    return { count: m ? +m[1] : null, path: location.pathname };
+  }
+  // hands one photo to DEAP's upload: its file box if there is one, otherwise a drop on "Drop file(s) here"
+  function upload(p) {
+    try {
+      const b = atob(p.data.split(',')[1]), u = new Uint8Array(b.length);
+      for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+      const dt = new DataTransfer(); dt.items.add(new File([u], p.name, { type: p.type || 'image/jpeg' }));
+      const d = topDialog(), scope = d || document;
+      const inp = [...scope.querySelectorAll('input[type=file]')].filter(x => !x.closest('#bsdf-ui') && !x.disabled);
+      if (inp.length) {
+        const t = inp[0]; t.files = dt.files;
+        t.dispatchEvent(new Event('input', { bubbles: true })); t.dispatchEvent(new Event('change', { bubbles: true }));
+        return { ok: true, how: 'file box' };
+      }
+      const zone = [...scope.querySelectorAll('div,section,label,span,p')].filter(e => !e.closest('#bsdf-ui') && visible(e) && /drop file/i.test(e.textContent || '')).sort((a, c) => a.textContent.length - c.textContent.length)[0];
+      if (zone) {
+        const tgt = zone.closest('[class*=drop],[class*=upload]') || zone;
+        ['dragenter', 'dragover', 'drop'].forEach(ty => tgt.dispatchEvent(new DragEvent(ty, { bubbles: true, cancelable: true, dataTransfer: dt })));
+        return { ok: true, how: 'drop' };
+      }
+      return { error: 'No upload box on this DEAP screen', missing: true };
+    } catch (e) { return { error: String(e.message || e) } }
+  }
   function nav(path) {
     const base = (location.pathname.match(/^\/survey\/[^/]+/) || [''])[0];
     if (!base) return { error: 'Open the assessment in DEAP first' };
@@ -550,6 +577,8 @@
     if (msg.cmd === 'errors') { reply(dialogErrors()); return }
     if (msg.cmd === 'libsearch') { libSearch(msg.text).then(reply); return true }
     if (msg.cmd === 'libpick') { libPick(msg.text, msg.min).then(reply, e => reply({ error: String(e.message || e) })); return true }
+    if (msg.cmd === 'evidence') { reply(evidenceCount()); return }
+    if (msg.cmd === 'upload') { reply(upload(msg.file)); return }
     if (msg.cmd === 'ping') { reply({ ok: true, url: location.href }); return }
     if (msg.cmd === 'fill') { fill(msg).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'scan') { reply({ fields: scan(), url: location.href, title: document.title }); return }
