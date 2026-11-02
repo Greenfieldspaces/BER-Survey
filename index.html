@@ -95,6 +95,7 @@ input.auto{border-style:dashed;background:var(--bg)}
 .xsp{width:40px}
 .btn.dashed{border-style:dashed}
 .ftbl{display:flex;flex-direction:column;gap:6px}
+#rirSec{scroll-margin-top:200px}
 .oprow{display:grid;grid-template-columns:60px 56px minmax(90px,.8fr) 48px minmax(0,1.3fr) minmax(0,.9fr) 56px 36px;gap:6px;align-items:center}
 .oprow.inw{grid-template-columns:56px 54px minmax(84px,.8fr) 44px minmax(0,1.3fr) minmax(0,.8fr) minmax(0,.8fr) 52px 34px}
 .oprow select,.oprow input{min-height:40px;padding:6px 6px}
@@ -318,7 +319,7 @@ const SECTIONS=[
     {id:'roofs',name:'Roofs',groups:[
       {title:'Heat loss roofs',fields:[
         F('roofs','Roofs',{type:'list',add:'+ Roof',cols:[
-          PART,S_('type','Roof type',['Pitched, insulated at joists','Pitched, insulated at rafters','Flat roof','Room in roof, sloping','Room in roof, flat ceiling','Room in roof, stud wall']),
+          PART,S_('type','Roof type',['Pitched, insulated at joists','Pitched, insulated at rafters','Flat roof','Room in roof'],{onpick:rirPick}),
           S_('attic','Attic space',['Ventilated','Unventilated','No attic']),
           N('area','Area m²'),N('ins','Insulation mm'),S_('mat','Insulation type',['Mineral wool','PIR / PUR board','EPS','Sheep wool','Unknown']),N('u','U-value (if known)'),S_('ev','Evidence',EVID)]})]},
       {title:'Room in roof',custom:'rir'},
@@ -1164,8 +1165,9 @@ function fieldEl(f,d,key){
   }
   let inp;
   if(f.type==='select'){
-    inp=el('select',{id,onchange:e=>{set(e.target.value);render()}},el('option',{value:''},f.ph||'Select…'));
-    f.options.forEach(o=>inp.append(el('option',{value:o,selected:d[f.id]===o},o)));
+    inp=el('select',{id,onchange:e=>{if(f.onpick&&f.onpick(e.target.value,d))return;set(e.target.value);render()}},el('option',{value:''},f.ph||'Select…'));
+    // a value saved before the option list changed still shows
+    (hasVal(d[f.id])&&!f.options.includes(d[f.id])?f.options.concat(d[f.id]):f.options).forEach(o=>inp.append(el('option',{value:o,selected:d[f.id]===o},o)));
   }else if(f.type==='yn'){
     inp=el('div',{class:'seg yn',role:'group','aria-label':f.label,id});
     ['Yes','No'].forEach(o=>inp.append(el('button',{'aria-pressed':String(d[f.id]===o),onclick:()=>{set(d[f.id]===o?'':o);render()}},o)));
@@ -1280,9 +1282,24 @@ function rirSyncWalls(s){
   });
   const ids=new Set(rirList(s).map(r=>r.id));s.walls=s.walls.filter(w=>!w.rir||ids.has(w.rir));
 }
+// picking "Room in roof" as a roof type moves that roof to the Room in roof section below,
+// which works out the sloping ceiling, flat ceiling and knee walls for DEAP
+function rirPick(v,row){
+  if(v!=='Room in roof')return false;
+  const s=cur(),rows=dataFor('roofs').roofs||[],list=rirList(s);
+  const i=rows.indexOf(row);if(i>=0)rows.splice(i,1);
+  let r=list[list.length-1];
+  if(!r){r={id:uid(),sides:'2',gables:'0',parts:{}};list.push(r)}
+  r.parts=r.parts||{};if(row.part)r.part=row.part;
+  ['ins','mat','u','ev'].forEach(c=>{if(hasVal(row[c]))RIR_PARTS.forEach(([id])=>{const q=r.parts[id]=r.parts[id]||{};if(!hasVal(q[c]))q[c]=row[c]})});
+  save();render();
+  setTimeout(()=>{const c=document.getElementById('rirSec');if(c)c.scrollIntoView({behavior:'smooth',block:'start'})},60);
+  toast('Fill in the room in roof below');
+  return true;
+}
 function rirEl(){
   const s=cur(),list=rirList(s);
-  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,'Room in roof'),
+  const card=el('section',{class:'group',id:'rirSec',style:'grid-column:1/-1'},el('h3',null,'Room in roof'),
     el('p',{class:'hint',style:'margin:0'},'Type what you can measure. Once it has enough, the app works out the rest (shown in green) and adds the sloping ceiling, flat ceiling and knee walls to the roofs for DEAP.'));
   list.forEach((r,i)=>card.append(rirCard(r,i)));
   card.append(el('div',null,el('button',{class:'btn',onclick:()=>{list.push({id:uid(),sides:'2',gables:'0',parts:{}});save();render()}},list.length?'+ Another room in roof':'+ Room in roof')));
