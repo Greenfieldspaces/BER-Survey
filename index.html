@@ -193,6 +193,18 @@ textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
 .chk-list li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
 .chk-list .dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--danger)}
 .chk-list li.check .dot{background:var(--warn)}
+.leave-badge{font:700 14px/1 var(--f-body,system-ui);padding:9px 14px;border-radius:999px;white-space:nowrap;cursor:pointer;border:2px solid transparent;min-height:40px}
+.leave-badge.w{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}.leave-badge.ok{background:var(--accent-soft);color:var(--accent)}
+.lv-grp{display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:800;font-size:14px;letter-spacing:.04em;text-transform:uppercase}
+.lv-grp .dot{width:10px;height:10px;border-radius:50%}
+.lv-grp.site{color:var(--danger)}.lv-grp.site .dot{background:var(--danger)}
+.lv-grp.desk{color:var(--muted)}.lv-grp.desk .dot,.chk-list li.desk .dot{background:var(--muted)}
+.lv-grp.noted{color:var(--accent)}.lv-grp.noted .dot,.chk-list li.noted .dot{background:var(--accent)}
+.leave .why{font-size:12px;font-weight:600;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:2px 7px;margin-left:6px;white-space:nowrap}
+.leave .chk-list li{flex-wrap:wrap}.leave .chk-list .ct{flex:1 1 220px}
+.btn.cam{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}.btn.muted-b{color:var(--muted)}
+.lv-big{display:block;width:100%;margin-top:10px;padding:16px;border-radius:12px;font:800 18px/1.2 var(--f-body,system-ui);text-align:center;border:2px solid var(--line);background:var(--surface);color:var(--ink)}
+.lv-big.go{background:var(--accent);border-color:var(--accent);color:#fff;cursor:pointer}
 .chk-list .ct{flex:1;min-width:0;display:flex;flex-direction:column}
 .chk-list .cs{font-size:13px;color:var(--muted)}
 .imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
@@ -231,6 +243,7 @@ textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
       <h1>BER Site Survey</h1>
       <span class="offline-badge" id="offlineBadge" hidden></span>
     </div>
+    <button class="leave-badge" id="leaveBadge" hidden></button>
     <div class="survey-pick">
       <select id="surveySel" aria-label="Current survey"></select>
       <button class="btn" id="newSurvey">New survey</button>
@@ -408,6 +421,7 @@ const SECTIONS=[
     {title:'Wind',fields:[B('wind','Wind turbine'),N('windkw','Rated output kW',{show:is('wind','Yes')}),N('hub','Hub height m',{show:is('wind','Yes')})]},
     {title:'Micro-CHP',fields:[B('chp','Micro-CHP'),F('chpmodel','Make & model',{show:is('chp','Yes')}),N('chpeff','Electrical efficiency %',{show:is('chp','Yes')})]},
     NOTES()]},
+  {id:'leave',name:'Before you leave',util:true},
   {id:'summary',name:'DEAP summary',util:true},
   {id:'entry',name:'Enter in DEAP',util:true},
   {id:'backup',name:'Backup',util:true}
@@ -492,9 +506,11 @@ async function copy(text,ta){
 function renderHeader(){
   const sel=$('#surveySel');sel.innerHTML='';
   Object.values(db.surveys).sort((a,b)=>b.created-a.created).forEach(s=>sel.append(el('option',{value:s.id,selected:s.id===db.current},s.name||'Untitled')));
+  {const b=$('#leaveBadge'),s=cur(),k=s?leftCount(s):0;b.hidden=!s;b.className='leave-badge '+(k?'w':'ok');b.textContent=k?'⚠ '+k+' to do before you leave':'✓ Good to leave'}
   const tabs=$('#tabs');tabs.innerHTML='';
   SECTIONS.forEach(sec=>{const c=sec.util?0:filled(sec);tabs.append(el('button',{class:'tab',role:'tab','aria-selected':String(db.tab===sec.id),onclick:()=>{db.tab=sec.id;save();render();scrollTo(0,0)}},sec.name,c?el('span',{class:'cnt'},c):null))});
 }
+$('#leaveBadge').addEventListener('click',()=>{db.tab='leave';save();render();scrollTo(0,0)});
 $('#surveySel').addEventListener('change',e=>{db.current=e.target.value;save();render()});
 $('#newSurvey').addEventListener('click',()=>{const s=newSurvey('Survey '+new Date().toLocaleDateString('en-IE'));s.data.details={date:new Date().toISOString().slice(0,10)};db.surveys[s.id]=s;db.current=s.id;db.tab='details';save();render();setTimeout(()=>{const i=$('#svName');i&&i.focus();i&&i.select()},50)});
 
@@ -828,7 +844,8 @@ function fullText(s){
   const L=[],hd='BER SURVEY';
   L.push(hd,'='.repeat(hd.length),...textKv(reportHead(s),'').map(x=>x.replace('[ ] ','')),'','Tick [ ] each line once it is entered in DEAP.','');
   const ni=(s.images||[]).length;if(ni)L.push(ni+' sketch'+(ni>1?'es/photos':'/photo')+' taken on site: '+(s.images.map((m,i)=>m.cap||'Sketch '+(i+1)).join(', '))+'. Copy them from the tool separately if they did not paste in.','');
-  const oc=siteChecks(s);if(oc.length){L.push('OPEN ITEMS FROM SITE','--------------------');oc.forEach(x=>L.push('  '+(x.lvl==='miss'?'Missing: ':'Check: ')+x.t+' ('+secName(x.tab,x.sub)+')'));L.push('')}
+  if(s.leftAt)L.push('Left site at '+fmtLeft(s.leftAt),'');
+  const oc=siteChecks(s);if(oc.length){L.push('OPEN ITEMS FROM SITE','--------------------');oc.forEach(x=>L.push('  '+chkLbl(x)+': '+x.t+' ('+secName(x.tab,x.sub)+')'));L.push('')}
   reportModel(s).forEach(sec=>{
     L.push('',sec.title.toUpperCase(),'='.repeat(sec.title.length));
     sec.subs.forEach(sub=>{
@@ -846,7 +863,7 @@ function reportHTML(s){
   const tb=t=>(t.title?'<p style="font:bold 13px Arial,sans-serif;margin:8px 0 4px">'+esc(t.title)+'</p>':'')+'<table style="border-collapse:collapse;margin-bottom:10px"><tr>'+(t.record?'':'<th '+th+'>✓</th>')+t.head.map(h=>'<th '+th+'>'+esc(h)+'</th>').join('')+'</tr>'+t.rows.map((r,ri)=>'<tr>'+(t.record?'':'<td '+td+'>'+(t.total&&ri===t.rows.length-1?'':'☐')+'</td>')+r.map((c,i)=>'<td '+td.replace('"','"'+(t.num[i]?'text-align:right;':'')+(t.total&&ri===t.rows.length-1?'font-weight:bold;':''))+'>'+esc(c)+'</td>').join('')+'</tr>').join('')+'</table>';
   let h='<div style="font:14px Arial,sans-serif"><h2 style="font:bold 20px Arial,sans-serif">BER survey</h2>'+kv(reportHead(s)).replace(/<td[^>]*>☐<\/td>/g,'')+'<p style="color:#555">Tick ☐ each line once it is entered in DEAP.</p>';
   const ims=(s.images||[]).filter(m=>imgGet(m.id));if(ims.length)h+='<h3 style="font:bold 17px Arial,sans-serif;border-bottom:2px solid #0b7a45;padding-bottom:3px;margin:18px 0 6px">Sketches &amp; photos</h3>'+ims.map((m,i)=>'<p style="margin:6px 0"><img src="'+imgGet(m.id)+'" width="640" style="max-width:100%;border:1px solid #ccc"><br><b>'+esc(m.cap||'Sketch '+(i+1))+'</b></p>').join('');
-  const oc=siteChecks(s);if(oc.length)h+='<h3 style="font:bold 16px Arial,sans-serif;color:#b54708;margin:14px 0 4px">Open items from site</h3><ul>'+oc.map(x=>'<li>'+(x.lvl==='miss'?'<b>Missing:</b> ':'<b>Check:</b> ')+esc(x.t)+' <span style="color:#777">('+esc(secName(x.tab,x.sub))+')</span></li>').join('')+'</ul>';
+  const oc=siteChecks(s);if(oc.length)h+='<h3 style="font:bold 16px Arial,sans-serif;color:#b54708;margin:14px 0 4px">Open items from site</h3><ul>'+oc.map(x=>'<li><b>'+chkLbl(x)+':</b> '+esc(x.t)+' <span style="color:#777">('+esc(secName(x.tab,x.sub))+')</span></li>').join('')+'</ul>';
   reportModel(s).forEach(sec=>{
     h+='<h3 style="font:bold 17px Arial,sans-serif;border-bottom:2px solid #0b7a45;padding-bottom:3px;margin:18px 0 6px">'+esc(sec.title)+'</h3>';
     sec.subs.forEach(sub=>{
@@ -912,7 +929,7 @@ async function buildPDF(s){
   const oc=siteChecks(s);
   if(oc.length){
     room(16);doc.setFillColor(253,235,217);doc.rect(M,y,W-2*M,7,'F');doc.setTextColor(...WARN);doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.text('Open items from site ('+oc.length+')',M+2,y+4.8);y+=8;
-    doc.autoTable(Object.assign({},TBL,{startY:y,body:oc.map(x=>[x.lvl==='miss'?'Missing':'Check',pdfTxt(x.t),pdfTxt(secName(x.tab,x.sub))]),
+    doc.autoTable(Object.assign({},TBL,{startY:y,body:oc.map(x=>[chkLbl(x),pdfTxt(x.t),pdfTxt(secName(x.tab,x.sub))]),
       columnStyles:{0:{cellWidth:18,fontStyle:'bold',textColor:WARN},2:{cellWidth:52,textColor:MUTED}}}));after();y+=2}
   const ims=(s.images||[]).filter(m=>imgGet(m.id));
   if(ims.length){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...MUTED);doc.text(ims.length+' sketch'+(ims.length>1?'es/photos':'/photo')+' at the end of this report.',M,y+3);y+=7}
@@ -956,8 +973,10 @@ async function sharePDF(s,btn){
 }
 
 // ---- site checks: missing inputs and figures that don't add up ----
-function siteChecks(s){
-  const out=[],D=k=>s.data[k]||{},add=(lvl,t,tab,sub)=>out.push({lvl,t,tab,sub});
+// every check, open or not. desk: can be done back at the desk, so it doesn't stop you leaving site.
+const DESK=['Date of survey','Thermal bridging factor','Thermal mass category','Window overshading'];
+function allChecks(s){
+  const out=[],D=k=>s.data[k]||{},add=(lvl,t,tab,sub,x)=>out.push(Object.assign({lvl,t,tab,sub,key:tab+'|'+t,desk:DESK.includes(t)},x||{}));
   const det=D('details'),dims=D('dims'),vent=D('vent'),heat=D('heat'),water=D('water'),gen=D('gen'),ops=D('openings');
   const apt=/apartment/i.test(det.dtype||''),noRoof=/Ground-floor|Mid-floor|Basement/.test(det.dtype||''),noFloor=/Mid-floor|Top-floor/.test(det.dtype||'');
   if(!hasVal(det.dtype))add('miss','Dwelling type','details');
@@ -1004,6 +1023,9 @@ function siteChecks(s){
     if(!hasVal(heat.fuel))add('miss','Main heating fuel','heat');
     if(!hasVal(heat.eff)&&!hasVal(heat.harp))add('miss','Heating efficiency or HARP reference','heat');
     if(!hasVal(heat.emit))add('miss','Heat emitters','heat');
+    if(/boiler|heat pump|stove|range|CHP/i.test(heat.src)){const mk=String(heat.make||'').trim(),x={lib:1,photo:'Heating nameplate'};
+      if(!mk)add('miss','Heating make and model','heat',null,x);
+      else if(mk.split(/\s+/).length<2)add('miss','Heating make and model: you have "'+mk+'", add the model','heat',null,Object.assign({key:'heat|model'},x))}
     if(!(heat.controls||[]).length)add('check','No heating controls ticked. Confirm there are none','heat');
   }
   if(!hasVal(heat.sec))add('miss','Secondary heating (choose None if there is none)','heat');
@@ -1016,18 +1038,50 @@ function siteChecks(s){
   (gen.pv||[]).forEach((p,i)=>{if(!n(p.kwp))add('miss','PV array '+(i+1)+' has no kWp','gen')});
   return out;
 }
+function siteChecks(s){
+  const w=s.waived||{},all=allChecks(s);
+  return all.filter(x=>!w[x.key]).concat(all.filter(x=>w[x.key]).map(x=>Object.assign({},x,{lvl:'noted',t:x.t+(w[x.key].why?' ('+w[x.key].why+')':'')})));
+}
+const chkLbl=x=>x.lvl==='miss'?'Missing':x.lvl==='noted'?'Noted':'Check';
+const leftCount=s=>{const w=s.waived||{};return allChecks(s).filter(x=>!x.desk&&!w[x.key]).length};
 const secName=(tab,sub)=>{const sec=SECTIONS.find(x=>x.id===tab);if(!sec)return '';const sb=sub&&sec.subs?sec.subs.find(x=>x.id===sub):null;return sec.name+(sb?' › '+sb.name:'')};
+const fmtLeft=t=>new Date(t).toLocaleString('en-IE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+function goTo(x){db.tab=x.tab;if(x.sub)db.sub=x.sub;save();render();scrollTo(0,0)}
 function checksEl(s){
-  const list=siteChecks(s),miss=list.filter(x=>x.lvl==='miss'),chk=list.filter(x=>x.lvl==='check');
-  const card=el('section',{class:'checks'});
-  card.append(el('div',{class:'row',style:'justify-content:space-between'},el('h2',{style:'font-size:20px'},'Before you leave site'),
-    el('span',{class:'chip '+(list.length?'bad':'ok')},list.length?miss.length+' missing · '+chk.length+' to check':'All complete')));
-  if(!list.length){card.append(el('p',{class:'note',style:'margin:0'},'Everything DEAP needs looks to be filled in.'));return card}
-  const ul=el('ul',{class:'chk-list'});
-  chk.concat(miss).forEach(x=>ul.append(el('li',{class:x.lvl},el('span',{class:'dot'}),el('span',{class:'ct'},x.t,el('span',{class:'cs'},secName(x.tab,x.sub))),
-    el('button',{class:'btn small',onclick:()=>{db.tab=x.tab;if(x.sub)db.sub=x.sub;save();render();scrollTo(0,0)}},'Go'))));
-  card.append(ul);
-  return card;
+  // short version for the DEAP summary tab: points to the Before you leave tab
+  const left=leftCount(s);
+  return el('section',{class:'checks'},el('div',{class:'row',style:'justify-content:space-between'},el('h2',{style:'font-size:20px'},'Before you leave site'),
+    el('span',{class:'chip '+(left?'bad':'ok')},left?left+' to do on site':s.leftAt?'Left site '+fmtLeft(s.leftAt):'Good to leave')),
+    el('div',null,el('button',{class:'btn',onclick:()=>{db.tab='leave';save();render();scrollTo(0,0)}},'Open Before you leave')));
+}
+function renderLeave(){
+  const s=cur();s.waived=s.waived||{};const w=s.waived;
+  const all=allChecks(s),site=all.filter(x=>!x.desk&&!w[x.key]),desk=all.filter(x=>x.desk&&!w[x.key]),noted=all.filter(x=>w[x.key]);
+  const card=el('section',{class:'checks leave'});
+  const d=s.data.details||{};
+  card.append(el('h2',{style:'font-size:22px;margin:0'},'Before you leave site'),
+    el('p',{class:'note',style:'margin:0'},[s.name,d.dtype].filter(Boolean).join(' · ')));
+  const waive=(x,why)=>{w[x.key]={why,at:Date.now()};save();render()};
+  const row=(x,cls,extra)=>{
+    const ct=el('span',{class:'ct'},el('span',null,x.t,x.lib?el('span',{class:'why'},'DEAP library needs it'):null),el('span',{class:'cs'},secName(x.tab,x.sub)+(extra?' · '+extra:'')));
+    const li=el('li',{class:cls},el('span',{class:'dot'}),ct);
+    return li};
+  const grp=(cls,label,items)=>{if(!items.length)return;card.append(el('div',{class:'lv-grp '+cls},el('span',{class:'dot'}),label+' ('+items.length+')'));const ul=el('ul',{class:'chk-list lv-'+cls});items.forEach(li=>ul.append(li));card.append(ul)};
+  grp('site','Only you can get these here',site.map(x=>{const li=row(x,x.lvl);
+    if(x.photo){const fi=el('input',{type:'file',accept:'image/*',capture:'environment',hidden:true,onchange:e=>{const f=[...e.target.files];e.target.value='';if(f.length)addImages(f,x.photo)}});
+      const has=(s.images||[]).some(m=>m.cap===x.photo);
+      li.append(fi,el('button',{class:'btn small cam',onclick:()=>fi.click()},has?'📷 Another photo':'📷 Nameplate'))}
+    li.append(x.lvl==='check'?el('button',{class:'btn small',onclick:()=>waive(x,'')},'It\'s right'):
+      el('button',{class:'btn small muted-b',onclick:()=>{const r=prompt('Why couldn\'t you get this? It goes on the report.','Not accessible');if(r!==null)waive(x,r.trim()||'Not accessible')}},'Can\'t access'),
+      el('button',{class:'btn small',onclick:()=>goTo(x)},'Go'));
+    return li}));
+  grp('desk','Can finish at the desk',desk.map(x=>{const li=row(x,'desk');li.append(el('button',{class:'btn small',onclick:()=>goTo(x)},'Go'));return li}));
+  grp('noted','Noted',noted.map(x=>{const li=row(x,'noted',w[x.key].why?'"'+w[x.key].why+'" goes on the report':'Confirmed on site');li.append(el('button',{class:'btn small',onclick:()=>{delete w[x.key];save();render()}},'Undo'));return li}));
+  if(!all.length)card.append(el('p',{class:'note',style:'margin:0'},'Everything DEAP needs looks to be filled in.'));
+  if(site.length)card.append(el('div',{class:'lv-big wait'},site.length+' left. Keep going'));
+  else card.append(el('button',{class:'lv-big go',onclick:()=>{s.leftAt=Date.now();save();render();toast('Time you left is on the report')}},s.leftAt?'✓ Left site at '+fmtLeft(s.leftAt)+'. Tap to update':'✓ Good to leave'));
+  if(site.length)card.append(el('p',{class:'note',style:'margin:0'},'When the red list is empty this turns into a green Good to leave button, which puts the time you left on the report.'));
+  return el('div',{class:'stack'},card);
 }
 
 // ---- sketches & photos: resized JPEGs, each in its own storage slot so typing doesn't rewrite them ----
@@ -1036,9 +1090,9 @@ const imgGet=id=>{try{return localStorage.getItem(IMGK(id))}catch(e){return null
 const imgSet=(id,d)=>{try{localStorage.setItem(IMGK(id),d);return true}catch(e){return false}};
 const imgDel=id=>{try{localStorage.removeItem(IMGK(id))}catch(e){}};
 function shrink(file){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=rej;r.onload=()=>{const im=new Image();im.onerror=rej;im.onload=()=>{const k=Math.min(1,1600/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.72))};im.src=r.result};r.readAsDataURL(file)})}
-async function addImages(files){
+async function addImages(files,cap){
   const s=cur();s.images=s.images||[];let fail=0;
-  for(const f of files){try{const d=await shrink(f);const id=uid();if(imgSet(id,d))s.images.push({id,cap:''});else fail++}catch(e){fail++}}
+  for(const f of files){try{const d=await shrink(f);const id=uid();if(imgSet(id,d))s.images.push({id,cap:cap||''});else fail++}catch(e){fail++}}
   save();render();
   if(fail)toast('Storage is full on this device. Delete old surveys or photos to add more');else toast(files.length>1?files.length+' images added':'Image added');
 }
@@ -1449,7 +1503,7 @@ function renderEntry(){
   const k=keys(sc);
   if(k.length)head.append(el('button',{class:'btn small',onclick:()=>{const all2=k.every(q=>done[q]);k.forEach(q=>{if(all2)delete done[q];else done[q]=1});save();render()}},k.every(q=>done[q])?'Untick all':'Tick all'));
   box.append(head);
-  const oc=siteChecks(s).filter(x=>x.tab===sc.tab&&(!sc.sub||x.sub===sc.sub));
+  const oc=siteChecks(s).filter(x=>x.lvl!=='noted'&&x.tab===sc.tab&&(!sc.sub||x.sub===sc.sub));
   oc.forEach(x=>box.append(el('div',{class:'warn'},(x.lvl==='miss'?'Missing on site: ':'Check: ')+x.t)));
   const list=el('div',{class:'ents'});
   sc.items.forEach(it=>{
@@ -1489,7 +1543,7 @@ function render(){
   const tabs=$('#tabs'),at=tabs.querySelector('.tab[aria-selected=true]');
   tabs.scrollLeft=tl;
   if(at&&(at.offsetLeft<tabs.scrollLeft||at.offsetLeft+at.offsetWidth>tabs.scrollLeft+tabs.clientWidth))tabs.scrollLeft=at.offsetLeft-16;
-  const view=db.tab==='summary'?renderSummary():db.tab==='entry'?renderEntry():db.tab==='backup'?renderBackup():renderSection(SECTIONS.find(x=>x.id===db.tab));
+  const view=db.tab==='leave'?renderLeave():db.tab==='summary'?renderSummary():db.tab==='entry'?renderEntry():db.tab==='backup'?renderBackup():renderSection(SECTIONS.find(x=>x.id===db.tab));
   $('#main').replaceChildren(view);
   if(scrollY!==y)scrollTo(0,y);
 }
