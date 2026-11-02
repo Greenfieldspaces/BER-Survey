@@ -1433,7 +1433,7 @@ function transferCard(s){
   return el('details',{class:'card xfer'},el('summary',null,el('b',null,'Fill DEAP from Chrome on your laptop')),
     el('p',{class:'note',style:'margin:0'},'Send this survey to your laptop (AirDrop, Mail or iCloud Drive), then load it in the BER Survey DEAP Fill extension. It fills the open DEAP screen for you to check and save.'),
     el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>shareTransfer(s)},'Share transfer file'),el('button',{class:'btn',onclick:()=>copy(JSON.stringify(deapExport(s)))},'Copy transfer text')),
-    (s.images||[]).length?el('label',{class:'row',style:'gap:8px'},el('input',{type:'checkbox',checked:s.xferPhotos!==false,onchange:e=>{s.xferPhotos=e.target.checked;save()}}),'Send the '+s.images.length+' photo'+(s.images.length>1?'s':'')+' and sketch'+(s.images.length>1?'es':'')+' too, so the extension uploads '+(s.images.length>1?'them':'it')+' to DEAP\'s Evidence screen'):null);
+    (s.images||[]).length?el('label',{style:'display:flex;gap:10px;align-items:center;font-size:15px'},el('input',{type:'checkbox',style:'width:22px;height:22px;flex:none;margin:0',checked:s.xferPhotos!==false,onchange:e=>{s.xferPhotos=e.target.checked;save()}}),(s.images.length>1?'Send the '+s.images.length+' photos and sketches too, so the extension uploads them':'Send the photo too, so the extension uploads it')+' to DEAP\'s Evidence screen'):null);
 }
 function renderEntry(){
   const s=cur(),done=s.entered||(s.entered={}),scrs=entryScreens(s);
