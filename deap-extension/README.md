@@ -33,6 +33,7 @@ With the survey loaded and the assessment open in DEAP, press **Start** under **
 - On ordinary screens it fills the values. DEAP saves those itself.
 - For floors, roofs, walls, doors and windows it presses ADD, fills the dialog and presses SAVE, one at a time.
 - Doors and windows need a DEAP library item first. The panel says **Your turn**: pick the library item and press ADD in DEAP, and the transfer carries on. **Skip this one** leaves that item out.
+- Remembered picks: when it stops for you to pick a library item, the pick is remembered on this laptop (untick **Remember my pick** to skip that). The next survey with the same item, such as the same boiler or window type, gets it picked for you. At the end the panel lists **Picked for you from memory**. If one is wrong, fix it in DEAP and press **Forget**. **Remembered library picks** under the transfer lists them all, with Export and Import to move them to another laptop.
 - If DEAP refuses to save a dialog, it waits for you to fix it and press SAVE.
 - Library items (doors, windows, heat sources, chimneys and fans, showers and baths, solar collector): the panel says **Your turn** and types a search into DEAP's library for you. Pick the item and press ADD; it fills and saves the dialog that follows (fuel and "heats water" for heat sources, number, area and so on).
 - When it finishes, it lists what is left to check or do by hand, such as the boiler efficiency, which comes from the library item you picked.

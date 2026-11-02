@@ -3,6 +3,11 @@
 // presses ADD, fills the dialog and presses SAVE, one item at a time. It never presses Publish or Submit:
 // content.js refuses those buttons whatever it is asked.
 const tx = { library: 'pick', overwrite: true, running: false, stop: false, steps: [], waitingFor: null, skipWait: false, included: {} };
+// library picks the person made once and wants made for them again: { 'table|what the survey says': { picked, said, n, at } }
+const mem = { picks: {}, remember: true };
+chrome.storage.local.get('libMemory').then(r => { mem.picks = r.libMemory || {}; render() });
+const memSave = () => chrome.storage.local.set({ libMemory: mem.picks });
+const memKey = (t, said) => t.key + '|' + String(said || '').toLowerCase().replace(/[^a-z0-9.]+/g, ' ').trim();
 const pause = ms => new Promise(r => setTimeout(r, ms));
 
 // values DEAP asks for that the survey records in another shape
@@ -190,16 +195,31 @@ async function addItems(step, t) {
       const desc = t.rows[ri].filter(Boolean).slice(0, 5).join(', ');
       // try the best matching library row first; hand over to the person only when nothing matches well
       const ei = t.columns.findIndex(c => c.key === 'exact'), wi = t.columns.findIndex(c => c.key === 'want'), want = wi >= 0 && t.rows[ri][wi] || phrase;
-      const pk = phrase && tx.library === 'pick' && (m.autopick !== false || ei >= 0 && t.rows[ri][ei] === '1') ? await send({ cmd: 'libpick', text: want, min: m.autopickMin }) : null;
+      // a pick remembered from an earlier survey comes first
+      const mk = want ? memKey(t, want) : null, rm = mk && tx.library === 'pick' && mem.picks[mk];
+      let pk = null;
+      if (rm) {
+        let r = await send({ cmd: 'libpick', text: rm.picked, min: 0.85, exact: true });
+        if (r && r.error && !r.picked) { await send({ cmd: 'libsearch', text: rm.picked.split(' ').slice(0, 4).join(' ') }); await pause(1500); r = await send({ cmd: 'libpick', text: rm.picked, min: 0.85, exact: true }) }
+        if (r && r.ok && await waitState(x => !x.dialog || !/library/i.test(x.dialog), 6000)) { rm.n = (rm.n || 0) + 1; rm.at = Date.now(); memSave(); tx.memUsed.push({ key: mk, what: label, said: want, picked: rm.picked }); pk = { ok: true, picked: rm.picked, fromMemory: true } }
+      }
+      if (!pk) pk = phrase && tx.library === 'pick' && (m.autopick !== false || ei >= 0 && t.rows[ri][ei] === '1') ? await send({ cmd: 'libpick', text: want, min: m.autopickMin }) : null;
       let got = false;
-      if (pk && pk.ok) {
+      if (pk && pk.fromMemory) got = true;
+      else if (pk && pk.ok) {
         got = !!(await waitState(x => !x.dialog || !/library/i.test(x.dialog), 6000));
         if (got) tx.log.push(step.name + ': ' + what + ', picked library item "' + pk.picked + '" (check it is the right one)');
       }
       // not in the library: add it as a new library item from the survey (boilers with make, model and efficiency)
       const col = k => { const i = t.columns.findIndex(c => c.key === k); return i >= 0 ? t.rows[ri][i] : '' };
       if (!got && m.newItem && tx.library === 'pick' && col('make') && col('eff')) got = await newLibraryItem(step, t, ri, m, col, what);
+      if (!got && mk) { await send({ cmd: 'liblast', reset: true }); tx.memAsk = { key: mk, said: want, what: label } }
       if (!got) got = await waitForYou((pk && pk.error ? 'I could not find a sure match in the library. ' : '') + 'Pick the DEAP library item for ' + what + ' (' + desc + ') and press ADD, or add it with ADD NEW ITEM TO LIBRARY. ' + (phrase ? 'I searched the library for "' + phrase + '". ' : '') + 'I fill in the rest.', x => x.dialog && !/library/i.test(x.dialog) || !x.dialog);
+      if (got && tx.memAsk) {
+        const lp = await send({ cmd: 'liblast' });
+        if (mem.remember && lp && lp.picked) { mem.picks[tx.memAsk.key] = { picked: lp.picked, said: tx.memAsk.said, what: tx.memAsk.what, n: 0, at: Date.now() }; memSave(); tx.memNew.push({ key: tx.memAsk.key, what: label, said: want, picked: lp.picked }) }
+      }
+      tx.memAsk = null;
       s = await send({ cmd: 'state' });
       if (!got) { tx.log.push(step.name + ': ' + what + ' skipped'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }
       if (!s.dialog) { // added straight from the library: whatever else the survey has for it is left to enter in DEAP
@@ -272,7 +292,7 @@ async function uploadEvidence(step) {
 }
 async function runTransfer() {
   if (tx.running) return;
-  tx.running = true; tx.stop = false; tx.log = []; tx.report = []; tx.startedAt = new Date().toISOString();
+  tx.running = true; tx.stop = false; tx.log = []; tx.report = []; tx.memUsed = []; tx.memNew = []; tx.memAsk = null; tx.startedAt = new Date().toISOString();
   tx.steps = transferSteps().filter(s => tx.included[s.name] !== false);
   (transferSteps.left || []).forEach(f => tx.log.push('Not transferred yet: ' + (f.parent ? f.parent + ', ' : '') + f.label + ' ' + f.value));
   (transferSteps.leftTables || []).forEach(k => tx.log.push('Not transferred yet: ' + k.split('.').pop().replace(/-/g, ' ') + ' list'));
@@ -338,7 +358,9 @@ function transferCard() {
     tx.running ? h('button', { class: 'btn', onclick: () => { tx.stop = true; render() } }, tx.stop ? 'Stopping…' : 'Stop')
       : h('button', { class: 'btn primary', disabled: !deapTab, onclick: runTransfer }, tx.steps.length ? 'Run again' : 'Start')));
   if (!tx.running && !tx.steps.length) card.append(h('p', { class: 'note' }, 'Open this assessment in DEAP, then press Start. It goes through each screen, adds the walls, floors, roofs, doors and windows, and saves each one. It never publishes. Untick anything already in DEAP so it is not added twice.'));
-  if (tx.waitingFor) card.append(h('div', { class: 'needs' }, h('b', null, 'Your turn: '), tx.waitingFor, h('div', { class: 'row', style: 'margin-top:6px' }, h('button', { class: 'btn small', onclick: () => { tx.skipWait = true } }, 'Skip this one'))));
+  if (tx.waitingFor) card.append(h('div', { class: 'needs' }, h('b', null, 'Your turn: '), tx.waitingFor,
+    tx.memAsk ? h('label', { class: 'chk mem' }, h('input', { type: 'checkbox', checked: mem.remember, onchange: e => { mem.remember = e.target.checked } }), h('span', null, h('b', null, 'Remember my pick for "' + tx.memAsk.said + '"'), h('br'), h('small', null, 'Next time a survey has this ' + tx.memAsk.what.toLowerCase() + ', I\'ll pick the same item myself.'))) : null,
+    h('div', { class: 'row', style: 'margin-top:6px' }, h('button', { class: 'btn small', onclick: () => { tx.skipWait = true } }, 'Skip this one'))));
   if (!tx.running) {
     const sel = h('select', { onchange: e => { tx.library = e.target.value } },
       ...[['pick', 'Pick them for me when the match is sure, otherwise stop for me'], ['stop', 'Stop at each one so I pick it'], ['list', 'Skip them and list them for me to add']].map(([v, l]) => h('option', { value: v, selected: tx.library === v }, l)));
@@ -354,10 +376,28 @@ function transferCard() {
       h('span', { class: 'nm' }, s.name, h('small', null, s.note || extra))));
   });
   card.append(list);
+  if (!tx.running && ((tx.memUsed || []).length || (tx.memNew || []).length)) {
+    const mrow = (x, extra) => h('div', { class: 'memrow' }, h('span', { class: 'dot ' + (extra ? 'a' : 'g') }), h('span', { style: 'flex:1;min-width:0' }, x.what + ': ' + x.picked, extra ? h('span', { class: 'tag' }, extra) : null, h('small', null, x.said)),
+      mem.picks[x.key] ? h('button', { class: 'btn ghost small', title: 'Forget it, so next time it asks you again', onclick: () => { delete mem.picks[x.key]; memSave(); render(); toast('Forgotten. Next time it asks you') } }, 'Forget') : h('small', null, 'forgotten'));
+    card.append(h('div', { class: 'mem-box' }, (tx.memUsed || []).length ? h('h3', null, 'Picked for you from memory (' + tx.memUsed.length + ')') : null, ...(tx.memUsed || []).map(x => mrow(x)),
+      (tx.memNew || []).length ? h('h3', null, 'You picked, now remembered (' + tx.memNew.length + ')') : null, ...(tx.memNew || []).map(x => mrow(x, 'NEW')),
+      h('p', { class: 'note' }, 'Check each one in DEAP. Picked the wrong item? Fix it in DEAP and press Forget, so it asks you next time.')));
+  }
   if (tx.log && tx.log.length && !tx.running) card.append(h('details', { open: true }, h('summary', null, tx.log.length + ' to do by hand in DEAP'), h('div', { class: 'scan' }, tx.log.join('\n')), h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => copy(tx.log.join('\n')) }, 'Copy list'))));
   if (!tx.running && tx.steps.length) {
     card.append(h('p', { class: 'note' }, 'Something wrong in DEAP? Save the run report and send it to Claude. It lists every field, what was sent and what DEAP shows now.'));
     card.append(h('div', { class: 'row' }, h('button', { class: 'btn primary small', onclick: saveReport }, 'Save run report'), h('button', { class: 'btn small', onclick: () => copy(reportText()) }, 'Copy run report'), h('button', { class: 'btn ghost small', onclick: () => { tx.steps = []; tx.log = []; render() } }, 'Reset')));
   }
+  if (!tx.running) card.append(memoryCard());
   return card;
+}
+// every remembered pick on this laptop: forget one, or move them to another laptop
+function memoryCard() {
+  const keys = Object.keys(mem.picks).sort((a, b) => (mem.picks[a].what || a).localeCompare(mem.picks[b].what || b));
+  const file = h('input', { type: 'file', accept: '.json', hidden: true, onchange: async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; try { const m = JSON.parse(await f.text()); Object.assign(mem.picks, m.libMemory || m); memSave(); render(); toast('Remembered picks imported') } catch (x) { toast('That is not a remembered picks file') } } });
+  const exp = () => { const url = URL.createObjectURL(new Blob([JSON.stringify({ libMemory: mem.picks }, null, 1)], { type: 'application/json' })); chrome.downloads && chrome.downloads.download({ url, filename: 'DEAP remembered picks.json', saveAs: true }) };
+  return h('details', { class: 'mem-all' }, h('summary', null, 'Remembered library picks (' + keys.length + ')'),
+    keys.length ? null : h('p', { class: 'note' }, 'None yet. When the transfer stops for you to pick a library item, the pick is remembered for next time.'),
+    ...keys.map(k => { const x = mem.picks[k]; return h('div', { class: 'memrow' }, h('span', { style: 'flex:1;min-width:0' }, (x.what || k.split('|')[0]) + ': ' + x.picked, h('small', null, x.said + (x.n ? ' · used ' + x.n + ' time' + (x.n > 1 ? 's' : '') : ''))), h('button', { class: 'btn ghost small', onclick: () => { delete mem.picks[k]; memSave(); render() } }, 'Forget')) }),
+    h('div', { class: 'row' }, file, h('button', { class: 'btn small', onclick: exp, disabled: !keys.length }, 'Export'), h('button', { class: 'btn small', onclick: () => file.click() }, 'Import')));
 }
