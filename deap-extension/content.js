@@ -537,7 +537,15 @@
     return { ok: true };
   }
   // pick the library row that best matches the search words, then press ADD; refuses when nothing matches well
-  async function libPick(want, min) {
+  // remembers the library row the person last clicked, so the transfer can learn their pick
+  const LIBROWS = 'mat-row,.mat-mdc-row,tbody tr,[role=row],mat-list-option,mat-list-item,.mat-mdc-list-item';
+  let lastLib = null;
+  document.addEventListener('click', e => {
+    const d = topDialog(); if (!d || !/library/i.test(dialogTitle(d) || '')) return;
+    const r = e.target.closest && e.target.closest(LIBROWS);
+    if (r && d.contains(r) && !r.closest('thead') && !r.matches('.mat-mdc-header-row,mat-header-row')) lastLib = clean(textOf(r)).slice(0, 160);
+  }, true);
+  async function libPick(want, min, exact) {
     const d = topDialog(); if (!d) return { error: 'No dialog' };
     let rows = [];
     for (let t = 0; t < 20; t++) {
@@ -548,7 +556,9 @@
     }
     if (!rows.length) return { error: 'No library rows seen' };
     const W = toks(want);
-    const score = r => { const R = new Set(toks(textOf(r))); return W.length ? W.filter(w => R.has(w)).length / W.length : 0 };
+    // exact: a remembered pick, so the row must be that same library item, not just share the search words
+    const score = exact ? r => { const tx = clean(textOf(r)).slice(0, 160); if (tx === want) return 1; const R = toks(tx), S = new Set(R); const both = W.filter(w => S.has(w)).length; return both / Math.max(W.length, R.length, 1) }
+      : r => { const R = new Set(toks(textOf(r))); return W.length ? W.filter(w => R.has(w)).length / W.length : 0 };
     let bi = 0, bs = -1; rows.forEach((r, i) => { const v = score(r); if (v > bs) { bs = v; bi = i } });
     if (bs < (min ?? 0.5)) return { error: 'No close match', best: clean(textOf(rows[bi])).slice(0, 120), rows: rows.length };
     const row = rows[bi], pickText = clean(textOf(row)).slice(0, 160);
@@ -576,7 +586,8 @@
     if (msg.cmd === 'press') { reply(press(msg.text, msg.inDialog)); return }
     if (msg.cmd === 'errors') { reply(dialogErrors()); return }
     if (msg.cmd === 'libsearch') { libSearch(msg.text).then(reply); return true }
-    if (msg.cmd === 'libpick') { libPick(msg.text, msg.min).then(reply, e => reply({ error: String(e.message || e) })); return true }
+    if (msg.cmd === 'liblast') { reply({ picked: lastLib }); if (msg.reset) lastLib = null; return }
+    if (msg.cmd === 'libpick') { libPick(msg.text, msg.min, msg.exact).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'evidence') { reply(evidenceCount()); return }
     if (msg.cmd === 'upload') { reply(upload(msg.file)); return }
     if (msg.cmd === 'ping') { reply({ ok: true, url: location.href }); return }

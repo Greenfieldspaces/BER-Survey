@@ -72,3 +72,11 @@ ol.steps{margin:0;padding-left:18px;color:var(--muted);font-size:13px}
 .step .ic{text-align:center;color:var(--muted)}
 .step.done .ic{color:var(--accent)}.step.running .ic{color:var(--warn)}.step.failed .ic,.step.failed small{color:var(--bad)}
 .needs{background:var(--warn-soft);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:13px}
+.chk.mem{display:flex;gap:8px;align-items:flex-start;background:var(--accent-soft);border-radius:8px;padding:8px;margin-top:8px}
+.chk.mem small{color:var(--muted)}
+.mem-box{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:6px}
+.memrow{display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
+.memrow small{display:block;color:var(--muted);font-size:12px}
+.memrow .dot{width:9px;height:9px;border-radius:50%;flex:none}.memrow .dot.g{background:var(--accent)}.memrow .dot.a{background:var(--warn)}
+.memrow .tag{font-size:11px;font-weight:700;background:var(--warn-soft);color:var(--warn);border-radius:5px;padding:1px 5px;margin-left:4px}
+.mem-all summary{cursor:pointer;font-weight:600;padding:4px 0}
