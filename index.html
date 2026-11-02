@@ -212,6 +212,22 @@ textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
 .img{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
 .img img{width:100%;max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff}
 .img figcaption{font-weight:600;font-size:14px}
+.camhd{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.camhd h3{margin:0}
+.btn.camb{display:inline-flex;align-items:center;gap:6px;color:var(--accent);background:var(--accent-soft);border-color:transparent;flex:none}
+.pstrip{display:flex;gap:10px;flex-wrap:wrap}
+.pfig{margin:0;width:112px;display:flex;flex-direction:column;gap:2px}
+.pfig .pth{padding:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:112px;height:96px;background:#fff;cursor:pointer;display:block}
+.pfig .pth img{width:100%;height:100%;object-fit:cover;display:block}
+.pfig input{border:0;border-bottom:1px solid transparent;border-radius:0;background:none;padding:2px 0;min-height:0;font-size:13px;color:var(--muted);width:100%;text-overflow:ellipsis}
+.pfig input:focus{border-bottom-color:var(--accent);color:var(--ink);outline:none}
+.prow{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.prow:first-child{border-top:0}
+.prow .sn{font-weight:600;font-size:15px}.prow .sn small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+@media (max-width:560px){.prow{grid-template-columns:1fr}}
+.pview{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px}
+.pview img{max-width:100%;max-height:calc(100% - 120px);border-radius:8px;background:#fff}
+.pview .cap{color:#fff;font-weight:600;text-align:center}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px;align-items:start}
 .ent-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .ent-top h2{font-size:22px;margin-right:auto}
@@ -645,7 +661,8 @@ const usedTypes=s=>[...new Set(s.walls.filter(w=>gross(w)>0||w.ops.length).map(w
 const wtData=t=>{const d=dataFor('walltypes');return d[t]||(d[t]={cons:'Unknown',ins:'Unknown'})};
 function wallTypesEl(){
   const s=cur(),types=usedTypes(s);
-  const card=el('section',{class:'group'},el('h3',null,'Wall construction'),
+  const wh={sec:'building',sub:'walls',grp:'Wall construction'};
+  const card=el('section',{class:'group'},camHead(el('h3',null,'Wall construction'),wh,()=>types.length===1?types[0]:'Wall'),
     el('p',{class:'hint',style:'margin:0'},'Fill this in once for each wall type used above. DEAP needs the construction and insulation to set the U-value.'));
   if(!types.length){card.append(el('p',{class:'muted',style:'margin:0'},'Add a wall first.'));return card}
   types.forEach(t=>{
@@ -654,6 +671,7 @@ function wallTypesEl(){
     const area=s.walls.filter(w=>w.type===t).reduce((a,w)=>a+net(w),0);
     card.append(el('div',{class:'lrow'},el('div',{class:'lrow-h'},el('b',null,t),el('span',{class:'num muted',style:'font-size:14px'},f2(area)+' m² net')),g));
   });
+  card.append(photoStrip(wh));
   return card;
 }
 
@@ -814,8 +832,8 @@ function kvEl(kv){return el('dl',{class:'rkv'},kv.flatMap(([k,v])=>[el('dt',null
 function reportEl(s){
   const box=el('article',{class:'report'});
   box.append(el('header',{class:'rhead'},el('h2',null,'BER survey'),kvEl(reportHead(s))));
-  const ims=(s.images||[]).filter(m=>imgGet(m.id));
-  if(ims.length)box.append(el('section',{class:'rsec'},el('h3',null,'Sketches & photos'),el('div',{class:'imgs'},ims.map((m,i)=>el('figure',{class:'img'},el('img',{src:imgGet(m.id),alt:m.cap||'Sketch '+(i+1)}),el('figcaption',null,m.cap||'Sketch '+(i+1)))))));
+  const ims=imgOrder(s).filter(m=>imgGet(m.id));
+  if(ims.length)box.append(el('section',{class:'rsec'},el('h3',null,'Sketches & photos'),el('div',{class:'imgs'},ims.map((m,i)=>el('figure',{class:'img'},el('img',{src:imgGet(m.id),alt:imgLabel(m,s.images.indexOf(m))}),el('figcaption',null,imgLabel(m,s.images.indexOf(m))))))));
   reportModel(s).forEach(sec=>{
     const sb=el('section',{class:'rsec'},el('h3',null,sec.title));
     let any=false;
@@ -844,7 +862,7 @@ function textKv(kv,ind){const w=30;return kv.map(([k,v])=>ind+'[ ] '+(k+' ').pad
 function fullText(s){
   const L=[],hd='BER SURVEY';
   L.push(hd,'='.repeat(hd.length),...textKv(reportHead(s),'').map(x=>x.replace('[ ] ','')),'','Tick [ ] each line once it is entered in DEAP.','');
-  const ni=(s.images||[]).length;if(ni)L.push(ni+' sketch'+(ni>1?'es/photos':'/photo')+' taken on site: '+(s.images.map((m,i)=>m.cap||'Sketch '+(i+1)).join(', '))+'. Copy them from the tool separately if they did not paste in.','');
+  const ni=(s.images||[]).length;if(ni)L.push(ni+' sketch'+(ni>1?'es/photos':'/photo')+' taken on site: '+(imgOrder(s).map(m=>imgLabel(m,s.images.indexOf(m))).join(', '))+'. Copy them from the tool separately if they did not paste in.','');
   if(s.leftAt)L.push('Left site at '+fmtLeft(s.leftAt),'');
   const oc=siteChecks(s);if(oc.length){L.push('OPEN ITEMS FROM SITE','--------------------');oc.forEach(x=>L.push('  '+chkLbl(x)+': '+x.t+' ('+secName(x.tab,x.sub)+')'));L.push('')}
   reportModel(s).forEach(sec=>{
@@ -863,7 +881,7 @@ function reportHTML(s){
   const kv=k=>'<table style="border-collapse:collapse;margin:4px 0 10px">'+k.map(([a,b])=>'<tr><td '+td+'>☐</td><td '+td+'><b>'+esc(a)+'</b></td><td '+td+'>'+esc(b).replace(/\n/g,'<br>')+'</td></tr>').join('')+'</table>';
   const tb=t=>(t.title?'<p style="font:bold 13px Arial,sans-serif;margin:8px 0 4px">'+esc(t.title)+'</p>':'')+'<table style="border-collapse:collapse;margin-bottom:10px"><tr>'+(t.record?'':'<th '+th+'>✓</th>')+t.head.map(h=>'<th '+th+'>'+esc(h)+'</th>').join('')+'</tr>'+t.rows.map((r,ri)=>'<tr>'+(t.record?'':'<td '+td+'>'+(t.total&&ri===t.rows.length-1?'':'☐')+'</td>')+r.map((c,i)=>'<td '+td.replace('"','"'+(t.num[i]?'text-align:right;':'')+(t.total&&ri===t.rows.length-1?'font-weight:bold;':''))+'>'+esc(c)+'</td>').join('')+'</tr>').join('')+'</table>';
   let h='<div style="font:14px Arial,sans-serif"><h2 style="font:bold 20px Arial,sans-serif">BER survey</h2>'+kv(reportHead(s)).replace(/<td[^>]*>☐<\/td>/g,'')+'<p style="color:#555">Tick ☐ each line once it is entered in DEAP.</p>';
-  const ims=(s.images||[]).filter(m=>imgGet(m.id));if(ims.length)h+='<h3 style="font:bold 17px Arial,sans-serif;border-bottom:2px solid #0b7a45;padding-bottom:3px;margin:18px 0 6px">Sketches &amp; photos</h3>'+ims.map((m,i)=>'<p style="margin:6px 0"><img src="'+imgGet(m.id)+'" width="640" style="max-width:100%;border:1px solid #ccc"><br><b>'+esc(m.cap||'Sketch '+(i+1))+'</b></p>').join('');
+  const ims=imgOrder(s).filter(m=>imgGet(m.id));if(ims.length)h+='<h3 style="font:bold 17px Arial,sans-serif;border-bottom:2px solid #0b7a45;padding-bottom:3px;margin:18px 0 6px">Sketches &amp; photos</h3>'+ims.map((m,i)=>'<p style="margin:6px 0"><img src="'+imgGet(m.id)+'" width="640" style="max-width:100%;border:1px solid #ccc"><br><b>'+esc(imgLabel(m,s.images.indexOf(m)))+'</b></p>').join('');
   const oc=siteChecks(s);if(oc.length)h+='<h3 style="font:bold 16px Arial,sans-serif;color:#b54708;margin:14px 0 4px">Open items from site</h3><ul>'+oc.map(x=>'<li><b>'+chkLbl(x)+':</b> '+esc(x.t)+' <span style="color:#777">('+esc(secName(x.tab,x.sub))+')</span></li>').join('')+'</ul>';
   reportModel(s).forEach(sec=>{
     h+='<h3 style="font:bold 17px Arial,sans-serif;border-bottom:2px solid #0b7a45;padding-bottom:3px;margin:18px 0 6px">'+esc(sec.title)+'</h3>';
@@ -932,7 +950,7 @@ async function buildPDF(s){
     room(16);doc.setFillColor(253,235,217);doc.rect(M,y,W-2*M,7,'F');doc.setTextColor(...WARN);doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.text('Open items from site ('+oc.length+')',M+2,y+4.8);y+=8;
     doc.autoTable(Object.assign({},TBL,{startY:y,body:oc.map(x=>[chkLbl(x),pdfTxt(x.t),pdfTxt(secName(x.tab,x.sub))]),
       columnStyles:{0:{cellWidth:18,fontStyle:'bold',textColor:WARN},2:{cellWidth:52,textColor:MUTED}}}));after();y+=2}
-  const ims=(s.images||[]).filter(m=>imgGet(m.id));
+  const ims=imgOrder(s).filter(m=>imgGet(m.id));
   if(ims.length){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...MUTED);doc.text(ims.length+' sketch'+(ims.length>1?'es/photos':'/photo')+' at the end of this report.',M,y+3);y+=7}
   reportModel(s).forEach(sec=>{
     room(34);y+=2;
@@ -953,7 +971,7 @@ async function buildPDF(s){
     if(i===0||y+h+12>H-16){doc.addPage();y=M}
     if(i===0){doc.setFillColor(...GREEN);doc.rect(M,y,W-2*M,8,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Sketches & photos',M+2.5,y+5.6);y+=11}
     doc.addImage(src,'JPEG',M,y,w,h);doc.setDrawColor(201,211,206);doc.rect(M,y,w,h);
-    doc.setTextColor(...INK);doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.text(pdfTxt(m.cap||'Sketch '+(i+1)),M,y+h+5);y+=h+10;
+    doc.setTextColor(...INK);doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.text(pdfTxt(imgLabel(m,s.images.indexOf(m))),M,y+h+5);y+=h+10;
   }
   const np=doc.getNumberOfPages();
   for(let i=1;i<=np;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...MUTED);
@@ -1024,7 +1042,7 @@ function allChecks(s){
     if(!hasVal(heat.fuel))add('miss','Main heating fuel','heat');
     if(!hasVal(heat.eff)&&!hasVal(heat.harp))add('miss','Heating efficiency or HARP reference','heat');
     if(!hasVal(heat.emit))add('miss','Heat emitters','heat');
-    if(/boiler|heat pump|stove|range|CHP/i.test(heat.src)){const mk=String(heat.make||'').trim(),x={lib:1,photo:'Heating nameplate'};
+    if(/boiler|heat pump|stove|range|CHP/i.test(heat.src)){const mk=String(heat.make||'').trim(),x={lib:1,photo:'Boiler nameplate'};
       if(!mk)add('miss','Heating make and model','heat',null,x);
       else if(mk.split(/\s+/).length<2)add('miss','Heating make and model: you have "'+mk+'", add the model','heat',null,Object.assign({key:'heat|model'},x))}
     if(!(heat.controls||[]).length)add('check','No heating controls ticked. Confirm there are none','heat');
@@ -1069,8 +1087,8 @@ function renderLeave(){
     return li};
   const grp=(cls,label,items)=>{if(!items.length)return;card.append(el('div',{class:'lv-grp '+cls},el('span',{class:'dot'}),label+' ('+items.length+')'));const ul=el('ul',{class:'chk-list lv-'+cls});items.forEach(li=>ul.append(li));card.append(ul)};
   grp('site','Only you can get these here',site.map(x=>{const li=row(x,x.lvl);
-    if(x.photo){const fi=el('input',{type:'file',accept:'image/*',capture:'environment',hidden:true,onchange:e=>{const f=[...e.target.files];e.target.value='';if(f.length)addImages(f,x.photo)}});
-      const has=(s.images||[]).some(m=>m.cap===x.photo);
+    if(x.photo){const fi=el('input',{type:'file',accept:'image/*',capture:'environment',hidden:true,onchange:e=>{const f=[...e.target.files];e.target.value='';if(f.length)addImages(f,x.photo,{sec:'heat',grp:MAINHEAT})}});
+      imgMigrate(s);const has=(s.images||[]).some(m=>m.sec==='heat'&&/nameplate/i.test(m.cap||''));
       li.append(fi,el('button',{class:'btn small cam',onclick:()=>fi.click()},has?'📷 Another photo':'📷 Nameplate'))}
     li.append(x.lvl==='check'?el('button',{class:'btn small',onclick:()=>waive(x,'')},'It\'s right'):
       el('button',{class:'btn small muted-b',onclick:()=>{const r=prompt('Why couldn\'t you get this? It goes on the report.','Not accessible');if(r!==null)waive(x,r.trim()||'Not accessible')}},'Can\'t access'),
@@ -1091,9 +1109,22 @@ const imgGet=id=>{try{return localStorage.getItem(IMGK(id))}catch(e){return null
 const imgSet=(id,d)=>{try{localStorage.setItem(IMGK(id),d);return true}catch(e){return false}};
 const imgDel=id=>{try{localStorage.removeItem(IMGK(id))}catch(e){}};
 function shrink(file){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=rej;r.onload=()=>{const im=new Image();im.onerror=rej;im.onload=()=>{const k=Math.min(1,1600/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.72))};im.src=r.result};r.readAsDataURL(file)})}
-async function addImages(files,cap){
+// a photo taken from a section card remembers where: sec (tab), sub (Building sub-tab), grp (card title).
+// Its full name, e.g. "Space heating - Boiler nameplate", is used in the report and as the DEAP evidence file name.
+const MAINHEAT='Main space and water heating system';
+const imgSec=m=>{if(!m.sec)return '';const sec=SECTIONS.find(x=>x.id===m.sec);if(!sec)return '';const sb=m.sub&&sec.subs?sec.subs.find(x=>x.id===m.sub):null;return sb?sb.name:sec.name};
+const imgLabel=(m,i)=>{const c=String(m.cap||'').trim(),sn=imgSec(m);return sn?sn+' - '+(c||'Photo'):(c||'Sketch '+((i||0)+1))};
+const sameSpot=(m,w)=>(m.sec||'')===(w.sec||'')&&(m.sub||'')===(w.sub||'')&&(m.grp||'')===(w.grp||'');
+// sketches first, then photos in the order of the app's sections
+function imgOrder(s){const ord=[];SECTIONS.forEach(x=>{ord.push(x.id+'|');(x.subs||[]).forEach(sb=>ord.push(x.id+'|'+sb.id))});
+  const k=m=>m.sec?ord.indexOf(m.sec+'|'+(m.sub||''))+1:0;
+  return (s.images||[]).map((m,i)=>[m,i]).sort((a,b)=>k(a[0])-k(b[0])||a[1]-b[1]).map(x=>x[0])}
+function imgMigrate(s){(s.images||[]).forEach(m=>{if(!m.sec&&m.cap==='Heating nameplate'){m.sec='heat';m.grp=MAINHEAT;m.cap='Boiler nameplate'}})}
+async function addImages(files,cap,where){
   const s=cur();s.images=s.images||[];let fail=0;
-  for(const f of files){try{const d=await shrink(f);const id=uid();if(imgSet(id,d))s.images.push({id,cap:cap||''});else fail++}catch(e){fail++}}
+  for(const f of files){try{const d=await shrink(f);const id=uid();
+    let c=cap||'';if(where){const k=s.images.filter(m=>sameSpot(m,where)&&String(m.cap||'').replace(/ \d+$/,'')===c).length;if(k)c+=' '+(k+1)}
+    if(imgSet(id,d))s.images.push(Object.assign({id,cap:c},where||{}));else fail++}catch(e){fail++}}
   save();render();
   if(fail)toast('Storage is full on this device. Delete old surveys or photos to add more');else toast(files.length>1?files.length+' images added':'Image added');
 }
@@ -1102,19 +1133,49 @@ async function copyImage(id){
     const blob=await new Promise(r=>c.toBlob(r,'image/png'));await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);toast('Image copied')}
   catch(e){toast('Copying images is not available here')}
 }
+const CAM_SVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+// the small Photo button in a card's corner: opens the camera, files the photo under that card
+function camBtn(where,base){
+  const fi=el('input',{type:'file',accept:'image/*',capture:'environment',hidden:true,onchange:e=>{const f=[...e.target.files];e.target.value='';if(f.length)addImages(f,typeof base==='function'?base():base,where)}});
+  const b=el('button',{class:'btn small camb','aria-label':'Take a photo for '+where.grp,onclick:()=>fi.click()});b.innerHTML=CAM_SVG+'Photo';
+  return [fi,b];
+}
+function camHead(h3,where,base){return el('div',{class:'camhd'},h3,...camBtn(where,base))}
+function photoFig(m,i){
+  const s=cur(),d=imgGet(m.id);
+  const th=el('button',{class:'pth','aria-label':'View '+imgLabel(m,i),onclick:()=>viewImage(m,i)},d?el('img',{src:d,alt:''}):el('span',{class:'muted',style:'font-size:12px;padding:4px'},'Missing on this device'));
+  return el('figure',{class:'pfig'},th,el('input',{id:'cap-'+m.id,value:m.cap||'',placeholder:m.sec?'Photo':'Sketch '+(i+1),'aria-label':'Name for this photo',oninput:e=>{m.cap=e.target.value;save()}}));
+}
+// thumbnails under a card, only when it has photos
+function photoStrip(where){
+  const s=cur(),ims=(s.images||[]).filter(m=>sameSpot(m,where));
+  if(!ims.length)return null;
+  return el('div',{class:'pstrip'},ims.map(m=>photoFig(m,s.images.indexOf(m))));
+}
+function viewImage(m,i){
+  const s=cur(),d=imgGet(m.id);
+  const close=()=>{v.remove();render()};
+  const v=el('div',{class:'pview',role:'dialog','aria-label':imgLabel(m,i),onclick:e=>{if(e.target===v)close()}},
+    d?el('img',{src:d,alt:imgLabel(m,i)}):null,el('div',{class:'cap'},imgLabel(m,i)),
+    el('div',{class:'row'},el('button',{class:'btn small',onclick:()=>copyImage(m.id)},'Copy image'),
+      armButton('Delete',()=>{imgDel(m.id);s.images.splice(s.images.indexOf(m),1);save();v.remove();render()}),
+      el('button',{class:'btn small',onclick:close},'Close')));
+  document.body.append(v);
+}
 function imagesEl(){
-  const s=cur();s.images=s.images||[];
-  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,'Sketches & photos'),
-    el('p',{class:'hint',style:'margin:0'},'Take a photo of your notepad sketch or pick one from your photos. It goes into the report for the desk.'));
+  const s=cur();s.images=s.images||[];imgMigrate(s);
+  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,'Sketches & photos'+(s.images.length?' ('+s.images.length+')':'')),
+    el('p',{class:'hint',style:'margin:0'},'Photos from the Photo buttons on each section are filed here too. Tap a name to change it, or a photo to see it bigger or delete it. They go in the report and to DEAP\'s Evidence screen under these names.'));
   const fi=el('input',{type:'file',accept:'image/*',multiple:true,id:'imgIn',hidden:true,onchange:e=>{const f=[...e.target.files];e.target.value='';if(f.length)addImages(f)}});
   card.append(fi,el('div',null,el('button',{class:'btn primary',onclick:()=>fi.click()},'+ Add sketch or photo')));
   if(s.images.length){
-    const g=el('div',{class:'imgs'});
-    s.images.forEach((m,i)=>{const d=imgGet(m.id);g.append(el('figure',{class:'img'},
-      d?el('img',{src:d,alt:m.cap||'Sketch '+(i+1)}):el('div',{class:'muted'},'Image missing on this device'),
-      el('input',{id:'cap-'+m.id,value:m.cap,placeholder:'Caption, e.g. Ground floor plan',oninput:e=>{m.cap=e.target.value;save()}}),
-      el('div',{class:'row'},el('button',{class:'btn small',onclick:()=>copyImage(m.id)},'Copy image'),armButton('Delete',()=>{imgDel(m.id);s.images.splice(i,1);save();render()}))))});
-    card.append(g);
+    const rows={},order=[];
+    imgOrder(s).forEach(m=>{const k=m.sec?m.sec+'|'+(m.sub||''):'';if(!rows[k]){rows[k]=[];order.push(k)}rows[k].push(m)});
+    const box=el('div');
+    order.forEach(k=>{const ims=rows[k],m0=ims[0],sec=SECTIONS.find(x=>x.id===m0.sec);
+      const name=k?imgSec(m0):'Sketches',sub=k&&m0.sub&&sec?sec.name:'';
+      box.append(el('div',{class:'prow'},el('div',{class:'sn'},name,sub?el('small',null,sub):null),el('div',{class:'pstrip'},ims.map(m=>photoFig(m,s.images.indexOf(m))))))});
+    card.append(box);
   }
   return card;
 }
@@ -1200,6 +1261,19 @@ function listEl(f,d,key){
   box.append(el('div',null,el('button',{class:'btn small',onclick:()=>{const last=rows[rows.length-1];rows.push(last&&f.id==='storeys'?{height:last.height}:{});save();render()}},f.add)));
   return box;
 }
+// which cards get a Photo button, and the name a photo from that card starts with
+const NO_CAM=['Notes','Comment box','Property','Rating','Living area','Options','Storey heights and floor areas','Whole house','Thermal bridging','Thermal mass','Wind','Infiltration due to openings'];
+const CAM_NAMES={'Controls and responsiveness':'Controls','Pumps and fans':'Pump','Secondary heating system':'Secondary heating','Storage':'Cylinder','Showers and baths':'Shower','Solar':'Solar panels','Solar PV':'PV panels','Heat loss floors':'Floor','Heat loss roofs':'Roof','Ventilation method':'Ventilation unit','Structural air tightness':'Air tightness cert','Windows/doors draught stripping':'Draught stripping','Roof lights':'Roof light'};
+function camWhere(key,title){
+  if(NO_CAM.includes(title))return null;
+  const sec=SECTIONS.find(x=>x.id===key)||SECTIONS.find(x=>(x.subs||[]).some(sb=>sb.id===key));
+  if(!sec||sec.util||sec.id==='details')return null;
+  return sec.id===key?{sec:key,grp:title}:{sec:sec.id,sub:key,grp:title};
+}
+function camName(g,d){
+  if(g.title===MAINHEAT){const src=String(d.src||'');return /boiler/i.test(src)?'Boiler':/heat pump/i.test(src)?'Heat pump':src&&src!=='None'?src:'Heating system'}
+  return CAM_NAMES[g.title]||g.title;
+}
 function groupsEl(groups,key){
   const d=dataFor(key);
   const box=el('div',{class:'two'});
@@ -1208,9 +1282,10 @@ function groupsEl(groups,key){
     const vis=g.fields.filter(f=>!f.show||f.show(d));
     const grid=el('div',{class:'grid'});
     vis.forEach(f=>grid.append(fieldEl(f,d,key)));
-    const card=el('section',{class:'group'},el('h3',null,g.title));
+    const where=camWhere(key,g.title),h=el('h3',null,g.title);
+    const card=el('section',{class:'group'},where?camHead(h,where,()=>camName(g,d)):h);
     if(g.hint)card.append(el('p',{class:'hint',style:'margin:0'},g.hint));
-    card.append(grid);box.append(card);
+    card.append(grid);if(where)card.append(photoStrip(where));box.append(card);
   });
   return box;
 }
@@ -1299,10 +1374,12 @@ function rirPick(v,row){
 }
 function rirEl(){
   const s=cur(),list=rirList(s);
-  const card=el('section',{class:'group',id:'rirSec',style:'grid-column:1/-1'},el('h3',null,'Room in roof'),
+  const wh={sec:'building',sub:'roofs',grp:'Room in roof'};
+  const card=el('section',{class:'group',id:'rirSec',style:'grid-column:1/-1'},camHead(el('h3',null,'Room in roof'),wh,'Room in roof'),
     el('p',{class:'hint',style:'margin:0'},'Type what you can measure. Once it has enough, the app works out the rest (shown in green) and adds the sloping ceiling, flat ceiling and knee walls to the roofs for DEAP.'));
   list.forEach((r,i)=>card.append(rirCard(r,i)));
   card.append(el('div',null,el('button',{class:'btn',onclick:()=>{list.push({id:uid(),sides:'2',gables:'0',parts:{}});save();render()}},list.length?'+ Another room in roof':'+ Room in roof')));
+  card.append(photoStrip(wh));
   return card;
 }
 function rirCard(r,i){
@@ -1373,7 +1450,8 @@ const opFields=o=>o.kind==='door'?DOOR_FIELDS:WIN_FIELDS.filter(f=>!(opEff(o,'gl
 const opEff=(o,k)=>{if(o.g&&hasVal(o.g[k]))return o.g[k];const t=opType(o);return t?(t[k]||''):(dataFor('openings')[k]||'')};
 function opTypesEl(kind){
   const s=cur(),ts=opTypes(kind),door=kind==='door',what=door?'door':'window';
-  const card=el('section',{class:'group',style:'grid-column:1/-1'},el('h3',null,door?'Door types':'Window types'),
+  const wh={sec:'building',sub:'openings',grp:door?'Door types':'Window types'};
+  const card=el('section',{class:'group',style:'grid-column:1/-1'},camHead(el('h3',null,wh.grp),wh,()=>ts.length===1?(door?'Door':'Window')+' type '+ts[0].code:(door?'Door':'Window')),
     el('p',{class:'hint',style:'margin:0'},door?'Describe each kind of door once, then pick it when you add a door on the Walls tab.'
       :'Describe each kind of window once. On the Walls tab you just tap A, B or C for each window. Most houses need one or two types.'));
   const list=el('div',{class:'two'});
@@ -1392,6 +1470,7 @@ function opTypesEl(kind){
   });
   if(ts.length)card.append(list);
   card.append(el('div',null,el('button',{class:'btn',onclick:()=>{newOpType(kind);save();render()}},'+ New '+what+' type ('+typeCode(ts,kind)+')')));
+  card.append(photoStrip(wh));
   return card;
 }
 function deapLinesEl(){
@@ -1492,7 +1571,7 @@ function mainTypeFields(s){
   return out;
 }
 // site photos ride along in the transfer file so the extension can upload them to DEAP's Evidence screen
-function transferPhotos(s){const seen={};return (s.images||[]).map((m,i)=>{let nm=(m.cap||'Photo '+(i+1)).replace(/[\\/:*?"<>|]+/g,'-').trim()||'Photo '+(i+1);seen[nm]=(seen[nm]||0)+1;if(seen[nm]>1)nm+=' '+seen[nm];return {name:nm+'.jpg',cap:m.cap||'',type:'image/jpeg',data:imgGet(m.id)}}).filter(p=>p.data)}
+function transferPhotos(s){const seen={};imgMigrate(s);return imgOrder(s).map(m=>{const i=s.images.indexOf(m),lb=imgLabel(m,i);let nm=lb.replace(/[\\/:*?"<>|]+/g,'-').trim()||'Photo '+(i+1);seen[nm]=(seen[nm]||0)+1;if(seen[nm]>1)nm+=' '+seen[nm];return {name:nm+'.jpg',cap:lb,type:'image/jpeg',data:imgGet(m.id)}}).filter(p=>p.data)}
 function transferName(s){return ('DEAP transfer - '+(s.name||'Untitled')).replace(/[\\/:*?"<>|]+/g,'-')+'.json'}
 async function shareTransfer(s){
   const x=deapExport(s);if(s.xferPhotos!==false){const ph=transferPhotos(s);if(ph.length)x.photos=ph}
