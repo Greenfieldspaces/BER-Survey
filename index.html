@@ -1191,7 +1191,7 @@ function photoFig(m,i){
 // thumbnails under a card, only when it has photos
 function photoStrip(where){
   const s=cur(),ims=(s.images||[]).filter(m=>sameSpot(m,where));
-  if(!ims.length)return null;
+  if(!ims.length)return '';// '' not null: card.append(null) shows the word "null"
   return el('div',{class:'pstrip'},ims.map(m=>photoFig(m,s.images.indexOf(m))));
 }
 function viewImage(m,i){
