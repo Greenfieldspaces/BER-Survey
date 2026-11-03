@@ -559,7 +559,7 @@
     const r = e.target.closest && e.target.closest(LIBROWS);
     if (r && d.contains(r) && !r.closest('thead') && !r.matches('.mat-mdc-header-row,mat-header-row')) lastLib = clean(textOf(r)).slice(0, 160);
   }, true);
-  async function libPick(want, min, exact) {
+  async function libPick(want, min, exact, unique) {
     const d = topDialog(); if (!d) return { error: 'No dialog' };
     let rows = [];
     for (let t = 0; t < 20; t++) {
@@ -575,6 +575,8 @@
       : r => { const R = new Set(toks(textOf(r))); return W.length ? W.filter(w => R.has(w)).length / W.length : 0 };
     let bi = 0, bs = -1; rows.forEach((r, i) => { const v = score(r); if (v > bs) { bs = v; bi = i } });
     if (bs < (min ?? 0.5)) return { error: 'No close match', best: clean(textOf(rows[bi])).slice(0, 120), rows: rows.length };
+    // on the common items list a short word like "electric" can fit more than one row: only take it when one row fits best
+    if (unique && rows.filter(r => score(r) === bs).length > 1) return { error: 'More than one row fits', rows: rows.length };
     const row = rows[bi], pickText = clean(textOf(row)).slice(0, 160);
     const box = row.querySelector('input[type=radio],input[type=checkbox],mat-radio-button,mat-checkbox');
     (box || row).click();
@@ -601,7 +603,7 @@
     if (msg.cmd === 'errors') { reply(dialogErrors()); return }
     if (msg.cmd === 'libsearch') { libSearch(msg.text).then(reply); return true }
     if (msg.cmd === 'liblast') { reply({ picked: lastLib }); if (msg.reset) lastLib = null; return }
-    if (msg.cmd === 'libpick') { libPick(msg.text, msg.min, msg.exact).then(reply, e => reply({ error: String(e.message || e) })); return true }
+    if (msg.cmd === 'libpick') { libPick(msg.text, msg.min, msg.exact, msg.unique).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'evidence') { reply(evidenceCount()); return }
     if (msg.cmd === 'upload') { reply(upload(msg.file)); return }
     if (msg.cmd === 'has') { reply({ n: (msg.selectors || []).filter(q => { try { return bySelector(q, null).some(e => visible(e) || e.type === 'checkbox' || e.type === 'radio') } catch (e) { return false } }).length }); return }

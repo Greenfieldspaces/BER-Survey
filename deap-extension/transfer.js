@@ -71,9 +71,11 @@ function synthTables() {
   const vent = [['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0).map(([k, q]) => [q, String(n('vent.' + k))]);
   tbl('vent.items', 'Ventilation items', [['search', 'Library search'], ['n', 'Number of items']], vent);
   const wsc = st.survey.screens.find(x => x.id === 'water'), sh = wsc && wsc.tables.find(t => t.key === 'water.showers'), wet = [];
-  if (sh) { const ti = sh.columns.findIndex(c => c.key === 'type'); sh.rows.forEach(r => wet.push([(r[ti] || '').replace(/ \/.*$/, '') + ' shower', '1'])) }
-  if (n('water.baths') > 0) wet.push(['bath', String(n('water.baths'))]);
-  tbl('water.wet', 'Showers and baths', [['search', 'Library search'], ['n', 'Number of items']], wet);
+  // the word that picks each one from DEAP's common items
+  const shWord = ty => /electric/i.test(ty) ? 'electric' : /mains|unvented/i.test(ty) ? 'unvented' : /pump|power/i.test(ty) ? 'pumped' : /vented/i.test(ty) ? 'vented' : '';
+  if (sh) { const ti = sh.columns.findIndex(c => c.key === 'type'); sh.rows.forEach(r => wet.push([(r[ti] || '').replace(/ \/.*$/, '') + ' shower', '1', shWord(r[ti] || '')])) }
+  if (n('water.baths') > 0) wet.push(['bath', String(n('water.baths')), 'bath']);
+  tbl('water.wet', 'Showers and baths', [['search', 'Library search'], ['n', 'Number of items'], ['common', 'Common item']], wet);
   if (yes('water.solar')) tbl('water.collector', 'Solar collector', [['search', 'Library search'], ['aper', 'Aperture area'], ['orient', 'Orientation'], ['tilt', 'Tilt'], ['shade', 'Overshading']], [[v('water.smodel') || v('water.coll') || 'solar', v('water.aper'), v('water.sorient'), v('water.spitch'), v('water.sshade')]]);
   return out;
 }
@@ -206,7 +208,6 @@ async function addItems(step, t) {
     }
     if (m.library && /library/i.test(s.dialog)) {
       const si = t.columns.findIndex(c => c.key === 'search'), phrase = si >= 0 ? t.rows[ri][si] : '';
-      if (phrase) { await pause(500); await send({ cmd: 'libsearch', text: phrase }); await pause(1500) }
       const desc = t.rows[ri].filter(Boolean).slice(0, 5).join(', ');
       // try the best matching library row first; hand over to the person only when nothing matches well
       const ei = t.columns.findIndex(c => c.key === 'exact'), wi = t.columns.findIndex(c => c.key === 'want'), want = wi >= 0 && t.rows[ri][wi] || phrase;
@@ -218,6 +219,13 @@ async function addItems(step, t) {
         if (r && r.error && !r.picked) { await send({ cmd: 'libsearch', text: rm.picked.split(' ').slice(0, 4).join(' ') }); await pause(1500); r = await send({ cmd: 'libpick', text: rm.picked, min: 0.85, exact: true }) }
         if (r && r.ok && await waitState(x => !x.dialog || !/library/i.test(x.dialog), 6000)) { rm.n = (rm.n || 0) + 1; rm.at = Date.now(); memSave(); tx.memUsed.push({ key: mk, what: label, said: want, picked: rm.picked }); pk = { ok: true, picked: rm.picked, fromMemory: true } }
       }
+      // items DEAP lists under COMMON ITEMS (showers, baths, chimneys, fans) are picked straight from that list, no search
+      if (!pk && m.common && tx.library === 'pick') {
+        await send({ cmd: 'press', text: 'COMMON ITEMS', inDialog: true }); await pause(1000);
+        const ci = t.columns.findIndex(c => c.key === 'common'), words = [...new Set([want, ci >= 0 && t.rows[ri][ci]].filter(Boolean))];
+        for (const w of words) { const r = await send({ cmd: 'libpick', text: w, min: 1, unique: true }); if (r && r.ok) { pk = r; break } }
+      }
+      if (!pk && phrase) { await pause(500); await send({ cmd: 'libsearch', text: phrase }); await pause(1500) }
       if (!pk) pk = phrase && tx.library === 'pick' && (m.autopick !== false || ei >= 0 && t.rows[ri][ei] === '1') ? await send({ cmd: 'libpick', text: want, min: m.autopickMin }) : null;
       let got = false;
       if (pk && pk.fromMemory) got = true;

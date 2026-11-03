@@ -835,7 +835,8 @@
     "vent.items": {
       "dialog": true,
       "add": "ADD VENTILATION ITEM",
-      "library": true
+      "library": true,
+      "common": true
     },
     "vent.items.search": {
       "skip": true
@@ -851,7 +852,8 @@
     "water.wet": {
       "dialog": true,
       "add": "ADD SHOWERS & BATHS",
-      "library": true
+      "library": true,
+      "common": true
     },
     "water.wet.search": {
       "skip": true
@@ -933,6 +935,9 @@
     },
     "water.storetype": {
       "selector": "mat-select[name=\"WaterStorageID\"]"
+    },
+    "water.wet.common": {
+      "skip": true
     }
   },
   "transfer": [
