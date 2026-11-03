@@ -450,7 +450,7 @@ const f2=v=>(Math.round(v*100)/100).toFixed(2);
 
 function blankWall(o){return Object.assign({id:uid(),name:'',orient:'S',type:DEFAULT_TYPES[0],shape:'rect',L:'',H:'',apex:'',area:'',ops:[]},o||{})}
 function blankOp(kind,o){return Object.assign({id:uid(),kind:kind,name:'',a:'',qty:'1'},o||{})}
-function newSurvey(name){return {id:uid(),name:name||'New survey',created:Date.now(),types:DEFAULT_TYPES.slice(),walls:[blankWall({name:'Front'})],data:{}}}
+function newSurvey(name){return {id:uid(),name:name||'New survey',created:Date.now(),types:DEFAULT_TYPES.slice(),walls:[],data:{}}}
 function exampleSurvey(){
   const s=newSurvey('Example: 2-storey semi');
   s.example=true;
@@ -466,8 +466,9 @@ function exampleSurvey(){
 }
 
 let db;
-function load(){
-  try{db=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){db=null}
+function load(raw){
+  if(raw===undefined){try{raw=localStorage.getItem(KEY)}catch(e){raw=null}}
+  try{db=JSON.parse(raw||'null')}catch(e){db=null}
   if(!db||!db.surveys||!Object.keys(db.surveys).length){const s=exampleSurvey();db={surveys:{[s.id]:s},current:s.id,tab:'walls'}}
   if(!db.surveys[db.current])db.current=Object.keys(db.surveys)[0];
   Object.values(db.surveys).forEach(s=>{s.data=s.data||{};delete s.dwelling;const d=s.data;
@@ -478,13 +479,21 @@ function load(){
     if(d.water&&d.water.src==='Combi boiler'){d.water.src='Same as main space heating';d.water.combi='Yes'}
     if(d.details&&d.details.extyear&&!d.details.ext)d.details.ext='Yes';
     if(s.types&&!s.types.includes('Unknown'))s.types.push('Unknown');
+    // new surveys used to start with an empty wall-by-wall line ("Front"), which showed as an older survey and hid the floor cards
+    if(Array.isArray(s.walls))s.walls=s.walls.filter(w=>w.level||w.shape==='tri'||w.rir||['L','H','area','apex'].some(k=>hasVal(w[k]))||(w.ops||[]).length);
     migrateOps(s)});
   if(db.tab==='walls'){db.tab='building';db.sub='walls'}
   if(!SECTIONS.some(x=>x.id===db.tab))db.tab='details';
   db.sub=db.sub||'dims';
 }
 let saveT;
-function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){toast('Could not save on this device')}},250)}
+// the surveys are saved twice: in localStorage, and in IndexedDB (much more room) as a second copy.
+// On opening, whichever copy is newer wins, so a full localStorage can't lose typed work.
+let savedSinceBoot=false;
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>{savedSinceBoot=true;db.savedAt=Date.now();const j=JSON.stringify(db);let ok=false;
+  try{localStorage.setItem(KEY,j);ok=true}catch(e){}
+  const done=ok2=>{if(!ok&&!ok2)toast('Could not save on this device. Go to Backup and copy this survey now')};
+  if(IDB.db)idbReq('kv','readwrite',st=>st.put(j,'db')).then(()=>done(true),()=>done(false));else done(false)},250)}
 const cur=()=>db.surveys[db.current];
 
 // ---- geometry ----
@@ -1104,10 +1113,43 @@ function renderLeave(){
 }
 
 // ---- sketches & photos: resized JPEGs, each in its own storage slot so typing doesn't rewrite them ----
+// Photos are kept in IndexedDB, which on an iPad has hundreds of MB. They used to be in localStorage
+// (about 5 MB on Safari, shared with the surveys), which filled up after about ten photos.
+// On opening, photos still in localStorage are copied across, checked, and only then removed from localStorage.
+// The open survey's photos are held in memory so every screen can show them straight away.
 const IMGK=id=>'ber-img-'+id;
-const imgGet=id=>{try{return localStorage.getItem(IMGK(id))}catch(e){return null}};
-const imgSet=(id,d)=>{try{localStorage.setItem(IMGK(id),d);return true}catch(e){return false}};
-const imgDel=id=>{try{localStorage.removeItem(IMGK(id))}catch(e){}};
+const imgCache=new Map(),imgMissing=new Set();let imgLoading=null;
+const imgGet=id=>{if(imgCache.has(id))return imgCache.get(id);try{return localStorage.getItem(IMGK(id))}catch(e){return null}};
+function imgPut(id,d){
+  if(!IDB.db){try{localStorage.setItem(IMGK(id),d);return Promise.resolve(true)}catch(e){return Promise.resolve(false)}}
+  imgCache.set(id,d);imgMissing.delete(id);
+  return idbReq('images','readwrite',st=>st.put(d,id)).then(()=>true,()=>{imgCache.delete(id);return false});
+}
+const imgDel=id=>{imgCache.delete(id);try{localStorage.removeItem(IMGK(id))}catch(e){}if(IDB.db)idbReq('images','readwrite',st=>st.delete(id)).catch(()=>{})};
+// load the open survey's photos into memory; photos of other surveys are let go
+async function imgEnsure(s){
+  if(!IDB.db)return;
+  const want=new Set((s.images||[]).map(m=>m.id));
+  for(const k of [...imgCache.keys()])if(!want.has(k))imgCache.delete(k);
+  const need=[...want].filter(id=>!imgCache.has(id)&&!imgMissing.has(id));
+  if(!need.length)return;
+  const got={};
+  await idbReq('images','readonly',st=>{need.forEach(id=>{const q=st.get(id);q.onsuccess=()=>{got[id]=q.result}})});
+  need.forEach(id=>{if(got[id])imgCache.set(id,got[id]);else if(imgGet(id)==null)imgMissing.add(id)});
+}
+function imgCheck(){
+  const s=cur();if(!IDB.db||imgLoading)return;
+  if((s.images||[]).some(m=>!imgCache.has(m.id)&&!imgMissing.has(m.id)))imgLoading=imgEnsure(s).catch(()=>{}).then(()=>{imgLoading=null;render()});
+}
+async function imgMoveFromLocal(){
+  const keys=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('ber-img-'))keys.push(k)}
+  let moved=0;
+  for(const k of keys){try{const d=localStorage.getItem(k),id=k.slice(8);if(!d)continue;
+    await idbReq('images','readwrite',st=>st.put(d,id));
+    const back=await idbReq('images','readonly',st=>st.get(id));
+    if(back===d){localStorage.removeItem(k);moved++}}catch(e){}}
+  return moved;
+}
 function shrink(file){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=rej;r.onload=()=>{const im=new Image();im.onerror=rej;im.onload=()=>{const k=Math.min(1,1600/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.72))};im.src=r.result};r.readAsDataURL(file)})}
 // a photo taken from a section card remembers where: sec (tab), sub (Building sub-tab), grp (card title).
 // Its full name, e.g. "Space heating - Boiler nameplate", is used in the report and as the DEAP evidence file name.
@@ -1124,9 +1166,9 @@ async function addImages(files,cap,where){
   const s=cur();s.images=s.images||[];let fail=0;
   for(const f of files){try{const d=await shrink(f);const id=uid();
     let c=cap||'';if(where){const k=s.images.filter(m=>sameSpot(m,where)&&String(m.cap||'').replace(/ \d+$/,'')===c).length;if(k)c+=' '+(k+1)}
-    if(imgSet(id,d))s.images.push(Object.assign({id,cap:c},where||{}));else fail++}catch(e){fail++}}
+    if(await imgPut(id,d))s.images.push(Object.assign({id,cap:c},where||{}));else fail++}catch(e){fail++}}
   save();render();
-  if(fail)toast('Storage is full on this device. Delete old surveys or photos to add more');else toast(files.length>1?files.length+' images added':'Image added');
+  if(fail)toast(fail>1?fail+' photos could not be saved on this device':'The photo could not be saved on this device');else toast(files.length>1?files.length+' images added':'Image added');
 }
 async function copyImage(id){
   try{const d=imgGet(id);const im=new Image();im.src=d;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);
@@ -1143,7 +1185,7 @@ function camBtn(where,base){
 function camHead(h3,where,base){return el('div',{class:'camhd'},h3,...camBtn(where,base))}
 function photoFig(m,i){
   const s=cur(),d=imgGet(m.id);
-  const th=el('button',{class:'pth','aria-label':'View '+imgLabel(m,i),onclick:()=>viewImage(m,i)},d?el('img',{src:d,alt:''}):el('span',{class:'muted',style:'font-size:12px;padding:4px'},'Missing on this device'));
+  const th=el('button',{class:'pth','aria-label':'View '+imgLabel(m,i),onclick:()=>viewImage(m,i)},d?el('img',{src:d,alt:''}):el('span',{class:'muted',style:'font-size:12px;padding:4px'},imgLoading?'Loading…':'Missing on this device'));
   return el('figure',{class:'pfig'},th,el('input',{id:'cap-'+m.id,value:m.cap||'',placeholder:m.sec?'Photo':'Sketch '+(i+1),'aria-label':'Name for this photo',oninput:e=>{m.cap=e.target.value;save()}}));
 }
 // thumbnails under a card, only when it has photos
@@ -1191,7 +1233,10 @@ function renderBackup(){
   const inp=el('textarea',{id:'bkIn',placeholder:'Paste a backup here'});
   const msg=el('p',{class:'note',style:'margin:0'});
   box.append(el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Restore a survey'),inp,
-    el('div',{class:'row'},el('button',{class:'btn',onclick:()=>{try{const d=JSON.parse(inp.value);if(!d||!Array.isArray(d.walls))throw 0;d.id=uid();d.created=Date.now();d.types=d.types||DEFAULT_TYPES.slice();d.data=d.data||{};migrateOps(d);if(d.imageData){(d.images||[]).forEach(m=>{const nid=uid();if(d.imageData[m.id]&&imgSet(nid,d.imageData[m.id]))m.id=nid});delete d.imageData}db.surveys[d.id]=d;db.current=d.id;db.tab='details';save();render();toast('Survey restored')}catch(e){msg.textContent='That text is not a survey backup. Paste the whole backup, starting with {'}}},'Restore as new survey')),msg));
+    el('div',{class:'row'},el('button',{class:'btn',onclick:async()=>{let d;try{d=JSON.parse(inp.value);if(!d||!Array.isArray(d.walls))throw 0}catch(e){msg.textContent='That text is not a survey backup. Paste the whole backup, starting with {';return}
+      d.id=uid();d.created=Date.now();d.types=d.types||DEFAULT_TYPES.slice();d.data=d.data||{};migrateOps(d);let fail=0;
+      if(d.imageData){for(const m of d.images||[]){const nid=uid();if(d.imageData[m.id]){if(await imgPut(nid,d.imageData[m.id]))m.id=nid;else fail++}}delete d.imageData}
+      db.surveys[d.id]=d;db.current=d.id;db.tab='details';save();render();toast(fail?'Survey restored, but '+fail+' photos could not be saved':'Survey restored')}},'Restore as new survey')),msg));
   box.append(el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Delete this survey'),el('p',{class:'note',style:'margin:0'},'Removes "'+(s.name||'Untitled')+'" from this device.'),
     el('div',{class:'row'},armButton('Delete survey',()=>{(s.images||[]).forEach(m=>imgDel(m.id));delete db.surveys[s.id];if(!Object.keys(db.surveys).length){const n2=newSurvey();db.surveys[n2.id]=n2}db.current=Object.keys(db.surveys)[0];db.tab='details';save();render()}))));
   return box;
@@ -1285,7 +1330,7 @@ function groupsEl(groups,key){
     const where=camWhere(key,g.title),h=el('h3',null,g.title);
     const card=el('section',{class:'group'},where?camHead(h,where,()=>camName(g,d)):h);
     if(g.hint)card.append(el('p',{class:'hint',style:'margin:0'},g.hint));
-    card.append(grid);if(where)card.append(photoStrip(where));box.append(card);
+    card.append(grid);const ps=where&&photoStrip(where);if(ps)card.append(ps);box.append(card);
   });
   return box;
 }
@@ -1643,11 +1688,30 @@ function render(){
   const tabs=$('#tabs'),at=tabs.querySelector('.tab[aria-selected=true]');
   tabs.scrollLeft=tl;
   if(at&&(at.offsetLeft<tabs.scrollLeft||at.offsetLeft+at.offsetWidth>tabs.scrollLeft+tabs.clientWidth))tabs.scrollLeft=at.offsetLeft-16;
+  imgCheck();
   const view=db.tab==='leave'?renderLeave():db.tab==='summary'?renderSummary():db.tab==='entry'?renderEntry():db.tab==='backup'?renderBackup():renderSection(SECTIONS.find(x=>x.id===db.tab));
   $('#main').replaceChildren(view);
   if(scrollY!==y)scrollTo(0,y);
 }
-load();save();render();
+// open: show the surveys straight away from localStorage, then switch on IndexedDB,
+// move any photos across, and use its copy of the surveys if it is newer
+const IDB={db:null};
+function idbOpen(){return new Promise((res,rej)=>{if(!window.indexedDB)return rej(new Error('no indexedDB'));const r=indexedDB.open('ber-survey',1);
+  r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('images'))d.createObjectStore('images');if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv')};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('blocked'));setTimeout(()=>rej(new Error('timeout')),5000)})}
+function idbReq(store,mode,fn){return new Promise((res,rej)=>{const t=IDB.db.transaction(store,mode),st=t.objectStore(store);let out;const q=fn(st);if(q)q.onsuccess=()=>{out=q.result};t.oncomplete=()=>res(out);t.onerror=t.onabort=()=>rej(t.error||new Error('IndexedDB'))})}
+const stamp=raw=>{try{return (JSON.parse(raw)||{}).savedAt||0}catch(e){return 0}};
+load();render();
+(async()=>{
+  try{IDB.db=await idbOpen()}catch(e){return}
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{})}catch(e){}
+  const moved=await imgMoveFromLocal();
+  let ls=null;try{ls=localStorage.getItem(KEY)}catch(e){}
+  try{const kv=await idbReq('kv','readonly',st=>st.get('db'));if(kv&&!savedSinceBoot&&stamp(kv)>stamp(ls))load(kv)}catch(e){}
+  try{await imgEnsure(cur())}catch(e){}
+  save();render();
+  if(moved)toast('Photos moved to roomier storage on this device');
+})();
 })();
 </script>
 
