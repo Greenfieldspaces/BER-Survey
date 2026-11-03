@@ -930,6 +930,9 @@
     },
     "dims.floors.inroof": {
       "selector": "input[name=\"InRoof\"]"
+    },
+    "water.storetype": {
+      "selector": "mat-select[name=\"WaterStorageID\"]"
     }
   },
   "transfer": [
@@ -1071,6 +1074,7 @@
       "path": "water-heating/options",
       "screen": "water",
       "fields": [
+        "water.storetype",
         "water.storeloss",
         "water.indoors",
         "water.distloss",

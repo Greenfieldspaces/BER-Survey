@@ -49,6 +49,7 @@ function synthFields() {
   if (yes('water.cyl') || v('water.primins')) {
     const ins = /all accessible|fully/i.test(v('water.primins')), stat = yes('water.cylstat');
     const elec = /immersion only|instantaneous/i.test(v('water.src'));
+    put('water.storetype', 'Storage type', elec ? 'Cylinder, direct' : /heat pump/i.test(v('heat.src')) ? 'Cylinder, heat pump' : 'Cylinder, indirect');
     put('water.primtype', 'Primary circuit loss type', elec ? 'Electric immersion heater' : 'Boiler / heat pump with ' + (ins ? 'insulated' : 'uninsulated') + ' primary pipework and ' + (stat ? 'with' : 'no') + ' cylinder thermostat');
   }
   if (v('gen.battery')) put('gen.battery_yes', 'Is a battery present?', parseFloat(v('gen.battery')) > 0 ? 'Yes' : 'No');
@@ -135,6 +136,15 @@ async function goTo(step) {
   const ok = await waitState(s => s.path.endsWith('/' + step.path) && !s.dialog, 15000);
   if (!ok) throw new Error('Could not open ' + step.name + ' in DEAP');
   await pause(1500); // let DEAP draw the screen
+  // a big assessment can take DEAP several seconds to draw its boxes, so wait until the first ones show up
+  const sels = (step.fields || []).map(f => (step.mapping[f.key] || {}).selector).filter(Boolean).slice(0, 3);
+  if (!sels.length) return;
+  const end = Date.now() + 20000;
+  while (Date.now() < end) {
+    if (tx.stop) throw new Error('Stopped');
+    try { const r = await send({ cmd: 'has', selectors: sels }); if (r && r.n) { await pause(500); return } } catch (e) { }
+    await pause(500);
+  }
 }
 
 async function fillOn(step, payload) {
@@ -189,6 +199,11 @@ async function addItems(step, t) {
     if (pr && pr.error) throw new Error(pr.disabled ? m.add + ' is greyed out in DEAP' : 'Could not find ' + m.add + ' in DEAP' + (pr.seen && pr.seen.length ? ' (buttons seen: ' + pr.seen.join(', ') + ')' : ' (no ADD buttons seen)'));
     let s = await waitState(x => !!x.dialog, 8000);
     if (!s) throw new Error(m.add + ' did not open a dialog');
+    if (s.notice) {
+      // DEAP refused with a message (e.g. heating system properties not complete): close it and stop this step with DEAP's words
+      await pause(400); s = await send({ cmd: 'state' });
+      if (s.notice) { await send({ cmd: 'press', text: 'OK', inDialog: true }); await waitState(x => !x.dialog, 3000); throw new Error('DEAP says: ' + s.notice) }
+    }
     if (m.library && /library/i.test(s.dialog)) {
       const si = t.columns.findIndex(c => c.key === 'search'), phrase = si >= 0 ? t.rows[ri][si] : '';
       if (phrase) { await pause(500); await send({ cmd: 'libsearch', text: phrase }); await pause(1500) }
@@ -311,10 +326,31 @@ async function runTransfer() {
           setStep(step, 'running', 'Filling');
           let res = await fillOn(step, { fields: step.fields, tables: step.flat });
           // ticking a box or picking a type can show more DEAP fields, so go over the screen once more
-          if (res.some(x => x.status === 'nomatch')) { await pause(1200); const again = await fillOn(step, { fields: step.fields.filter(f => res.some(x => x.key === f.key && x.status === 'nomatch')), tables: [] }); res = res.filter(x => !(x.status === 'nomatch' && again.some(y => y.key === x.key))).concat(again) }
+          // choices unlock other boxes (storage type unlocks cylinder thickness), so go over what did not stick, up to twice
+          // keep going while each pass sets something new (category, then sub category, then sub category 2, then heating system)
+          for (let pass = 0; pass < 6; pass++) {
+            const redo = step.fields.filter(f => res.some(x => x.key === f.key && !/^(same|skipped|filled)$/.test(x.status)));
+            // table boxes too: DEAP only shows a height box per storey once Number of Storeys is in
+            const tredo = step.flat.filter(t => res.some(x => x.key.startsWith(t.key) && /^(nomatch|norow)$/.test(x.status)));
+            if (!redo.length && !tredo.length) break;
+            await pause(pass ? 1500 : 1200);
+            const again = await fillOn(step, { fields: redo, tables: tredo });
+            const tk = again.filter(y => tredo.some(t => y.key.startsWith(t.key)));
+            res = res.filter(x => !again.some(y => y.key === x.key) && !(tk.length && tredo.some(t => x.key.startsWith(t.key)))).concat(again);
+            if (pass && !again.some(y => /^(same|filled)$/.test(y.status))) break;
+          }
+          // a box that was filled on an early pass can be wiped when a later choice redraws the screen, so check it once more
+          const chk = step.fields.filter(f => res.some(x => x.key === f.key && x.status === 'filled'));
+          if (chk.length) {
+            await pause(800);
+            const back = await fillOn(step, { fields: chk, tables: [] });
+            res = res.map(x => { const y = back.find(b => b.key === x.key); return y && y.status !== 'same' ? y : x });
+          }
           results[step.screen] = res;
-          tx.report.push({ step: step.name, results: res.map(x => Object.assign({ label: (step.fields.find(q => q.key === x.key) || {}).label || x.key }, x)) });
+          tx.report.push({ step: step.name, results: res.map(x => { const t = x.row != null && step.flat.find(q => q.key === x.key), c = t && t.columns.find(q => q.key === x.col); return Object.assign({ label: (step.fields.find(q => q.key === x.key) || {}).label || (t ? t.title + ' ' + (x.row + 1) + (c ? ', ' + c.label : '') : x.key) }, x) }) });
           res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => { const f = step.fields.find(q => q.key === x.key); tx.log.push(step.name + ': ' + (f ? f.label + ' ' + f.value : x.key) + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')) });
+          const miss = res.filter(x => !/filled|same|skipped/.test(x.status)).length;
+          if (miss) step.missed = miss;
           await pause(1500); // DEAP saves these screens itself
         }
         for (const t of step.dlg) {
@@ -323,7 +359,7 @@ async function runTransfer() {
           if ((step.mapping[t.key] || {}).library && tx.library === 'list') { libraryList(step, t); continue }
           await addItems(step, t);
         }
-        setStep(step, 'done', '');
+        setStep(step, step.missed ? 'partial' : 'done', step.missed ? step.missed + ' left for you, see the run report' : '');
       } catch (e) {
         if (tx.stop) { setStep(step, 'stopped', ''); break }
         setStep(step, 'failed', String(e.message || e));
@@ -369,7 +405,7 @@ function transferCard() {
   if (!tx.running) card.append(h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: tx.overwrite, onchange: e => { tx.overwrite = e.target.checked } }), 'Replace values already in DEAP (untick to keep what DEAP has)'));
   const list = h('div', { class: 'steps2' });
   steps.forEach(s => {
-    const icon = { todo: '○', running: '◐', done: '✓', failed: '!', stopped: '■' }[s.status] || '○';
+    const icon = { todo: '○', running: '◐', done: '✓', partial: '!', failed: '!', stopped: '■' }[s.status] || '○';
     const extra = [s.fields.length ? s.fields.length + ' values' : '', s.items ? s.items + ' to add' : ''].filter(Boolean).join(' · ');
     list.append(h('label', { class: 'step ' + s.status },
       tx.running || tx.steps.length ? h('span', { class: 'ic' }, icon) : h('input', { type: 'checkbox', checked: tx.included[s.name] !== false, onchange: e => { tx.included[s.name] = e.target.checked } }),
