@@ -165,13 +165,17 @@ async function pressWait(text, inDialog, ms) {
   }
 }
 const after = (txt, t, ri) => txt.replace(/\{(\w+)\}/g, (_, k) => t.rows[ri][t.columns.findIndex(c => c.key === k)] || '?');
+const MAKERS = ['Glow-worm', 'Worcester Bosch', 'Worcester', 'Ideal', 'Vaillant', 'Baxi', 'Potterton', 'Alpha', 'Viessmann', 'Ferroli', 'Ariston', 'Navien', 'Intergas', 'Firebird', 'Grant', 'Warmflow', 'Boulter', 'Mitsubishi Electric', 'Mitsubishi', 'Daikin', 'Samsung', 'Panasonic', 'Nibe', 'Dimplex', 'Stokvis', 'Remeha', 'Saunier Duval', 'Main', 'Halstead', 'Biasi', 'Vokera', 'Keston', 'Atag', 'Riello', 'Thermecon', 'Mistral', 'HRM', 'Stanley', 'Waterford Stanley', 'Rayburn', 'Aga', 'Stovax', 'Henley', 'Mullberry', 'Solid Fuel'];
 async function newLibraryItem(step, t, ri, m, col, what) {
   const r = await pressWait('ADD NEW ITEM TO LIBRARY', true, 3000);
   if (r && r.error) return false;
   if (!await waitState(x => /library item/i.test(x.dialog || ''), 6000)) return false;
   await pause(800);
   const make = col('make').trim(), sp = make.indexOf(' ');
-  const vals = { type: m.newItem.type, name: make, maker: sp > 0 ? make.slice(0, sp) : make, model: sp > 0 ? make.slice(sp + 1) : '', htype: col('htype'), eff: col('eff') };
+  // makers whose name is more than one word (or hyphenated) are split by name, not at the first space
+  const known = MAKERS.find(k => new RegExp('^' + k.replace(/[- ]/g, '[- ]?') + '\\b', 'i').test(make));
+  const maker = known || (sp > 0 ? make.slice(0, sp) : make), model = known ? make.replace(new RegExp('^' + known.replace(/[- ]/g, '[- ]?'), 'i'), '').trim() : sp > 0 ? make.slice(sp + 1) : '';
+  const vals = { type: m.newItem.type, name: make, maker, model, htype: col('htype'), eff: col('eff') };
   const fields = Object.keys(m.newItem.fields).filter(k => vals[k]).map(k => ({ key: 'newitem.' + k, label: k, value: vals[k] }));
   const mapping = {}; Object.entries(m.newItem.fields).forEach(([k, sel]) => mapping['newitem.' + k] = { selector: sel });
   let res = (await send({ cmd: 'fill', scope: 'dialog', options: { overwrite: true, scroll: false }, mapping, fields, tables: [] })).results || [];

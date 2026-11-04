@@ -415,9 +415,7 @@
       "skip": true
     },
     "heat.inside": {
-      "labels": [
-        "Boiler in heated space"
-      ]
+      "skip": true
     },
     "heat.flow": {
       "labels": [

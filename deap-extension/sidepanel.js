@@ -87,6 +87,14 @@ function job(sc) {
     if (Array.isArray(f.value)) f.value.forEach(o => fields.push({ key: f.key + '.' + slug(o), label: o, value: 'Yes', parent: f.label }));
     else fields.push({ key: f.key, label: f.label, value: f.value });
   });
+  // DEAP splits Dublin into postal districts (Dublin 1 to 24, Dublin 6W) and Co. Dublin; the Eircode routing key says which
+  if (sc.id === 'details') {
+    const cf = fields.find(f => f.key === 'details.county'), ec = String((fields.find(f => f.key === 'details.eircode') || {}).value || '').toUpperCase().replace(/\s+/g, '');
+    if (cf && /dublin/i.test(cf.value) && !/\d/.test(cf.value)) {
+      const m = /^D(\d{2})/.exec(ec);
+      cf.value = /^D6W/.test(ec) ? 'Dublin 6W' : m ? 'Dublin ' + parseInt(m[1], 10) : 'Co. Dublin';
+    }
+  }
   const grouped = sc.fields.filter(f => f.group);
   if (grouped.length) {
     const groups = [...new Set(grouped.map(f => f.group))], cols = [{ key: 'name', label: 'Description' }];
