@@ -126,7 +126,7 @@ function job(sc) {
           const hl = t.rows.filter(r => col(t, r, 'loc') === loc).reduce((a, r) => a + (parseFloat(col(t, r, 'area')) || 0), 0);
           const rest = Math.round((area - hl) * 100) / 100;
           if (rest < 0.5) return;
-          const v = { part: sr[li] || loc, type: 'Non-Heat Loss Floor', area: String(rest), name: (sr[li] || loc) + ' (not heat loss)', loc, year: dwellingYear(), inroof: 'No' };
+          const v = { part: sr[li] || loc, type: 'Non-Heat Loss Floor', area: String(rest), name: (sr[li] || loc) + ' (not heat loss)', loc, year: dwellingYear(), inroof: '' };
           t.rows.push(t.columns.map(c => v[c.key] || ''));
         });
       }
@@ -154,7 +154,9 @@ function job(sc) {
     }
     if (t.key === 'openings.windows-for-deap') {
       add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
-      const sh = surveyValue('openings', 'openings.shading'); if (sh) add(t, 'shading', 'Overshading', () => sh);
+      // DEAP will not save a window without overshading and overhang, so use its usual defaults when the survey has none
+      const sh = surveyValue('openings', 'openings.shading'); add(t, 'shading', 'Overshading', () => sh || 'Average or Unknown');
+      add(t, 'overhang', 'Overhang', () => 'None');
       add(t, 'search', 'Library search', r => col(t, r, 'glazing'));
       add(t, 'want', 'Library match', r => [col(t, r, 'glazing'), col(t, r, 'frame')].filter(Boolean).join(' '));
     }

@@ -495,10 +495,7 @@
       "selector": "input[name=\"ElecImmersionInSummer\"]"
     },
     "water.imm": {
-      "labels": [
-        "Immersion",
-        "Immersion type"
-      ]
+      "skip": true
     },
     "water.cyl": {
       "skip": true
@@ -938,6 +935,9 @@
     },
     "water.wet.common": {
       "skip": true
+    },
+    "openings.windows-for-deap.overhang": {
+      "selector": "mat-select[name=\"OverhangID\"]"
     }
   },
   "transfer": [

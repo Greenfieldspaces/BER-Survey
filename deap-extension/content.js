@@ -250,7 +250,7 @@
       opts[i].click();
       await sleep(350); // DEAP loads the next dropdown's choices from this one
       const now = clean(c.kind === 'comboinput' ? el.value : textOf(el));
-      if (c.kind === 'combo' && now && !same(now, texts[i]) && sim(now, texts[i]) < 0.8) return { status: 'error', detail: 'DEAP did not keep "' + clean(texts[i]) + '"' };
+      if (c.kind === 'combo' && !same(now, texts[i]) && (!now || sim(now, texts[i]) < 0.8)) return { status: 'error', detail: 'DEAP did not keep "' + clean(texts[i]) + '"' };
       return { status: 'filled' };
     }
     return { status: 'error', detail: 'Unknown field type' };

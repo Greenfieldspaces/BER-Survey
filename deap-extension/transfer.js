@@ -103,7 +103,7 @@ function transferSteps() {
   if (ph.length) steps.push({ name: 'Evidence photos', path: 'evidence', kind: 'evidence', screen: null, fields: [], flat: [], dlg: [], mapping: {}, items: ph.length, status: 'todo', note: '' });
   // anything the survey holds that no DEAP screen above takes: listed for doing by hand
   const used = new Set(steps.flatMap(s => s.fields.map(f => f.key)).concat(pool.filter(f => synthTables.uses.test(f.key)).map(f => f.key)));
-  transferSteps.left = pool.filter(f => !used.has(f.key) && f.screen && !(fullMap([f.key])[f.key] || {}).skip && !/\.calc\.|^heat\.controls/.test(f.key));
+  transferSteps.left = pool.filter(f => !used.has(f.key) && f.screen && !(fullMap([f.key])[f.key] || {}).skip && !/\.calc\.|^heat\.controls/.test(f.key) && !/^(no|none)$/i.test(String(f.value).trim()));
   transferSteps.leftTables = keys.filter(k => !steps.some(s => s.dlg.concat(s.flat).some(t => t.key === k)) && !(fullMap([k])[k] || {}).skip);
   return steps;
 }
@@ -174,7 +174,15 @@ async function newLibraryItem(step, t, ri, m, col, what) {
   const vals = { type: m.newItem.type, name: make, maker: sp > 0 ? make.slice(0, sp) : make, model: sp > 0 ? make.slice(sp + 1) : '', htype: col('htype'), eff: col('eff') };
   const fields = Object.keys(m.newItem.fields).filter(k => vals[k]).map(k => ({ key: 'newitem.' + k, label: k, value: vals[k] }));
   const mapping = {}; Object.entries(m.newItem.fields).forEach(([k, sel]) => mapping['newitem.' + k] = { selector: sel });
-  const res = (await send({ cmd: 'fill', scope: 'dialog', options: { overwrite: true, scroll: false }, mapping, fields, tables: [] })).results || [];
+  let res = (await send({ cmd: 'fill', scope: 'dialog', options: { overwrite: true, scroll: false }, mapping, fields, tables: [] })).results || [];
+  // Heating Source Type and efficiency only show once Item Type is Heat Source, so go over what did not stick
+  for (let pass = 0; pass < 3; pass++) {
+    const redo = fields.filter(f => res.some(x => x.key === f.key && !/^(same|filled)$/.test(x.status)));
+    if (!redo.length) break;
+    await pause(1000);
+    const again = (await send({ cmd: 'fill', scope: 'dialog', options: { overwrite: true, scroll: false }, mapping, fields: redo, tables: [] })).results || [];
+    res = res.filter(x => !again.some(y => y.key === x.key)).concat(again);
+  }
   tx.report.push({ step: step.name, item: what + ' (new library item)', results: res.map(x => Object.assign({ label: x.key.replace('newitem.', '') }, x)) });
   await pause(500);
   const sv = await pressWait('SAVE', true, 3000);
@@ -355,10 +363,10 @@ async function runTransfer() {
             res = res.map(x => { const y = back.find(b => b.key === x.key); return y && y.status !== 'same' ? y : x });
           }
           results[step.screen] = res;
-          tx.report.push({ step: step.name, results: res.map(x => { const t = x.row != null && step.flat.find(q => q.key === x.key), c = t && t.columns.find(q => q.key === x.col); return Object.assign({ label: (step.fields.find(q => q.key === x.key) || {}).label || (t ? t.title + ' ' + (x.row + 1) + (c ? ', ' + c.label : '') : x.key) }, x) }) });
-          res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => { const f = step.fields.find(q => q.key === x.key); tx.log.push(step.name + ': ' + (f ? f.label + ' ' + f.value : x.key) + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')) });
-          const miss = res.filter(x => !/filled|same|skipped/.test(x.status)).length;
-          if (miss) step.missed = miss;
+          const lab = x => { const t = x.row != null && step.flat.find(q => q.key === x.key), c = t && t.columns.find(q => q.key === x.col); return Object.assign({ label: (step.fields.find(q => q.key === x.key) || {}).label || (t ? t.title + ' ' + (x.row + 1) + (c ? ', ' + c.label : '') : x.key) }, x) };
+          step.rep = { step: step.name, results: res.map(lab) }; step.res = res; step.lab = lab;
+          tx.report.push(step.rep);
+          await pause(1500); // DEAP saves these screens itself
           await pause(1500); // DEAP saves these screens itself
         }
         for (const t of step.dlg) {
@@ -366,6 +374,19 @@ async function runTransfer() {
           // picked by the person in DEAP; unless they ask the transfer to stop for each, they go on the by-hand list
           if ((step.mapping[t.key] || {}).library && tx.library === 'list') { libraryList(step, t); continue }
           await addItems(step, t);
+        }
+        if (step.res) {
+          // some boxes only show once an item is added (the battery question waits for a PV array), so try those again
+          const left = () => step.fields.filter(f => step.res.some(x => x.key === f.key && !/^(same|skipped|filled)$/.test(x.status)));
+          for (let pass = 0; pass < 2 && step.dlg.length && left().length; pass++) {
+            await pause(1500);
+            const again = await fillOn(step, { fields: left(), tables: [] });
+            step.res = step.res.filter(x => !again.some(y => y.key === x.key)).concat(again);
+          }
+          step.rep.results = step.res.map(step.lab);
+          const bad = step.res.filter(x => !/filled|same|skipped/.test(x.status));
+          bad.forEach(x => { const f = step.fields.find(q => q.key === x.key); tx.log.push(step.name + ': ' + (f ? f.label + ' ' + f.value : x.key) + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')) });
+          if (bad.length) step.missed = (step.missed || 0) + bad.length;
         }
         setStep(step, step.missed ? 'partial' : 'done', step.missed ? step.missed + ' left for you, see the run report' : '');
       } catch (e) {
