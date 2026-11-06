@@ -20,6 +20,7 @@
     return String(t || '').toLowerCase().replace(/²/g, '2').replace(/³/g, '3').replace(/°/g, '')
       .replace(/\(.*?\)/g, ' ').replace(/[^a-z0-9%/ ]+/g, ' ').replace(UNITS, ' ').replace(/\s+/g, ' ').trim();
   }
+  const same = (a, b) => String(a || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === String(b || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const toks = t => norm(t).split(' ').filter(w => w && !STOP.has(w));
   function sim(a, b) {
     const na = norm(a), nb = norm(b);
@@ -182,6 +183,8 @@
 
   async function setCtrl(c, item, o) {
     const el = c.el, wants = want(item, o);
+    // DEAP keeps some boxes locked until another choice is made (cylinder thickness waits for storage type)
+    if (el.disabled || el.getAttribute('aria-disabled') === 'true' || el.closest('.mat-mdc-form-field-disabled,.mat-form-field-disabled')) return { status: 'nomatch', detail: 'DEAP has this box locked for now' };
     if (c.kind === 'text') {
       const v = fmtFor(el, String(item.value));
       if (el.value && el.value.trim() !== '') {
@@ -221,7 +224,8 @@
     }
     if (c.kind === 'combo' || c.kind === 'comboinput') {
       const cur = clean(c.kind === 'comboinput' ? el.value : textOf(el));
-      if (cur && wants.some(w => sim(w, cur) >= 0.8)) return { status: 'same' };
+      // only an exact match counts as already set: "with cylinder thermostat" and "no cylinder thermostat" look alike
+      if (cur && wants.some(w => same(w, cur))) return { status: 'same' };
       if (cur && !o.overwrite && !/^(select|choose|please)/i.test(cur)) return { status: 'kept', detail: 'DEAP has ' + cur };
       if (c.kind === 'comboinput') { el.focus(); nativeSet(el, String(item.value)); el.dispatchEvent(new Event('input', { bubbles: true })) }
       // Angular Material opens from its inner trigger; other libraries open on mousedown
@@ -237,8 +241,16 @@
         const bd = document.querySelector('.cdk-overlay-backdrop'); if (bd && listed().length) bd.click();
         return { status: 'nooption', detail: opts.length ? 'No option like "' + item.value + '". DEAP offers: ' + texts.slice(0, 15).join(' | ') + (texts.length > 15 ? ' …' : '') : 'List did not open' };
       }
+      if (cur && same(texts[i], cur)) {
+        [el, document.activeElement, document.body].forEach(t => t && t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true })));
+        await sleep(150);
+        const bd = document.querySelector('.cdk-overlay-backdrop'); if (bd && listed().length) bd.click();
+        return { status: 'same' };
+      }
       opts[i].click();
       await sleep(350); // DEAP loads the next dropdown's choices from this one
+      const now = clean(c.kind === 'comboinput' ? el.value : textOf(el));
+      if (c.kind === 'combo' && !same(now, texts[i]) && (!now || sim(now, texts[i]) < 0.8)) return { status: 'error', detail: 'DEAP did not keep "' + clean(texts[i]) + '"' };
       return { status: 'filled' };
     }
     return { status: 'error', detail: 'Unknown field type' };
@@ -288,7 +300,7 @@
     pairs.sort((a, b) => b.s - a.s);
     const done = new Set();
     for (const p of pairs) { if (done.has(p.it) || used.has(p.c)) continue; done.add(p.it); used.add(p.c); pending.push({ it: p.it, c: p.c, via: p.hit, s: p.s }) }
-    job.fields.filter(it => it._labels && !done.has(it)).forEach(it => results.push({ key: it.key, status: 'nomatch' }));
+    job.fields.filter(it => it._labels && !done.has(it)).forEach(it => results.push({ key: it.key, status: 'nomatch', sent: String(it.value) }));
 
     for (const p of pending) {
       let r;
@@ -472,7 +484,9 @@
   const FORBIDDEN = /publish|submit|lodge|finali[sz]e|delete|remove|download|copy/i;
   function state() {
     const d = topDialog();
-    return { path: location.pathname, dialog: dialogTitle(d), saving: /saving/i.test(textOf(document.querySelector('main') || document.body).slice(0, 4000)) && !!document.querySelector('.mat-mdc-progress-spinner,mat-spinner,.saving,mat-progress-bar') };
+    // a DEAP message box (no boxes to fill, just OK): pass its text on so the transfer can report it
+    const notice = d && !d.querySelector('input:not([type=hidden]),mat-select,textarea') && [...d.querySelectorAll('button')].some(b => /^(ok|close)$/i.test(clean(textOf(b)))) ? clean(textOf(d)).replace(/\b(OK|close)\b/gi, '').trim().slice(0, 300) : undefined;
+    return { path: location.pathname, dialog: dialogTitle(d), notice, saving: /saving/i.test(textOf(document.querySelector('main') || document.body).slice(0, 4000)) && !!document.querySelector('.mat-mdc-progress-spinner,mat-spinner,.saving,mat-progress-bar') };
   }
   // Evidence screen: heading reads "EVIDENCE (3 FILES)"
   function evidenceCount() {
@@ -545,7 +559,7 @@
     const r = e.target.closest && e.target.closest(LIBROWS);
     if (r && d.contains(r) && !r.closest('thead') && !r.matches('.mat-mdc-header-row,mat-header-row')) lastLib = clean(textOf(r)).slice(0, 160);
   }, true);
-  async function libPick(want, min, exact) {
+  async function libPick(want, min, exact, unique) {
     const d = topDialog(); if (!d) return { error: 'No dialog' };
     let rows = [];
     for (let t = 0; t < 20; t++) {
@@ -561,7 +575,15 @@
       : r => { const R = new Set(toks(textOf(r))); return W.length ? W.filter(w => R.has(w)).length / W.length : 0 };
     let bi = 0, bs = -1; rows.forEach((r, i) => { const v = score(r); if (v > bs) { bs = v; bi = i } });
     if (bs < (min ?? 0.5)) return { error: 'No close match', best: clean(textOf(rows[bi])).slice(0, 120), rows: rows.length };
-    const row = rows[bi], pickText = clean(textOf(row)).slice(0, 160);
+    // on the common items list a short word like "electric" can fit more than one row: only take it when one row fits best
+    let row = rows[bi];
+    if (unique) {
+      // several rows hold the words: take the one with the fewest other words ("Bath" over "Bath with shower over")
+      const top = rows.filter(r => score(r) === bs), len = r => toks(textOf(r)).length, least = Math.min(...top.map(len)), best = top.filter(r => len(r) === least);
+      if (best.length > 1) return { error: 'More than one row fits', rows: rows.length };
+      row = best[0];
+    }
+    const pickText = clean(textOf(row)).slice(0, 160);
     const box = row.querySelector('input[type=radio],input[type=checkbox],mat-radio-button,mat-checkbox');
     (box || row).click();
     await new Promise(r => setTimeout(r, 400));
@@ -587,9 +609,10 @@
     if (msg.cmd === 'errors') { reply(dialogErrors()); return }
     if (msg.cmd === 'libsearch') { libSearch(msg.text).then(reply); return true }
     if (msg.cmd === 'liblast') { reply({ picked: lastLib }); if (msg.reset) lastLib = null; return }
-    if (msg.cmd === 'libpick') { libPick(msg.text, msg.min, msg.exact).then(reply, e => reply({ error: String(e.message || e) })); return true }
+    if (msg.cmd === 'libpick') { libPick(msg.text, msg.min, msg.exact, msg.unique).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'evidence') { reply(evidenceCount()); return }
     if (msg.cmd === 'upload') { reply(upload(msg.file)); return }
+    if (msg.cmd === 'has') { reply({ n: (msg.selectors || []).filter(q => { try { return bySelector(q, null).some(e => visible(e) || e.type === 'checkbox' || e.type === 'radio') } catch (e) { return false } }).length }); return }
     if (msg.cmd === 'ping') { reply({ ok: true, url: location.href }); return }
     if (msg.cmd === 'fill') { fill(msg).then(reply, e => reply({ error: String(e.message || e) })); return true }
     if (msg.cmd === 'scan') { reply({ fields: scan(), url: location.href, title: document.title }); return }

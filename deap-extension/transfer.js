@@ -26,7 +26,7 @@ function synthFields() {
     } else if (/gas|lpg/i.test(src + fuel)) {
       put('heat.sub2', 'Sub category 2', !yr || yr >= 1998 ? 'Gas boilers (including LPG) 1998 or later' : /fan/i.test(v('heat.flue')) ? 'Gas boilers (including LPG) pre-1998, with fan-assisted flue' : 'Gas boilers (including LPG) pre-1998, with balanced or open flue');
       const combi = yes('water.combi');
-      put('heat.system', 'Heating system', cond ? (combi ? 'Condensing combi' : 'Condensing') : combi ? (yr && yr < 1998 ? 'Combi, pre-1998' : 'Combi, 1998 or later') : '');
+      put('heat.system', 'Heating system', cond ? (combi ? 'Condensing combi' : 'Condensing') : combi ? (yr && yr < 1998 ? 'Combi, pre-1998' : 'Combi, 1998 or later') : /^no$/i.test(v('heat.cond')) && (!yr || yr >= 1998) ? 'Regular non-condensing with automatic ignition' : '');
     }
   }
   const ctl = (surveyValue('heat', 'heat.controls') || []), has = c => [].concat(ctl).some(x => x === c);
@@ -49,6 +49,7 @@ function synthFields() {
   if (yes('water.cyl') || v('water.primins')) {
     const ins = /all accessible|fully/i.test(v('water.primins')), stat = yes('water.cylstat');
     const elec = /immersion only|instantaneous/i.test(v('water.src'));
+    put('water.storetype', 'Storage type', elec ? 'Cylinder, direct' : /heat pump/i.test(v('heat.src')) ? 'Cylinder, heat pump' : 'Cylinder, indirect');
     put('water.primtype', 'Primary circuit loss type', elec ? 'Electric immersion heater' : 'Boiler / heat pump with ' + (ins ? 'insulated' : 'uninsulated') + ' primary pipework and ' + (stat ? 'with' : 'no') + ' cylinder thermostat');
   }
   if (v('gen.battery')) put('gen.battery_yes', 'Is a battery present?', parseFloat(v('gen.battery')) > 0 ? 'Yes' : 'No');
@@ -70,9 +71,11 @@ function synthTables() {
   const vent = [['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0).map(([k, q]) => [q, String(n('vent.' + k))]);
   tbl('vent.items', 'Ventilation items', [['search', 'Library search'], ['n', 'Number of items']], vent);
   const wsc = st.survey.screens.find(x => x.id === 'water'), sh = wsc && wsc.tables.find(t => t.key === 'water.showers'), wet = [];
-  if (sh) { const ti = sh.columns.findIndex(c => c.key === 'type'); sh.rows.forEach(r => wet.push([(r[ti] || '').replace(/ \/.*$/, '') + ' shower', '1'])) }
-  if (n('water.baths') > 0) wet.push(['bath', String(n('water.baths'))]);
-  tbl('water.wet', 'Showers and baths', [['search', 'Library search'], ['n', 'Number of items']], wet);
+  // the word that picks each one from DEAP's common items
+  const shWord = ty => /electric/i.test(ty) ? 'electric' : /mains|unvented/i.test(ty) ? 'unvented' : /pump|power/i.test(ty) ? 'pumped' : /vented/i.test(ty) ? 'vented' : '';
+  if (sh) { const ti = sh.columns.findIndex(c => c.key === 'type'); sh.rows.forEach(r => wet.push([(r[ti] || '').replace(/ \/.*$/, '') + ' shower', '1', shWord(r[ti] || '')])) }
+  if (n('water.baths') > 0) wet.push(['bath', String(n('water.baths')), 'bath']);
+  tbl('water.wet', 'Showers and baths', [['search', 'Library search'], ['n', 'Number of items'], ['common', 'Common item']], wet);
   if (yes('water.solar')) tbl('water.collector', 'Solar collector', [['search', 'Library search'], ['aper', 'Aperture area'], ['orient', 'Orientation'], ['tilt', 'Tilt'], ['shade', 'Overshading']], [[v('water.smodel') || v('water.coll') || 'solar', v('water.aper'), v('water.sorient'), v('water.spitch'), v('water.sshade')]]);
   return out;
 }
@@ -100,7 +103,7 @@ function transferSteps() {
   if (ph.length) steps.push({ name: 'Evidence photos', path: 'evidence', kind: 'evidence', screen: null, fields: [], flat: [], dlg: [], mapping: {}, items: ph.length, status: 'todo', note: '' });
   // anything the survey holds that no DEAP screen above takes: listed for doing by hand
   const used = new Set(steps.flatMap(s => s.fields.map(f => f.key)).concat(pool.filter(f => synthTables.uses.test(f.key)).map(f => f.key)));
-  transferSteps.left = pool.filter(f => !used.has(f.key) && f.screen && !(fullMap([f.key])[f.key] || {}).skip && !/\.calc\.|^heat\.controls/.test(f.key));
+  transferSteps.left = pool.filter(f => !used.has(f.key) && f.screen && !(fullMap([f.key])[f.key] || {}).skip && !/\.calc\.|^heat\.controls/.test(f.key) && !/^(no|none)$/i.test(String(f.value).trim()));
   transferSteps.leftTables = keys.filter(k => !steps.some(s => s.dlg.concat(s.flat).some(t => t.key === k)) && !(fullMap([k])[k] || {}).skip);
   return steps;
 }
@@ -135,6 +138,15 @@ async function goTo(step) {
   const ok = await waitState(s => s.path.endsWith('/' + step.path) && !s.dialog, 15000);
   if (!ok) throw new Error('Could not open ' + step.name + ' in DEAP');
   await pause(1500); // let DEAP draw the screen
+  // a big assessment can take DEAP several seconds to draw its boxes, so wait until the first ones show up
+  const sels = (step.fields || []).map(f => (step.mapping[f.key] || {}).selector).filter(Boolean).slice(0, 3);
+  if (!sels.length) return;
+  const end = Date.now() + 20000;
+  while (Date.now() < end) {
+    if (tx.stop) throw new Error('Stopped');
+    try { const r = await send({ cmd: 'has', selectors: sels }); if (r && r.n) { await pause(500); return } } catch (e) { }
+    await pause(500);
+  }
 }
 
 async function fillOn(step, payload) {
@@ -153,16 +165,28 @@ async function pressWait(text, inDialog, ms) {
   }
 }
 const after = (txt, t, ri) => txt.replace(/\{(\w+)\}/g, (_, k) => t.rows[ri][t.columns.findIndex(c => c.key === k)] || '?');
+const MAKERS = ['Glow-worm', 'Worcester Bosch', 'Worcester', 'Ideal', 'Vaillant', 'Baxi', 'Potterton', 'Alpha', 'Viessmann', 'Ferroli', 'Ariston', 'Navien', 'Intergas', 'Firebird', 'Grant', 'Warmflow', 'Boulter', 'Mitsubishi Electric', 'Mitsubishi', 'Daikin', 'Samsung', 'Panasonic', 'Nibe', 'Dimplex', 'Stokvis', 'Remeha', 'Saunier Duval', 'Main', 'Halstead', 'Biasi', 'Vokera', 'Keston', 'Atag', 'Riello', 'Thermecon', 'Mistral', 'HRM', 'Stanley', 'Waterford Stanley', 'Rayburn', 'Aga', 'Stovax', 'Henley', 'Mullberry', 'Solid Fuel'];
 async function newLibraryItem(step, t, ri, m, col, what) {
   const r = await pressWait('ADD NEW ITEM TO LIBRARY', true, 3000);
   if (r && r.error) return false;
   if (!await waitState(x => /library item/i.test(x.dialog || ''), 6000)) return false;
   await pause(800);
   const make = col('make').trim(), sp = make.indexOf(' ');
-  const vals = { type: m.newItem.type, name: make, maker: sp > 0 ? make.slice(0, sp) : make, model: sp > 0 ? make.slice(sp + 1) : '', htype: col('htype'), eff: col('eff') };
+  // makers whose name is more than one word (or hyphenated) are split by name, not at the first space
+  const known = MAKERS.find(k => new RegExp('^' + k.replace(/[- ]/g, '[- ]?') + '\\b', 'i').test(make));
+  const maker = known || (sp > 0 ? make.slice(0, sp) : make), model = known ? make.replace(new RegExp('^' + known.replace(/[- ]/g, '[- ]?'), 'i'), '').trim() : sp > 0 ? make.slice(sp + 1) : '';
+  const vals = { type: m.newItem.type, name: make, maker, model, htype: col('htype'), eff: col('eff') };
   const fields = Object.keys(m.newItem.fields).filter(k => vals[k]).map(k => ({ key: 'newitem.' + k, label: k, value: vals[k] }));
   const mapping = {}; Object.entries(m.newItem.fields).forEach(([k, sel]) => mapping['newitem.' + k] = { selector: sel });
-  const res = (await send({ cmd: 'fill', scope: 'dialog', options: { overwrite: true, scroll: false }, mapping, fields, tables: [] })).results || [];
+  let res = (await send({ cmd: 'fill', scope: 'dialog', options: { overwrite: true, scroll: false }, mapping, fields, tables: [] })).results || [];
+  // Heating Source Type and efficiency only show once Item Type is Heat Source, so go over what did not stick
+  for (let pass = 0; pass < 3; pass++) {
+    const redo = fields.filter(f => res.some(x => x.key === f.key && !/^(same|filled)$/.test(x.status)));
+    if (!redo.length) break;
+    await pause(1000);
+    const again = (await send({ cmd: 'fill', scope: 'dialog', options: { overwrite: true, scroll: false }, mapping, fields: redo, tables: [] })).results || [];
+    res = res.filter(x => !again.some(y => y.key === x.key)).concat(again);
+  }
   tx.report.push({ step: step.name, item: what + ' (new library item)', results: res.map(x => Object.assign({ label: x.key.replace('newitem.', '') }, x)) });
   await pause(500);
   const sv = await pressWait('SAVE', true, 3000);
@@ -189,20 +213,33 @@ async function addItems(step, t) {
     if (pr && pr.error) throw new Error(pr.disabled ? m.add + ' is greyed out in DEAP' : 'Could not find ' + m.add + ' in DEAP' + (pr.seen && pr.seen.length ? ' (buttons seen: ' + pr.seen.join(', ') + ')' : ' (no ADD buttons seen)'));
     let s = await waitState(x => !!x.dialog, 8000);
     if (!s) throw new Error(m.add + ' did not open a dialog');
+    if (s.notice) {
+      // DEAP refused with a message (e.g. heating system properties not complete): close it and stop this step with DEAP's words
+      await pause(400); s = await send({ cmd: 'state' });
+      if (s.notice) { await send({ cmd: 'press', text: 'OK', inDialog: true }); await waitState(x => !x.dialog, 3000); throw new Error('DEAP says: ' + s.notice) }
+    }
     if (m.library && /library/i.test(s.dialog)) {
       const si = t.columns.findIndex(c => c.key === 'search'), phrase = si >= 0 ? t.rows[ri][si] : '';
-      if (phrase) { await pause(500); await send({ cmd: 'libsearch', text: phrase }); await pause(1500) }
       const desc = t.rows[ri].filter(Boolean).slice(0, 5).join(', ');
       // try the best matching library row first; hand over to the person only when nothing matches well
       const ei = t.columns.findIndex(c => c.key === 'exact'), wi = t.columns.findIndex(c => c.key === 'want'), want = wi >= 0 && t.rows[ri][wi] || phrase;
       // a pick remembered from an earlier survey comes first
       const mk = want ? memKey(t, want) : null, rm = mk && tx.library === 'pick' && mem.picks[mk];
       let pk = null;
-      if (rm) {
+      // items DEAP lists under COMMON ITEMS (showers, baths, chimneys, fans) are picked straight from that list, no search
+      if (m.common && tx.library === 'pick') {
+        await send({ cmd: 'press', text: 'COMMON ITEMS', inDialog: true }); await pause(1000);
+        const ci = t.columns.findIndex(c => c.key === 'common');
+        if (rm) { const r = await send({ cmd: 'libpick', text: rm.picked, min: 0.85, exact: true }); if (r && r.ok) pk = r }
+        const words = [...new Set([want, ci >= 0 && t.rows[ri][ci]].filter(Boolean))];
+        for (const w of words) { if (pk) break; const r = await send({ cmd: 'libpick', text: w, min: 1, unique: true }); if (r && r.ok) pk = r }
+      }
+      if (rm && !pk) {
         let r = await send({ cmd: 'libpick', text: rm.picked, min: 0.85, exact: true });
         if (r && r.error && !r.picked) { await send({ cmd: 'libsearch', text: rm.picked.split(' ').slice(0, 4).join(' ') }); await pause(1500); r = await send({ cmd: 'libpick', text: rm.picked, min: 0.85, exact: true }) }
         if (r && r.ok && await waitState(x => !x.dialog || !/library/i.test(x.dialog), 6000)) { rm.n = (rm.n || 0) + 1; rm.at = Date.now(); memSave(); tx.memUsed.push({ key: mk, what: label, said: want, picked: rm.picked }); pk = { ok: true, picked: rm.picked, fromMemory: true } }
       }
+      if (!pk && phrase) { await pause(500); await send({ cmd: 'libsearch', text: phrase }); await pause(1500) }
       if (!pk) pk = phrase && tx.library === 'pick' && (m.autopick !== false || ei >= 0 && t.rows[ri][ei] === '1') ? await send({ cmd: 'libpick', text: want, min: m.autopickMin }) : null;
       let got = false;
       if (pk && pk.fromMemory) got = true;
@@ -311,10 +348,31 @@ async function runTransfer() {
           setStep(step, 'running', 'Filling');
           let res = await fillOn(step, { fields: step.fields, tables: step.flat });
           // ticking a box or picking a type can show more DEAP fields, so go over the screen once more
-          if (res.some(x => x.status === 'nomatch')) { await pause(1200); const again = await fillOn(step, { fields: step.fields.filter(f => res.some(x => x.key === f.key && x.status === 'nomatch')), tables: [] }); res = res.filter(x => !(x.status === 'nomatch' && again.some(y => y.key === x.key))).concat(again) }
+          // choices unlock other boxes (storage type unlocks cylinder thickness), so go over what did not stick, up to twice
+          // keep going while each pass sets something new (category, then sub category, then sub category 2, then heating system)
+          for (let pass = 0; pass < 6; pass++) {
+            const redo = step.fields.filter(f => res.some(x => x.key === f.key && !/^(same|skipped|filled)$/.test(x.status)));
+            // table boxes too: DEAP only shows a height box per storey once Number of Storeys is in
+            const tredo = step.flat.filter(t => res.some(x => x.key.startsWith(t.key) && /^(nomatch|norow)$/.test(x.status)));
+            if (!redo.length && !tredo.length) break;
+            await pause(pass ? 1500 : 1200);
+            const again = await fillOn(step, { fields: redo, tables: tredo });
+            const tk = again.filter(y => tredo.some(t => y.key.startsWith(t.key)));
+            res = res.filter(x => !again.some(y => y.key === x.key) && !(tk.length && tredo.some(t => x.key.startsWith(t.key)))).concat(again);
+            if (pass && !again.some(y => /^(same|filled)$/.test(y.status))) break;
+          }
+          // a box that was filled on an early pass can be wiped when a later choice redraws the screen, so check it once more
+          const chk = step.fields.filter(f => res.some(x => x.key === f.key && x.status === 'filled'));
+          if (chk.length) {
+            await pause(800);
+            const back = await fillOn(step, { fields: chk, tables: [] });
+            res = res.map(x => { const y = back.find(b => b.key === x.key); return y && y.status !== 'same' ? y : x });
+          }
           results[step.screen] = res;
-          tx.report.push({ step: step.name, results: res.map(x => Object.assign({ label: (step.fields.find(q => q.key === x.key) || {}).label || x.key }, x)) });
-          res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => { const f = step.fields.find(q => q.key === x.key); tx.log.push(step.name + ': ' + (f ? f.label + ' ' + f.value : x.key) + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')) });
+          const lab = x => { const t = x.row != null && step.flat.find(q => q.key === x.key), c = t && t.columns.find(q => q.key === x.col); return Object.assign({ label: (step.fields.find(q => q.key === x.key) || {}).label || (t ? t.title + ' ' + (x.row + 1) + (c ? ', ' + c.label : '') : x.key) }, x) };
+          step.rep = { step: step.name, results: res.map(lab) }; step.res = res; step.lab = lab;
+          tx.report.push(step.rep);
+          await pause(1500); // DEAP saves these screens itself
           await pause(1500); // DEAP saves these screens itself
         }
         for (const t of step.dlg) {
@@ -323,7 +381,20 @@ async function runTransfer() {
           if ((step.mapping[t.key] || {}).library && tx.library === 'list') { libraryList(step, t); continue }
           await addItems(step, t);
         }
-        setStep(step, 'done', '');
+        if (step.res) {
+          // some boxes only show once an item is added (the battery question waits for a PV array), so try those again
+          const left = () => step.fields.filter(f => step.res.some(x => x.key === f.key && !/^(same|skipped|filled)$/.test(x.status)));
+          for (let pass = 0; pass < 2 && step.dlg.length && left().length; pass++) {
+            await pause(1500);
+            const again = await fillOn(step, { fields: left(), tables: [] });
+            step.res = step.res.filter(x => !again.some(y => y.key === x.key)).concat(again);
+          }
+          step.rep.results = step.res.map(step.lab);
+          const bad = step.res.filter(x => !/filled|same|skipped/.test(x.status));
+          bad.forEach(x => { const f = step.fields.find(q => q.key === x.key); tx.log.push(step.name + ': ' + (f ? f.label + ' ' + f.value : x.key) + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')) });
+          if (bad.length) step.missed = (step.missed || 0) + bad.length;
+        }
+        setStep(step, step.missed ? 'partial' : 'done', step.missed ? step.missed + ' left for you, see the run report' : '');
       } catch (e) {
         if (tx.stop) { setStep(step, 'stopped', ''); break }
         setStep(step, 'failed', String(e.message || e));
@@ -369,7 +440,7 @@ function transferCard() {
   if (!tx.running) card.append(h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: tx.overwrite, onchange: e => { tx.overwrite = e.target.checked } }), 'Replace values already in DEAP (untick to keep what DEAP has)'));
   const list = h('div', { class: 'steps2' });
   steps.forEach(s => {
-    const icon = { todo: '○', running: '◐', done: '✓', failed: '!', stopped: '■' }[s.status] || '○';
+    const icon = { todo: '○', running: '◐', done: '✓', partial: '!', failed: '!', stopped: '■' }[s.status] || '○';
     const extra = [s.fields.length ? s.fields.length + ' values' : '', s.items ? s.items + ' to add' : ''].filter(Boolean).join(' · ');
     list.append(h('label', { class: 'step ' + s.status },
       tx.running || tx.steps.length ? h('span', { class: 'ic' }, icon) : h('input', { type: 'checkbox', checked: tx.included[s.name] !== false, onchange: e => { tx.included[s.name] = e.target.checked } }),

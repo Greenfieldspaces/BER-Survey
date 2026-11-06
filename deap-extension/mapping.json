@@ -415,9 +415,7 @@
       "skip": true
     },
     "heat.inside": {
-      "labels": [
-        "Boiler in heated space"
-      ]
+      "skip": true
     },
     "heat.flow": {
       "labels": [
@@ -495,10 +493,7 @@
       "selector": "input[name=\"ElecImmersionInSummer\"]"
     },
     "water.imm": {
-      "labels": [
-        "Immersion",
-        "Immersion type"
-      ]
+      "skip": true
     },
     "water.cyl": {
       "skip": true
@@ -835,7 +830,8 @@
     "vent.items": {
       "dialog": true,
       "add": "ADD VENTILATION ITEM",
-      "library": true
+      "library": true,
+      "common": true
     },
     "vent.items.search": {
       "skip": true
@@ -851,7 +847,8 @@
     "water.wet": {
       "dialog": true,
       "add": "ADD SHOWERS & BATHS",
-      "library": true
+      "library": true,
+      "common": true
     },
     "water.wet.search": {
       "skip": true
@@ -930,6 +927,21 @@
     },
     "dims.floors.inroof": {
       "selector": "input[name=\"InRoof\"]"
+    },
+    "water.storetype": {
+      "selector": "mat-select[name=\"WaterStorageID\"]"
+    },
+    "water.wet.common": {
+      "skip": true
+    },
+    "openings.windows-for-deap.overhang": {
+      "selector": "mat-select[name=\"OverhangID\"]"
+    },
+    "openings.door_u": {
+      "skip": true
+    },
+    "openings.win_u": {
+      "skip": true
     }
   },
   "transfer": [
@@ -1071,6 +1083,7 @@
       "path": "water-heating/options",
       "screen": "water",
       "fields": [
+        "water.storetype",
         "water.storeloss",
         "water.indoors",
         "water.distloss",

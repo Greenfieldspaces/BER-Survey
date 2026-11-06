@@ -87,6 +87,14 @@ function job(sc) {
     if (Array.isArray(f.value)) f.value.forEach(o => fields.push({ key: f.key + '.' + slug(o), label: o, value: 'Yes', parent: f.label }));
     else fields.push({ key: f.key, label: f.label, value: f.value });
   });
+  // DEAP splits Dublin into postal districts (Dublin 1 to 24, Dublin 6W) and Co. Dublin; the Eircode routing key says which
+  if (sc.id === 'details') {
+    const cf = fields.find(f => f.key === 'details.county'), ec = String((fields.find(f => f.key === 'details.eircode') || {}).value || '').toUpperCase().replace(/\s+/g, '');
+    if (cf && /dublin/i.test(cf.value) && !/\d/.test(cf.value)) {
+      const m = /^D(\d{2})/.exec(ec);
+      cf.value = /^D6W/.test(ec) ? 'Dublin 6W' : m ? 'Dublin ' + parseInt(m[1], 10) : 'Co. Dublin';
+    }
+  }
   const grouped = sc.fields.filter(f => f.group);
   if (grouped.length) {
     const groups = [...new Set(grouped.map(f => f.group))], cols = [{ key: 'name', label: 'Description' }];
@@ -112,9 +120,21 @@ function job(sc) {
       const stt = sc.tables.find(x => x.key === 'dims.storeys');
       if (stt) {
         const li = stt.columns.findIndex(c => c.key === 'level'), ai = stt.columns.findIndex(c => c.key === 'area');
+        // exposed floors sit over a garage or outside air, so they belong to the storey above the ground one
+        if (stt.rows.length > 1) t.rows.forEach(r => { const i = t.columns.findIndex(c => c.key === 'loc'); if (i >= 0 && !r[i] && /exposed/i.test(col(t, r, 'type'))) r[i] = 'Storey 2' });
         stt.rows.forEach((sr, si) => {
-          if (!/room in roof/i.test(sr[li] || '')) return;
-          const v = { part: 'Room in roof', type: 'Non-Heat Loss Floor', area: sr[ai] || '', name: 'Room in roof', loc: 'Storey ' + (si + 1), year: dwellingYear(), inroof: 'Yes' };
+          const loc = 'Storey ' + (si + 1), area = parseFloat(sr[ai]) || 0;
+          if (/room in roof/i.test(sr[li] || '')) {
+            const v = { part: 'Room in roof', type: 'Non-Heat Loss Floor', area: sr[ai] || '', name: 'Room in roof', loc, year: dwellingYear(), inroof: 'Yes' };
+            t.rows.push(t.columns.map(c => v[c.key] || ''));
+            return;
+          }
+          // DEAP adds up every floor for the floor area and volume, so the part of each storey that is not a heat loss floor
+          // (a first floor over the ground floor) goes in as a Non-Heat Loss Floor on that storey
+          const hl = t.rows.filter(r => col(t, r, 'loc') === loc).reduce((a, r) => a + (parseFloat(col(t, r, 'area')) || 0), 0);
+          const rest = Math.round((area - hl) * 100) / 100;
+          if (rest < 0.5) return;
+          const v = { part: sr[li] || loc, type: 'Non-Heat Loss Floor', area: String(rest), name: (sr[li] || loc) + ' (not heat loss)', loc, year: dwellingYear(), inroof: '' };
           t.rows.push(t.columns.map(c => v[c.key] || ''));
         });
       }
@@ -142,13 +162,24 @@ function job(sc) {
     }
     if (t.key === 'openings.windows-for-deap') {
       add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
-      const sh = surveyValue('openings', 'openings.shading'); if (sh) add(t, 'shading', 'Overshading', () => sh);
+      // DEAP will not save a window without overshading and overhang, so use its usual defaults when the survey has none
+      const sh = surveyValue('openings', 'openings.shading'); add(t, 'shading', 'Overshading', () => sh || 'Average or Unknown');
+      add(t, 'overhang', 'Overhang', () => 'No Overhang');
+      // the survey's total area goes in as one item, so DEAP must not multiply it by the number of windows
+      { const ni = t.columns.findIndex(c => c.key === 'no'); if (ni >= 0) t.rows.forEach(r => { if (r[ni]) r[ni] = '1' }) }
       add(t, 'search', 'Library search', r => col(t, r, 'glazing'));
       add(t, 'want', 'Library match', r => [col(t, r, 'glazing'), col(t, r, 'frame')].filter(Boolean).join(' '));
     }
-    if (t.key === 'openings.doors-for-deap') add(t, 'search', 'Library search', r => col(t, r, 'door-type'));
+    if (t.key === 'openings.doors-for-deap') {
+      add(t, 'search', 'Library search', r => col(t, r, 'door-type'));
+      const ni = t.columns.findIndex(c => c.key === 'no'); if (ni >= 0) t.rows.forEach(r => { if (r[ni]) r[ni] = '1' });
+    }
   });
-  if (sc.id === 'dims') { const n = surveyValue('details', 'details.storeys') || String((sc.tables.find(t => t.key === 'dims.storeys') || { rows: [] }).rows.length || ''); if (n) fields.unshift({ key: 'dims.nstoreys', label: 'Number of storeys', value: n }) }
+  if (sc.id === 'dims') {
+    // DEAP counts a room in roof as its own storey, so the storey list wins when it has more rows
+    const rows = (sc.tables.find(t => t.key === 'dims.storeys') || { rows: [] }).rows.length, n = Math.max(parseInt(surveyValue('details', 'details.storeys')) || 0, rows);
+    if (n) fields.unshift({ key: 'dims.nstoreys', label: 'Number of storeys', value: String(n) });
+  }
   const keys = fields.map(f => f.key).concat(tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))));
   return { fields, tables, mapping: fullMap(keys) };
 }
