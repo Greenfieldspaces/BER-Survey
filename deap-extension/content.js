@@ -576,8 +576,14 @@
     let bi = 0, bs = -1; rows.forEach((r, i) => { const v = score(r); if (v > bs) { bs = v; bi = i } });
     if (bs < (min ?? 0.5)) return { error: 'No close match', best: clean(textOf(rows[bi])).slice(0, 120), rows: rows.length };
     // on the common items list a short word like "electric" can fit more than one row: only take it when one row fits best
-    if (unique && rows.filter(r => score(r) === bs).length > 1) return { error: 'More than one row fits', rows: rows.length };
-    const row = rows[bi], pickText = clean(textOf(row)).slice(0, 160);
+    let row = rows[bi];
+    if (unique) {
+      // several rows hold the words: take the one with the fewest other words ("Bath" over "Bath with shower over")
+      const top = rows.filter(r => score(r) === bs), len = r => toks(textOf(r)).length, least = Math.min(...top.map(len)), best = top.filter(r => len(r) === least);
+      if (best.length > 1) return { error: 'More than one row fits', rows: rows.length };
+      row = best[0];
+    }
+    const pickText = clean(textOf(row)).slice(0, 160);
     const box = row.querySelector('input[type=radio],input[type=checkbox],mat-radio-button,mat-checkbox');
     (box || row).click();
     await new Promise(r => setTimeout(r, 400));

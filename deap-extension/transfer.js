@@ -26,7 +26,7 @@ function synthFields() {
     } else if (/gas|lpg/i.test(src + fuel)) {
       put('heat.sub2', 'Sub category 2', !yr || yr >= 1998 ? 'Gas boilers (including LPG) 1998 or later' : /fan/i.test(v('heat.flue')) ? 'Gas boilers (including LPG) pre-1998, with fan-assisted flue' : 'Gas boilers (including LPG) pre-1998, with balanced or open flue');
       const combi = yes('water.combi');
-      put('heat.system', 'Heating system', cond ? (combi ? 'Condensing combi' : 'Condensing') : combi ? (yr && yr < 1998 ? 'Combi, pre-1998' : 'Combi, 1998 or later') : '');
+      put('heat.system', 'Heating system', cond ? (combi ? 'Condensing combi' : 'Condensing') : combi ? (yr && yr < 1998 ? 'Combi, pre-1998' : 'Combi, 1998 or later') : /^no$/i.test(v('heat.cond')) && (!yr || yr >= 1998) ? 'Regular non-condensing with automatic ignition' : '');
     }
   }
   const ctl = (surveyValue('heat', 'heat.controls') || []), has = c => [].concat(ctl).some(x => x === c);
@@ -226,16 +226,18 @@ async function addItems(step, t) {
       // a pick remembered from an earlier survey comes first
       const mk = want ? memKey(t, want) : null, rm = mk && tx.library === 'pick' && mem.picks[mk];
       let pk = null;
-      if (rm) {
+      // items DEAP lists under COMMON ITEMS (showers, baths, chimneys, fans) are picked straight from that list, no search
+      if (m.common && tx.library === 'pick') {
+        await send({ cmd: 'press', text: 'COMMON ITEMS', inDialog: true }); await pause(1000);
+        const ci = t.columns.findIndex(c => c.key === 'common');
+        if (rm) { const r = await send({ cmd: 'libpick', text: rm.picked, min: 0.85, exact: true }); if (r && r.ok) pk = r }
+        const words = [...new Set([want, ci >= 0 && t.rows[ri][ci]].filter(Boolean))];
+        for (const w of words) { if (pk) break; const r = await send({ cmd: 'libpick', text: w, min: 1, unique: true }); if (r && r.ok) pk = r }
+      }
+      if (rm && !pk) {
         let r = await send({ cmd: 'libpick', text: rm.picked, min: 0.85, exact: true });
         if (r && r.error && !r.picked) { await send({ cmd: 'libsearch', text: rm.picked.split(' ').slice(0, 4).join(' ') }); await pause(1500); r = await send({ cmd: 'libpick', text: rm.picked, min: 0.85, exact: true }) }
         if (r && r.ok && await waitState(x => !x.dialog || !/library/i.test(x.dialog), 6000)) { rm.n = (rm.n || 0) + 1; rm.at = Date.now(); memSave(); tx.memUsed.push({ key: mk, what: label, said: want, picked: rm.picked }); pk = { ok: true, picked: rm.picked, fromMemory: true } }
-      }
-      // items DEAP lists under COMMON ITEMS (showers, baths, chimneys, fans) are picked straight from that list, no search
-      if (!pk && m.common && tx.library === 'pick') {
-        await send({ cmd: 'press', text: 'COMMON ITEMS', inDialog: true }); await pause(1000);
-        const ci = t.columns.findIndex(c => c.key === 'common'), words = [...new Set([want, ci >= 0 && t.rows[ri][ci]].filter(Boolean))];
-        for (const w of words) { const r = await send({ cmd: 'libpick', text: w, min: 1, unique: true }); if (r && r.ok) { pk = r; break } }
       }
       if (!pk && phrase) { await pause(500); await send({ cmd: 'libsearch', text: phrase }); await pause(1500) }
       if (!pk) pk = phrase && tx.library === 'pick' && (m.autopick !== false || ei >= 0 && t.rows[ri][ei] === '1') ? await send({ cmd: 'libpick', text: want, min: m.autopickMin }) : null;

@@ -164,11 +164,16 @@ function job(sc) {
       add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
       // DEAP will not save a window without overshading and overhang, so use its usual defaults when the survey has none
       const sh = surveyValue('openings', 'openings.shading'); add(t, 'shading', 'Overshading', () => sh || 'Average or Unknown');
-      add(t, 'overhang', 'Overhang', () => 'None');
+      add(t, 'overhang', 'Overhang', () => 'No Overhang');
+      // the survey's total area goes in as one item, so DEAP must not multiply it by the number of windows
+      { const ni = t.columns.findIndex(c => c.key === 'no'); if (ni >= 0) t.rows.forEach(r => { if (r[ni]) r[ni] = '1' }) }
       add(t, 'search', 'Library search', r => col(t, r, 'glazing'));
       add(t, 'want', 'Library match', r => [col(t, r, 'glazing'), col(t, r, 'frame')].filter(Boolean).join(' '));
     }
-    if (t.key === 'openings.doors-for-deap') add(t, 'search', 'Library search', r => col(t, r, 'door-type'));
+    if (t.key === 'openings.doors-for-deap') {
+      add(t, 'search', 'Library search', r => col(t, r, 'door-type'));
+      const ni = t.columns.findIndex(c => c.key === 'no'); if (ni >= 0) t.rows.forEach(r => { if (r[ni]) r[ni] = '1' });
+    }
   });
   if (sc.id === 'dims') {
     // DEAP counts a room in roof as its own storey, so the storey list wins when it has more rows

@@ -936,6 +936,12 @@
     },
     "openings.windows-for-deap.overhang": {
       "selector": "mat-select[name=\"OverhangID\"]"
+    },
+    "openings.door_u": {
+      "skip": true
+    },
+    "openings.win_u": {
+      "skip": true
     }
   },
   "transfer": [
