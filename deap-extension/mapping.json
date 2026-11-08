@@ -193,7 +193,7 @@
       "selector": "input[name=\"Area\"]"
     },
     "roofs.roofs.ins": {
-      "skip": true
+      "selector": "mat-select[name=\"Insulation\"]"
     },
     "roofs.roofs.u": {
       "selector": "input[name=\"UValue\"]"

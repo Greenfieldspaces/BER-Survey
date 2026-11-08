@@ -164,7 +164,12 @@ async function pressWait(text, inDialog, ms) {
     await pause(500);
   }
 }
-const after = (txt, t, ri) => txt.replace(/\{(\w+)\}/g, (_, k) => t.rows[ri][t.columns.findIndex(c => c.key === k)] || '?');
+const after = (txt, t, ri) => {
+  // a line that needs a survey value the survey does not have says so plainly instead of showing "?"
+  const miss = (txt.match(/\{(\w+)\}/g) || []).find(x => !(t.rows[ri][t.columns.findIndex(c => c.key === x.slice(1, -1))] || ''));
+  if (miss && /\{eff\}/.test(txt)) return "check DEAP's efficiency (the survey has none)";
+  return txt.replace(/\{(\w+)\}/g, (_, k) => t.rows[ri][t.columns.findIndex(c => c.key === k)] || '?');
+};
 const MAKERS = ['Glow-worm', 'Worcester Bosch', 'Worcester', 'Ideal', 'Vaillant', 'Baxi', 'Potterton', 'Alpha', 'Viessmann', 'Ferroli', 'Ariston', 'Navien', 'Intergas', 'Firebird', 'Grant', 'Warmflow', 'Boulter', 'Mitsubishi Electric', 'Mitsubishi', 'Daikin', 'Samsung', 'Panasonic', 'Nibe', 'Dimplex', 'Stokvis', 'Remeha', 'Saunier Duval', 'Main', 'Halstead', 'Biasi', 'Vokera', 'Keston', 'Atag', 'Riello', 'Thermecon', 'Mistral', 'HRM', 'Stanley', 'Waterford Stanley', 'Rayburn', 'Aga', 'Stovax', 'Henley', 'Mullberry', 'Solid Fuel'];
 async function newLibraryItem(step, t, ri, m, col, what) {
   const r = await pressWait('ADD NEW ITEM TO LIBRARY', true, 3000);
