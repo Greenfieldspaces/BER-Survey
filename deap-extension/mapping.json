@@ -193,7 +193,7 @@
       "selector": "input[name=\"Area\"]"
     },
     "roofs.roofs.ins": {
-      "skip": true
+      "selector": "mat-select[name=\"Insulation\"]"
     },
     "roofs.roofs.u": {
       "selector": "input[name=\"UValue\"]"
@@ -415,9 +415,7 @@
       "skip": true
     },
     "heat.inside": {
-      "labels": [
-        "Boiler in heated space"
-      ]
+      "skip": true
     },
     "heat.flow": {
       "labels": [
@@ -495,10 +493,7 @@
       "selector": "input[name=\"ElecImmersionInSummer\"]"
     },
     "water.imm": {
-      "labels": [
-        "Immersion",
-        "Immersion type"
-      ]
+      "skip": true
     },
     "water.cyl": {
       "skip": true
@@ -835,7 +830,8 @@
     "vent.items": {
       "dialog": true,
       "add": "ADD VENTILATION ITEM",
-      "library": true
+      "library": true,
+      "common": true
     },
     "vent.items.search": {
       "skip": true
@@ -851,7 +847,8 @@
     "water.wet": {
       "dialog": true,
       "add": "ADD SHOWERS & BATHS",
-      "library": true
+      "library": true,
+      "common": true
     },
     "water.wet.search": {
       "skip": true
@@ -873,27 +870,26 @@
       "skip": true
     },
     "water.collector.aper": {
-      "labels": [
-        "Aperture area",
-        "Collector aperture area",
-        "Area"
-      ]
+      "selector": "input[name=\"ApetureAreaOfCollector\"]"
     },
     "water.collector.orient": {
-      "labels": [
-        "Orientation"
-      ]
+      "selector": "mat-select[name=\"OrientationId\"]",
+      "values": {
+        "S": "South",
+        "SE": "SE/SW",
+        "SW": "SE/SW",
+        "E": "East/West",
+        "W": "East/West",
+        "NE": "NE/NW",
+        "NW": "NE/NW",
+        "N": "North"
+      }
     },
     "water.collector.tilt": {
-      "labels": [
-        "Tilt",
-        "Pitch"
-      ]
+      "selector": "input[name=\"TiltInDegreesFromHorizontal\"]"
     },
     "water.collector.shade": {
-      "labels": [
-        "Overshading"
-      ]
+      "selector": "mat-select[name=\"OvershadingId\"]"
     },
     "water.showers": {
       "skip": true
@@ -930,6 +926,21 @@
     },
     "dims.floors.inroof": {
       "selector": "input[name=\"InRoof\"]"
+    },
+    "water.storetype": {
+      "selector": "mat-select[name=\"WaterStorageID\"]"
+    },
+    "water.wet.common": {
+      "skip": true
+    },
+    "openings.windows-for-deap.overhang": {
+      "selector": "mat-select[name=\"OverhangID\"]"
+    },
+    "openings.door_u": {
+      "skip": true
+    },
+    "openings.win_u": {
+      "skip": true
     }
   },
   "transfer": [
@@ -1071,6 +1082,7 @@
       "path": "water-heating/options",
       "screen": "water",
       "fields": [
+        "water.storetype",
         "water.storeloss",
         "water.indoors",
         "water.distloss",

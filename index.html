@@ -399,7 +399,7 @@ const SECTIONS=[
       B('fluefan','Gas boiler flue fan',{show:d=>/Mains gas|LPG/.test(d.fuel||'')}),
       B('warmair','Warm air heating or fan coil radiators')]},
     {title:'Secondary heating system',fields:[
-      S_('sec','Secondary system',['None','Open fire','Open fire with back boiler','Closed stove','Gas fire','Electric heater','Flueless gas heater','Other']),
+      S_('sec','Secondary system',['None','Open fire in grate','Open fire with back boiler','Closed stove','Gas fire','Electric heater','Flueless gas heater','Other']),
       S_('secfuel','Fuel',FUELS,{show:d=>d.sec&&d.sec!=='None'}),N('seceff','Efficiency %',{show:d=>d.sec&&d.sec!=='None'})]},
     NOTES()]},
   {id:'water',name:'Water heating',groups:[
@@ -1483,6 +1483,8 @@ const typeLabel=(t,kind)=>{const nm=t.name||autoName(t,kind);return t.code+(nm?'
 // surveys from before types: one type per distinct set of window (or door) details, from the old defaults and overrides
 function migrateOps(s){
   const d=s.data.openings||(s.data.openings={});
+  // secondary heating 'Open fire' is now 'Open fire in grate', DEAP's name for it
+  if(s.data.heat&&s.data.heat.sec==='Open fire')s.data.heat.sec='Open fire in grate';
   // openings now take an area only: turn old width × height into an area
   s.walls.forEach(w=>w.ops.forEach(o=>{if(!hasVal(o.a)&&(hasVal(o.w)||hasVal(o.h)))o.a=String(+(n(o.w)*n(o.h)).toFixed(2));delete o.w;delete o.h}));
   if(d.wintypes&&d.doortypes)return;
