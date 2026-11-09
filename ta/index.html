@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Upgrade Report">
+<meta name="theme-color" content="#0b7a45">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" href="../icon-192.png">
+<title>Upgrade Report</title>
+<style>
+:root{
+  --bg:#eef2f0; --surface:#ffffff; --sunk:#e3e9e6; --line:#c9d3ce;
+  --ink:#16231d; --muted:#5a6b63; --accent:#0b7a45; --accent-ink:#ffffff; --accent-soft:#d6ede1;
+  --warn:#b54708; --warn-soft:#fdebd9; --danger:#b42318;
+  --f:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101714; --surface:#18221d; --sunk:#0c120f; --line:#2c3a33;
+  --ink:#e4ece8; --muted:#94a69d; --accent:#3cc47f; --accent-ink:#06170e; --accent-soft:#173828;
+  --warn:#f59e4b; --warn-soft:#3a2413; --danger:#f0776b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101714; --surface:#18221d; --sunk:#0c120f; --line:#2c3a33;
+  --ink:#e4ece8; --muted:#94a69d; --accent:#3cc47f; --accent-ink:#06170e; --accent-soft:#173828;
+  --warn:#f59e4b; --warn-soft:#3a2413; --danger:#f0776b; color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 var(--f);-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px 0}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.wrap{max-width:1200px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:8px;margin-right:auto}
+.bands{display:flex;height:22px}.bands i{width:6px}
+.brand h1{font-size:22px}
+.pill{font-size:12px;font-weight:600;padding:4px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.badge{border:2px solid var(--line);border-radius:99px;padding:6px 12px;font-weight:700;white-space:nowrap}
+.badge.ok{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.badge.bad{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.tabs{display:flex;gap:4px;margin-top:8px;overflow-x:auto}
+.tab{border:0;background:none;padding:10px 12px;font-weight:600;font-size:16px;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+main{max-width:1200px;margin:0 auto;padding:16px 16px 80px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.card h2{font-size:19px;margin-bottom:4px}
+.card h3{font-size:16px;margin:14px 0 6px}
+.sub{color:var(--muted);font-size:13px}
+.btn{min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;white-space:nowrap}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{min-height:34px;padding:0 10px;font-size:14px}
+.btn.danger{color:var(--danger)}
+.btn.armed{background:var(--danger);color:#fff;border-color:var(--danger)}
+select,input[type=text],input[type=email],input[type=tel],input[type=date],input:not([type]),input[inputmode],textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:40px;width:100%}
+textarea{min-height:80px;resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 14px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:700px){.grid2,.grid3{grid-template-columns:1fr}.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field>span{font-size:13px;font-weight:500;color:var(--muted)}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;cursor:pointer;background:var(--sunk);display:flex;flex-direction:column;gap:6px;align-items:center}
+.drop.has{border-style:solid;border-color:var(--accent);background:var(--accent-soft)}
+.drop b{font-size:17px}
+.stat{background:var(--sunk);border-radius:10px;padding:10px 12px}
+.stat b{font-size:20px;display:block;font-variant-numeric:tabular-nums}.stat span{font-size:12px;color:var(--muted)}
+.stat.good{background:var(--accent-soft)}.stat.good b{color:var(--accent)}
+.cmp{width:100%;border-collapse:collapse;font-size:15px;margin-top:8px}
+.cmp th{font-size:12px;color:var(--muted);font-weight:600;text-align:right;padding:6px}
+.cmp td{padding:8px 6px;border-top:1px solid var(--sunk);text-align:right;font-variant-numeric:tabular-nums}
+.cmp td:first-child,.cmp th:first-child{text-align:left;color:var(--muted)}
+.ber{display:inline-block;color:#fff;font-weight:700;padding:1px 8px;border-radius:5px;min-width:34px;text-align:center}
+.checks{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:12px}
+@media (max-width:800px){.checks{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ck{border-radius:10px;padding:9px 10px;background:var(--accent-soft);font-size:13px}
+.ck b{display:block;font-size:16px;color:var(--accent)}
+.ck.bad{background:var(--warn-soft)}.ck.bad b{color:var(--warn)}
+.ck.na{background:var(--sunk)}.ck.na b{color:var(--muted)}
+.ck span{color:var(--muted);font-size:12px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:8px 6px;border-bottom:1px solid var(--sunk);vertical-align:middle}
+.tbl .n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tbl tr.grp td{background:var(--sunk);font-weight:600;font-size:13px;color:var(--muted);padding:6px}
+.tbl tr.off td{color:var(--muted)}
+.tbl input[inputmode]{width:66px;min-height:34px;padding:4px 6px;text-align:right}
+.tbl select{min-height:34px;padding:4px 6px;width:auto;max-width:240px}
+.tbl .ex{min-width:170px}@media (max-width:900px){.tbl .ex{min-width:140px}.tbl td,.tbl th{padding:6px 3px}.tbl input[inputmode]{width:54px}.tbl .ex select{font-size:14px}}.tbl .ex b{display:block;font-weight:600}.tbl .ex small{display:block}
+.tbl .ex small{color:var(--muted)}
+.tbl tr.tot td{font-weight:700;border-bottom:none}
+.tblwrap{overflow-x:auto;margin:0 -6px}
+.tog{appearance:none;-webkit-appearance:none;width:42px;height:24px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;flex:none;margin:0;border:0}
+.tog::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.tog:checked{background:var(--accent)}.tog:checked::after{left:20px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.opt{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.opt .row{justify-content:space-between;flex-wrap:nowrap}
+.opt .cost{font-weight:600;font-variant-numeric:tabular-nums}
+.sum{display:grid;grid-template-columns:1fr auto;font-size:15px}
+.sum div{padding:8px 4px;border-bottom:1px solid var(--sunk)}.sum div:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
+.sum .t{font-weight:700;border-bottom:none;font-size:17px}
+.sum .g{color:var(--accent)}
+.doc{display:flex;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--sunk)}
+.doc:last-child{border-bottom:0}
+.doc h3{margin:0;font-size:16px}.doc p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.doc .btn{margin-left:auto}
+.warnbox{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:14px;margin-top:10px}
+.okbox{background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:14px;margin-top:10px}
+.muted{color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:20}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="row">
+      <div class="brand"><div class="bands"><i style="background:#0b7a45"></i><i style="background:#5bb534"></i><i style="background:#c8d400"></i><i style="background:#ffd500"></i><i style="background:#f39200"></i><i style="background:#e30613"></i></div><h1>Upgrade Report</h1><span id="offline" class="pill warn">Needs internet once</span></div>
+      <div id="topBadge"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <select id="pick" style="max-width:320px"></select>
+      <button class="btn" id="newBtn">New report</button>
+      <span class="sub">Your BER Survey app is not touched.</span>
+    </div>
+    <nav class="tabs" id="tabs"></nav>
+  </div>
+</header>
+<main id="main"></main>
+<input type="file" id="fileA" accept="application/pdf,.pdf" hidden>
+<input type="file" id="fileB" accept="application/pdf,.pdf" hidden>
+<script src="pdf.min.js"></script>
+<script src="pdftext.js"></script>
+<script src="parse.js"></script>
+<script src="calc.js"></script>
+<script src="../jspdf.umd.min.js"></script>
+<script src="../jspdf.plugin.autotable.min.js"></script>
+<script src="app.js"></script>
+<script src="reports.js"></script>
+<script>
+// Offline: this page has its own service worker so it opens with no signal
+(function(){
+  const el=document.getElementById('offline');
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js',{scope:'./'}).then(()=>navigator.serviceWorker.ready).then(()=>{
+    caches.keys().then(ks=>{ if(ks.some(k=>k.startsWith('ta-'))){ el.textContent='✓ Works offline'; el.className='pill'; } });
+  }).catch(()=>{});
+})();
+</script>
+</body>
+</html>

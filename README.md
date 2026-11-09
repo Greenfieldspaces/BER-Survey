@@ -13,3 +13,7 @@ Surveys are saved only on the device they were entered on. Use the Backup tab to
 ## Fill DEAP from Chrome
 
 The `deap-extension` folder is a Chrome extension that fills the open DEAP screen from a survey. In the app, Enter in DEAP has a Share transfer file button that sends the survey to the laptop. See [deap-extension/README.md](deap-extension/README.md) for install and use.
+
+## Upgrade Report (technical assessments)
+
+A separate app in the `ta` folder, at the same address with `ta/` on the end. Drop in DEAP's Dwelling Details Report for the current BER, tick the upgrades, and it works out the HLI, energy and CO2 after works, costs and SEAI grants, and makes three PDFs: the BER Upgrade Report, the SEAI Technical Assessment Form and the Home Energy Summary Report. You can also drop in a second Dwelling Details Report of the upgraded house from DEAP, and the after figures then come straight from DEAP. It has its own home screen icon and works offline. It does not change the BER Survey app or its surveys.
