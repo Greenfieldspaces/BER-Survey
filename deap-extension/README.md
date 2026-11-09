@@ -12,6 +12,8 @@ Fills the DEAP screen you have open at deap.seai.ie with the values from a BER S
 
 To update later, unzip the new version over the same folder and press the reload arrow on the extension's card in `chrome://extensions`.
 
+The extension has a fixed ID (`pimlmdoaefjfdbcccbijdeimiebpnkjp`), set by the `key` in manifest.json. Your settings, taught fields and remembered library picks are tied to that ID, so they survive if the folder is moved or renamed. If Chrome says a file is not found after a move, press **Remove** on the card and **Load unpacked** the folder from its new place; nothing is lost. Keep the `key` line when editing manifest.json.
+
 ## Use it
 
 1. On the iPad, open the survey, go to **Enter in DEAP**, open **Fill DEAP from Chrome on your laptop** and tap **Share transfer file**. AirDrop, Mail or iCloud Drive it to the laptop.
