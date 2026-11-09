@@ -66,7 +66,8 @@ function synthTables() {
   // DEAP's library heat source types, for a boiler that has to be added to the library
   const htype = src => /heat pump/i.test(src) ? 'Heat pumps' : /storage/i.test(src) ? 'Electric storage systems' : /underfloor/i.test(src) ? 'Electric underfloor heating' : /group|district/i.test(src) ? 'Group heating systems' : /warm air/i.test(src) ? 'Warm air systems' : /stove|fire|room|heater/i.test(src) ? 'Room heaters' : /electric/i.test(src) ? 'Electric boilers' : /solid|biomass|range/i.test(src) && !/\boil\b|gas|lpg/i.test(src) ? 'Solid fuel boilers' : 'Gas and oil boilers';
   if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), v('heat.make') ? '1' : '', fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '', v('heat.make'), htype(v('heat.src'))]);
-  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec'))]);
+  // DEAP's library calls a plain open fire "Open fire in grate" (older surveys just say Open fire)
+  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([/^open fire$/i.test(v('heat.sec').trim()) ? 'Open fire in grate' : v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec'))]);
   tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['exact', 'Make and model given'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water'], ['make', 'Make and model'], ['htype', 'Heat source type']], heats);
   const vent = [['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0).map(([k, q]) => [q, String(n('vent.' + k))]);
   tbl('vent.items', 'Ventilation items', [['search', 'Library search'], ['n', 'Number of items']], vent);
