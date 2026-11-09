@@ -170,8 +170,10 @@ function job(sc) {
     if (t.key === 'openings.windows-for-deap') {
       add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
       // DEAP will not save a window without overshading and overhang, so use its usual defaults when the survey has none
+      // overshading is set on each window in the app now (older surveys had one for the whole house)
       const sh = surveyValue('openings', 'openings.shading'); add(t, 'shading', 'Overshading', () => sh || 'Average or Unknown');
-      add(t, 'overhang', 'Overhang', () => 'No Overhang');
+      { const si = t.columns.findIndex(c => c.key === 'shading'); t.rows.forEach(r => { if (!r[si]) r[si] = sh || 'Average or Unknown' }) }
+      add(t, 'overhang', 'Overhang', () => 'NA');
       // the survey's total area goes in as one item, so DEAP must not multiply it by the number of windows
       { const ni = t.columns.findIndex(c => c.key === 'no'); if (ni >= 0) t.rows.forEach(r => { if (r[ni]) r[ni] = '1' }) }
       add(t, 'search', 'Library search', r => col(t, r, 'glazing'));

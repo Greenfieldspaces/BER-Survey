@@ -96,8 +96,8 @@ input.auto{border-style:dashed;background:var(--bg)}
 .btn.dashed{border-style:dashed}
 .ftbl{display:flex;flex-direction:column;gap:6px}
 #rirSec{scroll-margin-top:200px}
-.oprow{display:grid;grid-template-columns:minmax(0,1fr) 58px 62px 78px 74px 46px minmax(0,1.3fr) 54px 32px;gap:6px;align-items:center}
-.oprow.inw{grid-template-columns:minmax(0,1fr) 54px 58px 70px 64px 42px minmax(0,1.2fr) minmax(0,.8fr) 52px 30px}
+.oprow{display:grid;grid-template-columns:minmax(0,1fr) 58px 150px 62px 78px 74px 46px minmax(0,1.3fr) 54px 32px;gap:6px;align-items:center}
+.oprow.inw{grid-template-columns:minmax(0,1fr) 54px 146px 58px 70px 64px 42px minmax(0,1.2fr) minmax(0,.8fr) 52px 30px}
 .oprow select,.oprow input{min-height:40px;padding:6px 6px}
 .oph{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted)}
 .oprow .r{text-align:right}
@@ -280,6 +280,10 @@ const DEFAULT_TYPES=['Cavity wall','Solid wall','Timber frame','Hollow block','S
 // ---- DEAP survey schema ----
 const YN={type:'yn'};
 const OVERSHADE=['None or very little','Modest','Significant','Heavy'];
+// window overshading in DEAP's own words, set on each window
+const WIN_SHADE=['Very Little','Average or Unknown','More Than Average','Heavy'];
+const OLD_SHADE={'None or very little':'Very Little','Modest':'Average or Unknown','Significant':'More Than Average','Heavy':'Heavy'};
+const opShade=o=>o.kind==='door'?'':o.shade||'';
 const FUELS=['Heating oil','Mains gas','Bulk LPG','Bottled LPG','Electricity','Wood pellets (bags)','Wood pellets (bulk)','Wood logs','Wood chips','Coal','Anthracite','Smokeless fuel','Solid multi-fuel','Peat briquettes','Sod peat','None'];
 const F=(id,label,o)=>Object.assign({id,label,type:'text'},o||{});
 const N=(id,label,o)=>F(id,label,Object.assign({type:'num'},o));
@@ -344,7 +348,6 @@ const SECTIONS=[
     {id:'openings',name:'Windows & doors',groups:[
       {title:'Window types',custom:'wintypes'},
       {title:'Door types',custom:'doortypes'},
-      {title:'Whole house',fields:[S_('shading','Window overshading',OVERSHADE)]},
       {title:'Windows/doors draught stripping',fields:[
         N('op_total','Total openings',{int:1,phFn:()=>'('+wallOpCount()+' on walls)',hint:'Leave blank to use the openings from your walls'}),
         N('op_strip','Openings draught stripped',{int:1}),
@@ -457,9 +460,9 @@ function exampleSurvey(){
   s.data={details:{dtype:'Semi-detached house',year:'1998',storeys:'2'},dims:{storeys:[{level:'Ground floor',area:'48.5',height:'2.40'},{level:'First floor',area:'48.5',height:'2.45'}],living:'16.2'},walltypes:{'Cavity wall':{cons:'Cavity, filled',thick:'300',ins:'Cavity fill (pumped bead / fibre)',insmm:'100',year:'1998',ev:'Photo taken'}},openings:{glazing:'Double',frame:'PVC',gap:'16 mm or more',doortype:'Composite'}};
   const A=(o)=>blankOp('window',o),D=(o)=>blankOp('door',o);
   s.walls=[
-    blankWall({level:'Ground floor',name:'Ground floor',orient:'',L:'31.20',ops:[A({orient:'S',name:'Living',a:'2.16'}),D({orient:'S',name:'Front door',a:'1.89'}),A({orient:'N',name:'Kitchen',a:'1.65',g:{glazing:'Single',frame:'Wood'}}),A({orient:'N',name:'Patio (glazed)',a:'3.78'})]}),
+    blankWall({level:'Ground floor',name:'Ground floor',orient:'',L:'31.20',ops:[A({orient:'S',name:'Living',a:'2.16',shade:'Very Little'}),D({orient:'S',name:'Front door',a:'1.89'}),A({orient:'N',name:'Kitchen',a:'1.65',shade:'More Than Average',g:{glazing:'Single',frame:'Wood'}}),A({orient:'N',name:'Patio (glazed)',a:'3.78',shade:'Average or Unknown'})]}),
     blankWall({level:'Ground floor',name:'Ground floor',orient:'',type:'Semi-exposed wall',L:'3.00'}),
-    blankWall({level:'First floor',name:'First floor',orient:'',L:'31.20',ops:[A({orient:'S',name:'Bedrooms',a:'1.44',qty:'2'}),A({orient:'E',name:'Landing',a:'0.63'})]}),
+    blankWall({level:'First floor',name:'First floor',orient:'',L:'31.20',ops:[A({orient:'S',name:'Bedrooms',a:'1.44',qty:'2',shade:'Very Little'}),A({orient:'E',name:'Landing',a:'0.63',shade:'Average or Unknown'})]}),
     blankWall({shape:'tri',name:'Gable top',orient:'',L:'8.40',apex:'2.60'})
   ];
   return s;
@@ -605,7 +608,7 @@ function opsEl(lines,s,dir){
   const box=el('div',{class:'ftbl'});
   const rows=[];lines.forEach(w=>w.ops.forEach(o=>rows.push([w,o])));
   const multi=lines.length>1;
-  if(rows.length)box.append(el('div',{class:'oprow oph'+(multi?' inw':'')},el('span',null,'Room'),el('span',null,'Faces'),el('span',null,'What'),el('span',null,'Area m²'),el('span',null,'Openings'),el('span',null,'Qty'),el('span',null,'Spec'),multi?el('span',null,'In wall'):null,el('span',{class:'r'},'m²'),el('span')));
+  if(rows.length)box.append(el('div',{class:'oprow oph'+(multi?' inw':'')},el('span',null,'Room'),el('span',null,'Faces'),el('span',null,'Shading'),el('span',null,'What'),el('span',null,'Area m²'),el('span',null,'Openings'),el('span',null,'Qty'),el('span',null,'Spec'),multi?el('span',null,'In wall'):null,el('span',{class:'r'},'m²'),el('span')));
   rows.forEach(([w,o])=>{
     const u=k=>e=>{o[k]=e.target.value;save();refresh()};
     const ts=opTypes(o.kind);
@@ -614,6 +617,7 @@ function opsEl(lines,s,dir){
     box.append(el('div',{class:'oprow'+(multi?' inw':''),'data-op':o.id},
       el('input',{value:o.name||'',placeholder:'Room','aria-label':'Room',oninput:e=>{o.name=e.target.value;save()}}),
       el('select',{'aria-label':'Faces',onchange:e=>{o.orient=e.target.value;lastOp.orient=o.orient;save();refresh()}},el('option',{value:''},'–'),ORIENTS.map(d=>el('option',{value:d,selected:opDir(o,w)===d},d))),
+      o.kind==='door'?el('span',{class:'muted'},''):el('select',{'aria-label':'Overshading',onchange:e=>{o.shade=e.target.value;lastOp.shade=o.shade;save();refresh()}},el('option',{value:''},'–'),WIN_SHADE.map(d=>el('option',{value:d,selected:o.shade===d},d))),
       el('span',{class:o.kind==='door'?'kind door':'kind'},o.kind==='door'?'Door':'Window'),
       numInput('oa-'+o.id,o.a,'Area m² each',u('a')),
       el('input',{inputmode:'numeric',value:o.open||'',placeholder:'–','aria-label':'Openings on each',oninput:u('open')}),
@@ -626,7 +630,7 @@ function opsEl(lines,s,dir){
   const add=kind=>()=>{
     const w=lines[0],ts=opTypes(kind);
     const t=ts.find(x=>x.id===lastOp[kind+'t'])||ts[0]||newOpType(kind);
-    const o=blankOp(kind,{t:t.id,orient:lastOp.orient||dir||''});w.ops.push(o);save();render();
+    const o=blankOp(kind,Object.assign({t:t.id,orient:lastOp.orient||dir||''},kind==='window'?{shade:lastOp.shade||'Average or Unknown'}:{}));w.ops.push(o);save();render();
     setTimeout(()=>{const i=document.getElementById('oa-'+o.id);i&&i.focus()},40);
   };
   box.append(el('div',{class:'row'},el('button',{class:'btn small',onclick:add('window')},'+ Window'),el('button',{class:'btn small',onclick:add('door')},'+ Door'),
@@ -789,7 +793,7 @@ function openingParts(s){
   s.walls.forEach(w=>w.ops.forEach(o=>{
     const base=[opDir(o,w),w.name||'Wall',o.name||'',opSize(o),String(Math.max(0,Math.round(n(o.qty)||0))),f2(opArea(o))];
     if(o.kind==='door')doors.push(base.concat([opEff(o,'doortype'),opEff(o,'door_u')+(opEff(o,'door_u_src')?' ('+opEff(o,'door_u_src')+')':'')]));
-    else{const single=opEff(o,'glazing')==='Single';wins.push(base.concat([opEff(o,'glazing'),opEff(o,'frame'),single?'':opEff(o,'gap'),single?'':opEff(o,'fill'),opEff(o,'win_u'),opEff(o,'win_u_src'),opEff(o,'win_year')]))}
+    else{const single=opEff(o,'glazing')==='Single';wins.push(base.concat([opEff(o,'glazing'),opEff(o,'frame'),single?'':opEff(o,'gap'),single?'':opEff(o,'fill'),opEff(o,'win_u'),opEff(o,'win_u_src'),opEff(o,'win_year'),opShade(o)]))}
   }));
   const ord=r=>ORIENTS.indexOf(r[0]);
   const trim=(head,num,rows)=>{const keep=head.map((h,i)=>i<6||rows.some(r=>hasVal(r[i])));return {head:head.filter((h,i)=>keep[i]),num:num.filter((x,i)=>keep[i]),rows:rows.map(r=>r.filter((x,i)=>keep[i]))}};
@@ -799,10 +803,10 @@ function openingParts(s){
   const grp=(rows,keyIdx)=>{const m=new Map();rows.forEach(r=>{const k=keyIdx.map(i=>r[i]).join('|');const g=m.get(k)||{key:keyIdx.map(i=>r[i]),count:0,area:0};g.count+=n(r[4]);g.area+=n(r[5]);m.set(k,g)});return [...m.values()]};
   const trim2=(head,num,rows,fixed)=>{const keep=head.map((h,i)=>fixed.includes(i)||rows.some(r=>hasVal(r[i])));return {head:head.filter((h,i)=>keep[i]),num:num.filter((x,i)=>keep[i]),rows:rows.map(r=>r.filter((x,i)=>keep[i]))}};
   if(wins.length){
-    const g=grp(wins,[0,6,7,8,9,10,11]).sort((a,b)=>ORIENTS.indexOf(a.key[0])-ORIENTS.indexOf(b.key[0]));
+    const g=grp(wins,[0,13,6,7,8,9,10,11]).sort((a,b)=>ORIENTS.indexOf(a.key[0])-ORIENTS.indexOf(b.key[0]));
     const rows=g.map(x=>x.key.concat([String(x.count),f2(x.area)]));
     const tot=g.reduce((a,x)=>a+x.area,0),cnt=g.reduce((a,x)=>a+x.count,0);
-    const t=trim2(['Faces','Glazing','Frame','Gap','Gas','U-value','U-value evidence','No.','Total area m²'],[0,0,0,0,0,1,0,1,1],rows,[0,1,7,8]);
+    const t=trim2(['Faces','Shading','Glazing','Frame','Gap','Gas','U-value','U-value evidence','No.','Total area m²'],[0,0,0,0,0,0,1,0,1,1],rows,[0,1,2,8,9]);
     t.rows.push(t.head.map((h,i)=>i===0?'Total':h==='No.'?String(cnt):h==='Total area m²'?f2(tot):''));
     parts.push({table:Object.assign({title:'Windows for DEAP (matching windows combined)',total:true},t)});
   }
@@ -1003,7 +1007,7 @@ async function sharePDF(s,btn){
 
 // ---- site checks: missing inputs and figures that don't add up ----
 // every check, open or not. desk: can be done back at the desk, so it doesn't stop you leaving site.
-const DESK=['Date of survey','Thermal bridging factor','Thermal mass category','Window overshading'];
+const DESK=['Date of survey','Thermal bridging factor','Thermal mass category'];
 function allChecks(s){
   const out=[],D=k=>s.data[k]||{},add=(lvl,t,tab,sub,x)=>out.push(Object.assign({lvl,t,tab,sub,key:tab+'|'+t,desk:DESK.includes(t)},x||{}));
   const det=D('details'),dims=D('dims'),vent=D('vent'),heat=D('heat'),water=D('water'),gen=D('gen'),ops=D('openings');
@@ -1037,7 +1041,7 @@ function allChecks(s){
   let noGlaz=0,noDoor=0;s.walls.forEach(w=>w.ops.forEach(o=>{if(o.kind==='door'){if(!opEff(o,'doortype'))noDoor++}else if(!opEff(o,'glazing'))noGlaz++}));
   if(noGlaz)add('miss',noGlaz+' window'+(noGlaz>1?'s have':' has')+' no glazing type','building','openings');
   if(noDoor)add('miss',noDoor+' door'+(noDoor>1?'s have':' has')+' no door type','building','openings');
-  if(!hasVal(ops.shading)&&s.walls.some(w=>w.ops.length))add('miss','Window overshading','building','openings');
+  {const ns=s.walls.reduce((a,w)=>a+w.ops.filter(o=>o.kind!=='door'&&!o.shade).length,0);if(ns)add('miss',ns+' window'+(ns>1?'s have':' has')+' no overshading','building','walls')}
   if(!hasVal(D('fabric').tb))add('miss','Thermal bridging factor','building','fabric');
   if(!hasVal(D('fabric').mass))add('miss','Thermal mass category','building','fabric');
   if(['chimneys','flues','fans','vents','flueless'].every(k=>!hasVal(vent[k])))add('miss','Chimneys, flues, fans and vents (enter 0 where there are none)','vent');
@@ -1485,6 +1489,8 @@ function migrateOps(s){
   const d=s.data.openings||(s.data.openings={});
   // secondary heating 'Open fire' is now 'Open fire in grate', DEAP's name for it
   if(s.data.heat&&s.data.heat.sec==='Open fire')s.data.heat.sec='Open fire in grate';
+  // window overshading used to be one setting for the whole house: put it on each window
+  if(hasVal(d.shading)){s.walls.forEach(w=>w.ops.forEach(o=>{if(o.kind!=='door'&&!o.shade)o.shade=OLD_SHADE[d.shading]||d.shading}));delete d.shading}
   // openings now take an area only: turn old width × height into an area
   s.walls.forEach(w=>w.ops.forEach(o=>{if(!hasVal(o.a)&&(hasVal(o.w)||hasVal(o.h)))o.a=String(+(n(o.w)*n(o.h)).toFixed(2));delete o.w;delete o.h}));
   if(d.wintypes&&d.doortypes)return;
