@@ -82,7 +82,7 @@ function deapWallType(cons, thick, name) {
   return c;
 }
 function job(sc) {
-  const fields = [], tables = sc.tables.map(t => Object.assign({}, t, { columns: t.columns.slice(), rows: t.rows.map(r => r.slice()) }));
+  const fields = []; let tables = sc.tables.map(t => Object.assign({}, t, { columns: t.columns.slice(), rows: t.rows.map(r => r.slice()) }));
   sc.fields.filter(f => !f.group).forEach(f => {
     if (Array.isArray(f.value)) f.value.forEach(o => fields.push({ key: f.key + '.' + slug(o), label: o, value: 'Yes', parent: f.label }));
     else fields.push({ key: f.key, label: f.label, value: f.value });
@@ -178,6 +178,18 @@ function job(sc) {
       { const ni = t.columns.findIndex(c => c.key === 'no'); if (ni >= 0) t.rows.forEach(r => { if (r[ni]) r[ni] = '1' }) }
       add(t, 'search', 'Library search', r => col(t, r, 'glazing'));
       add(t, 'want', 'Library match', r => [col(t, r, 'glazing'), col(t, r, 'frame')].filter(Boolean).join(' '));
+      // roof lights go in as windows with Roof Window ticked, glazed like the house's main windows
+      add(t, 'roof', 'Roof window', () => 'No');
+      const rl = tables.find(x => x.key === 'openings.rooflights');
+      if (rl && t.rows.length) {
+        const rc = k => rl.columns.findIndex(c => c.key === k), first = t.rows[0];
+        rl.rows.forEach(r => {
+          const area = (parseFloat(r[rc('w')]) || 0) * (parseFloat(r[rc('h')]) || 0) * (parseInt(r[rc('qty')]) || 1);
+          if (!area) return;
+          const v = { faces: r[rc('orient')] || 'Horizontal', no: '1', 'total-area-m2': area.toFixed(2), desc: 'Roof light', roof: 'Yes', overhang: 'NA', shading: sh || 'Average or Unknown' };
+          t.rows.push(t.columns.map((c, i) => c.key in v ? v[c.key] : /^(glazing|frame|gap|gas|search|want|u-value)$/.test(c.key) ? first[i] : ''));
+        });
+      }
     }
     if (t.key === 'openings.doors-for-deap') {
       add(t, 'search', 'Library search', r => col(t, r, 'door-type'));
@@ -189,6 +201,8 @@ function job(sc) {
     const rows = (sc.tables.find(t => t.key === 'dims.storeys') || { rows: [] }).rows.length, n = Math.max(parseInt(surveyValue('details', 'details.storeys')) || 0, rows);
     if (n) fields.unshift({ key: 'dims.nstoreys', label: 'Number of storeys', value: String(n) });
   }
+  // roof lights were folded into the windows above
+  if (tables.some(t => t.key === 'openings.windows-for-deap')) tables = tables.filter(t => t.key !== 'openings.rooflights');
   const keys = fields.map(f => f.key).concat(tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))));
   return { fields, tables, mapping: fullMap(keys) };
 }

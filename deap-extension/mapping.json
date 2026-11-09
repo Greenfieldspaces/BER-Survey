@@ -941,6 +941,12 @@
     },
     "openings.win_u": {
       "skip": true
+    },
+    "water.hpdhw": {
+      "selector": "mat-select[name=\"DomesticHotWaterStorageId\"]"
+    },
+    "openings.windows-for-deap.roof": {
+      "selector": "input[name=\"RoofWindow\"]"
     }
   },
   "transfer": [
@@ -1083,6 +1089,7 @@
       "screen": "water",
       "fields": [
         "water.storetype",
+        "water.hpdhw",
         "water.storeloss",
         "water.indoors",
         "water.distloss",
