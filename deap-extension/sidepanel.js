@@ -142,6 +142,13 @@ function job(sc) {
     if (t.key === 'roofs.roofs') {
       add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
       add(t, 'year', 'Year built', () => dwellingYear());
+      // DEAP's Insulation Thickness is a list of set sizes: use the nearest one (a tie goes to the thinner)
+      const ii = t.columns.findIndex(c => c.key === 'ins'), SIZES = [0, 12, 25, 50, 75, 100, 150, 200, 250, 300];
+      if (ii >= 0) t.rows.forEach(r => {
+        const mm = parseFloat(r[ii]); if (isNaN(mm)) return;
+        const near = SIZES.reduce((a, b) => Math.abs(b - mm) < Math.abs(a - mm) ? b : a);
+        r[ii] = near >= 300 ? '>= 300 mm' : near + ' mm';
+      });
     }
     if (t.key === 'gen.pv') {
       // DEAP wants number of panels and watts per panel. Older surveys only have one number, which is the array kWp,

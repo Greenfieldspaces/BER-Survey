@@ -870,27 +870,26 @@
       "skip": true
     },
     "water.collector.aper": {
-      "labels": [
-        "Aperture area",
-        "Collector aperture area",
-        "Area"
-      ]
+      "selector": "input[name=\"ApetureAreaOfCollector\"]"
     },
     "water.collector.orient": {
-      "labels": [
-        "Orientation"
-      ]
+      "selector": "mat-select[name=\"OrientationId\"]",
+      "values": {
+        "S": "South",
+        "SE": "SE/SW",
+        "SW": "SE/SW",
+        "E": "East/West",
+        "W": "East/West",
+        "NE": "NE/NW",
+        "NW": "NE/NW",
+        "N": "North"
+      }
     },
     "water.collector.tilt": {
-      "labels": [
-        "Tilt",
-        "Pitch"
-      ]
+      "selector": "input[name=\"TiltInDegreesFromHorizontal\"]"
     },
     "water.collector.shade": {
-      "labels": [
-        "Overshading"
-      ]
+      "selector": "mat-select[name=\"OvershadingId\"]"
     },
     "water.showers": {
       "skip": true
