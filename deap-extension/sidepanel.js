@@ -178,6 +178,11 @@ function job(sc) {
       { const ni = t.columns.findIndex(c => c.key === 'no'); if (ni >= 0) t.rows.forEach(r => { if (r[ni]) r[ni] = '1' }) }
       add(t, 'search', 'Library search', r => col(t, r, 'glazing'));
       add(t, 'want', 'Library match', r => [col(t, r, 'glazing'), col(t, r, 'frame')].filter(Boolean).join(' '));
+      // the words DEAP's COMMON ITEMS use for a window, e.g. "Double - Air - Wood/PVC - 12mm Gap"
+      add(t, 'common', 'Common item', r => {
+        const g = col(t, r, 'glazing'), f = col(t, r, 'frame'), gap = col(t, r, 'gap'), gas = col(t, r, 'gas') || col(t, r, 'fill');
+        return [g.replace(/low-?e/i, 'Low-E'), /^(air|argon)$/i.test(gas) ? gas : '', /^(pvc|wood)$/i.test(f) ? 'Wood/PVC' : f, (gap.match(/\d+/) || [''])[0] + (gap ? 'mm' : '')].filter(Boolean).join(' ');
+      });
       // roof lights go in as windows with Roof Window ticked, glazed like the house's main windows
       add(t, 'roof', 'Roof window', () => 'No');
       const rl = tables.find(x => x.key === 'openings.rooflights');
@@ -187,7 +192,7 @@ function job(sc) {
           const area = (parseFloat(r[rc('w')]) || 0) * (parseFloat(r[rc('h')]) || 0) * (parseInt(r[rc('qty')]) || 1);
           if (!area) return;
           const v = { faces: r[rc('orient')] || 'Horizontal', no: '1', 'total-area-m2': area.toFixed(2), desc: 'Roof light', roof: 'Yes', overhang: 'NA', shading: sh || 'Average or Unknown' };
-          t.rows.push(t.columns.map((c, i) => c.key in v ? v[c.key] : /^(glazing|frame|gap|gas|search|want|u-value)$/.test(c.key) ? first[i] : ''));
+          t.rows.push(t.columns.map((c, i) => c.key in v ? v[c.key] : /^(glazing|frame|gap|gas|fill|search|want|common|u-value)$/.test(c.key) ? first[i] : ''));
         });
       }
     }

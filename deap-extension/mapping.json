@@ -707,7 +707,8 @@
     "openings.windows-for-deap": {
       "dialog": true,
       "add": "ADD WINDOW",
-      "library": true
+      "library": true,
+      "common": true
     },
     "openings.windows-for-deap.desc": {
       "selector": "input[name=\"Description\"]"
@@ -819,6 +820,12 @@
       "skip": true
     },
     "heat.sources.eff": {
+      "skip": true
+    },
+    "heat.sources.pct": {
+      "selector": "input[name=\"PercentageOfHeat\"]"
+    },
+    "openings.windows-for-deap.common": {
       "skip": true
     },
     "heat.sources.fuel": {
