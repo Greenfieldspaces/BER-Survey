@@ -69,6 +69,13 @@ function fullMap(keys) { const m = {}; keys.forEach(k => { const v = mapFor(k); 
 const surveyValue = (screen, key) => ((st.survey.screens.find(x => x.id === screen) || { fields: [] }).fields.find(f => f.key === key) || {}).value || '';
 const dwellingYear = () => surveyValue('details', 'details.year');
 // the survey's wall construction in DEAP's Wall Type wording
+// the room in roof knee wall rows the app adds to the roofs table
+function kneeWalls() {
+  const sc = (st.survey.screens || []).find(x => x.id === 'roofs'), t = sc && (sc.tables || []).find(x => x.key === 'roofs.roofs');
+  if (!t) return [];
+  const ci = k => t.columns.findIndex(c => c.key === k), g = (r, k) => ci(k) >= 0 ? r[ci(k)] || '' : '';
+  return t.rows.filter(r => /stud wall|knee/i.test(g(r, 'type'))).map(r => ({ part: g(r, 'part'), area: g(r, 'area'), u: g(r, 'u') }));
+}
 function deapWallType(cons, thick, name) {
   const t = parseFloat(thick) || 0, c = String(cons || '');
   if (/semi/i.test(name) && /block/i.test(c)) return t && t < 150 ? 'Semi Exposed 100mm Block Wall adjacent unheated circulation space' : 'Semi Exposed 215mm Block Wall adjacent unheated circulation space';
@@ -105,7 +112,13 @@ function job(sc) {
     const dyear = ((st.survey.screens.find(x => x.id === 'details') || { fields: [] }).fields.find(f => f.key === 'details.year') || {}).value || '';
     const raw = (g, k) => (grouped.find(f => f.group === g && f.key.endsWith('.' + k)) || {}).value || '';
     const val = (g, k) => k === 'name' ? g : k === 'semi' ? (/semi/i.test(g) ? 'Yes' : 'No') : k === 'cons' ? deapWallType(raw(g, 'cons'), raw(g, 'thick'), g) : raw(g, k) || (k === 'year' ? dyear : '');
-    tables.unshift({ key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => val(g, c.key))) });
+    const wt = { key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => val(g, c.key))) };
+    // room in roof knee walls go on DEAP's Walls tab (the app works them out with the roofs)
+    if (sc.id === 'walls') kneeWalls().forEach(k => {
+      const v = { name: (k.part && !/^original$/i.test(k.part) ? k.part + ' ' : '') + 'Room in roof knee walls', net: k.area, cons: 'Timber Frame', year: dyear, u: k.u, semi: 'No' };
+      wt.rows.push(cols.map(c => v[c.key] || ''));
+    });
+    tables.unshift(wt);
   }
   // extra columns DEAP's dialogs ask for that the survey holds elsewhere
   const add = (t, key, label, fn) => { if (!t.columns.some(c => c.key === key)) { t.columns.push({ key, label }); t.rows = t.rows.map((r, i) => r.concat([fn(r, i)])) } };
@@ -140,6 +153,8 @@ function job(sc) {
       }
     }
     if (t.key === 'roofs.roofs') {
+      // knee walls go in as walls, not roofs
+      { const ti = t.columns.findIndex(c => c.key === 'type'); t.rows = t.rows.filter(r => !/stud wall|knee/i.test(r[ti] || '')) }
       add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
       add(t, 'year', 'Year built', () => dwellingYear());
       // DEAP's Insulation Thickness is a list of set sizes: use the nearest one (a tie goes to the thinner)
@@ -168,7 +183,9 @@ function job(sc) {
       add(t, 'w', 'Peak power per panel W', (r, i) => calc[i].w ? String(calc[i].w) : '');
     }
     if (t.key === 'openings.windows-for-deap') {
-      add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
+      // the description names the windows in the row and the way they face ("W 1,2,3,4 East"); older files give the glazing
+      const FACE = { N: 'North', NE: 'Northeast', E: 'East', SE: 'Southeast', S: 'South', SW: 'Southwest', W: 'West', NW: 'Northwest' };
+      add(t, 'desc', 'Description', r => col(t, r, 'windows') ? (col(t, r, 'windows') + ' ' + (FACE[col(t, r, 'faces')] || col(t, r, 'faces'))).trim() : [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
       // DEAP will not save a window without overshading and overhang, so use its usual defaults when the survey has none
       // overshading is set on each window in the app now (older surveys had one for the whole house)
       const sh = surveyValue('openings', 'openings.shading'); add(t, 'shading', 'Overshading', () => sh || 'Average or Unknown');

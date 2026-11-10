@@ -825,6 +825,9 @@
     "heat.sources.pct": {
       "selector": "input[name=\"PercentageOfHeat\"]"
     },
+    "openings.windows-for-deap.windows": {
+      "skip": true
+    },
     "openings.windows-for-deap.common": {
       "skip": true
     },

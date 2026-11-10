@@ -789,24 +789,26 @@ function wallsParts(s){
   return parts;
 }
 function openingParts(s){
-  const S=summarise(s),parts=[],wins=[],doors=[];
+  const S=summarise(s),parts=[],wins=[],doors=[];let wno=0;
   s.walls.forEach(w=>w.ops.forEach(o=>{
     const base=[opDir(o,w),w.name||'Wall',o.name||'',opSize(o),String(Math.max(0,Math.round(n(o.qty)||0))),f2(opArea(o))];
     if(o.kind==='door')doors.push(base.concat([opEff(o,'doortype'),opEff(o,'door_u')+(opEff(o,'door_u_src')?' ('+opEff(o,'door_u_src')+')':'')]));
-    else{const single=opEff(o,'glazing')==='Single';wins.push(base.concat([opEff(o,'glazing'),opEff(o,'frame'),single?'':opEff(o,'gap'),single?'':opEff(o,'fill'),opEff(o,'win_u'),opEff(o,'win_u_src'),opEff(o,'win_year'),opShade(o)]))}
+    else{const single=opEff(o,'glazing')==='Single';const q=Math.max(0,Math.round(n(o.qty)||0)),nums=Array.from({length:q},()=>++wno);wins.push(base.concat([opEff(o,'glazing'),opEff(o,'frame'),single?'':opEff(o,'gap'),single?'':opEff(o,'fill'),opEff(o,'win_u'),opEff(o,'win_u_src'),opEff(o,'win_year'),opShade(o),nums]))}
   }));
   const ord=r=>ORIENTS.indexOf(r[0]);
   const trim=(head,num,rows)=>{const keep=head.map((h,i)=>i<6||rows.some(r=>hasVal(r[i])));return {head:head.filter((h,i)=>keep[i]),num:num.filter((x,i)=>keep[i]),rows:rows.map(r=>r.filter((x,i)=>keep[i]))}};
   const ot=ORIENTS.filter(o=>S.byOrient[o]).map(o=>[o,f2(S.byOrient[o].window),f2(S.byOrient[o].door)]);
   if(ot.length){ot.push(['Total',f2(S.win),f2(S.door)]);parts.push({table:{title:'Openings by orientation (for DEAP)',head:['Faces','Windows m²','Doors m²'],num:[0,1,1],rows:ot,total:true}})}
   // DEAP lines: windows with the same orientation and glazing combined into one row
-  const grp=(rows,keyIdx)=>{const m=new Map();rows.forEach(r=>{const k=keyIdx.map(i=>r[i]).join('|');const g=m.get(k)||{key:keyIdx.map(i=>r[i]),count:0,area:0};g.count+=n(r[4]);g.area+=n(r[5]);m.set(k,g)});return [...m.values()]};
+  // windows are numbered in the order they were entered (W 1, W 2 ...), so a DEAP line can say which windows it holds
+  const grp=(rows,keyIdx)=>{const m=new Map();rows.forEach(r=>{const k=keyIdx.map(i=>r[i]).join('|');const g=m.get(k)||{key:keyIdx.map(i=>r[i]),count:0,area:0,nums:[]};g.count+=n(r[4]);g.area+=n(r[5]);if(Array.isArray(r[14]))g.nums.push(...r[14]);m.set(k,g)});return [...m.values()]};
+  const wnums=a=>a.length?'W '+a.sort((x,y)=>x-y).join(','):'';
   const trim2=(head,num,rows,fixed)=>{const keep=head.map((h,i)=>fixed.includes(i)||rows.some(r=>hasVal(r[i])));return {head:head.filter((h,i)=>keep[i]),num:num.filter((x,i)=>keep[i]),rows:rows.map(r=>r.filter((x,i)=>keep[i]))}};
   if(wins.length){
     const g=grp(wins,[0,13,6,7,8,9,10,11]).sort((a,b)=>ORIENTS.indexOf(a.key[0])-ORIENTS.indexOf(b.key[0]));
-    const rows=g.map(x=>x.key.concat([String(x.count),f2(x.area)]));
+    const rows=g.map(x=>x.key.concat([String(x.count),f2(x.area),wnums(x.nums)]));
     const tot=g.reduce((a,x)=>a+x.area,0),cnt=g.reduce((a,x)=>a+x.count,0);
-    const t=trim2(['Faces','Shading','Glazing','Frame','Gap','Gas','U-value','U-value evidence','No.','Total area m²'],[0,0,0,0,0,0,1,0,1,1],rows,[0,1,2,8,9]);
+    const t=trim2(['Faces','Shading','Glazing','Frame','Gap','Gas','U-value','U-value evidence','No.','Total area m²','Windows'],[0,0,0,0,0,0,1,0,1,1,0],rows,[0,1,2,8,9]);
     t.rows.push(t.head.map((h,i)=>i===0?'Total':h==='No.'?String(cnt):h==='Total area m²'?f2(tot):''));
     parts.push({table:Object.assign({title:'Windows for DEAP (matching windows combined)',total:true},t)});
   }
@@ -815,7 +817,7 @@ function openingParts(s){
     const t=trim2(['Door type','U-value','No.','Total area m²'],[0,1,1,1],g.map(x=>x.key.concat([String(x.count),f2(x.area)])),[0,2,3]);
     parts.push({table:Object.assign({title:'Doors for DEAP (matching doors combined)'},t)});
   }
-  if(wins.length)parts.push({table:Object.assign({title:'Every window (site record)',record:true},trim(['Faces','Wall','Label','Size m','Qty','Area m²','Glazing','Frame','Gap','Gas','U-value','U-value evidence','Year'],[0,0,0,1,1,1,0,0,0,0,1,0,0],wins.sort((a,b)=>ord(a)-ord(b))))});
+  if(wins.length)parts.push({table:Object.assign({title:'Every window (site record)',record:true},trim(['Faces','Wall','Label','Size m','Qty','Area m²','Glazing','Frame','Gap','Gas','U-value','U-value evidence','Year'],[0,0,0,1,1,1,0,0,0,0,1,0,0],wins.map(r=>{const x=r.slice(0,13);x[2]=[wnums(r[14].slice()),r[2]].filter(Boolean).join(' ');return x}).sort((a,b)=>ord(a)-ord(b))))});
   if(doors.length)parts.push({table:Object.assign({title:'Every door (site record)',record:true},trim(['Faces','Wall','Label','Size m','Qty','Area m²','Door type','U-value'],[0,0,0,1,1,1,0,1],doors.sort((a,b)=>ord(a)-ord(b))))});
   return parts;
 }

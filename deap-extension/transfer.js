@@ -22,7 +22,8 @@ function synthFields() {
     if (boiler || hp) put('heat.sub1', 'Sub category', hp ? 'Heat pumps' : /solid|biomass|range/i.test(src) && !/\boil\b|gas|lpg/i.test(src) ? 'Solid fuel boilers' : /electric/i.test(fuel) ? 'Electric boilers' : 'Gas and oil boilers');
     if (/\boil\b/i.test(src) || /\boil\b/i.test(fuel)) {
       put('heat.sub2', 'Sub category 2', 'Oil boilers');
-      put('heat.system', 'Heating system', cond ? 'Condensing' : yr >= 1998 ? 'Standard oil boiler, 1998 or later' : yr >= 1985 ? 'Standard oil boiler 1985 to 1997' : yr ? 'Standard oil boiler pre-1985' : '');
+      // most boilers are 1998 or later: only an older year installed in the survey gives an older band (never the house's age)
+      put('heat.system', 'Heating system', cond ? 'Condensing' : yr && yr < 1985 ? 'Standard oil boiler pre-1985' : yr && yr < 1998 ? 'Standard oil boiler 1985 to 1997' : 'Standard oil boiler, 1998 or later');
     } else if (/gas|lpg/i.test(src + fuel)) {
       put('heat.sub2', 'Sub category 2', !yr || yr >= 1998 ? 'Gas boilers (including LPG) 1998 or later' : /fan/i.test(v('heat.flue')) ? 'Gas boilers (including LPG) pre-1998, with fan-assisted flue' : 'Gas boilers (including LPG) pre-1998, with balanced or open flue');
       const combi = yes('water.combi');
