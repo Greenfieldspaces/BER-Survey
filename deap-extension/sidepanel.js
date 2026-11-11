@@ -69,6 +69,13 @@ function fullMap(keys) { const m = {}; keys.forEach(k => { const v = mapFor(k); 
 const surveyValue = (screen, key) => ((st.survey.screens.find(x => x.id === screen) || { fields: [] }).fields.find(f => f.key === key) || {}).value || '';
 const dwellingYear = () => surveyValue('details', 'details.year');
 // the survey's wall construction in DEAP's Wall Type wording
+// the room in roof knee wall rows the app adds to the roofs table
+function kneeWalls() {
+  const sc = (st.survey.screens || []).find(x => x.id === 'roofs'), t = sc && (sc.tables || []).find(x => x.key === 'roofs.roofs');
+  if (!t) return [];
+  const ci = k => t.columns.findIndex(c => c.key === k), g = (r, k) => ci(k) >= 0 ? r[ci(k)] || '' : '';
+  return t.rows.filter(r => /stud wall|knee/i.test(g(r, 'type'))).map(r => ({ part: g(r, 'part'), area: g(r, 'area'), u: g(r, 'u') }));
+}
 function deapWallType(cons, thick, name) {
   const t = parseFloat(thick) || 0, c = String(cons || '');
   if (/semi/i.test(name) && /block/i.test(c)) return t && t < 150 ? 'Semi Exposed 100mm Block Wall adjacent unheated circulation space' : 'Semi Exposed 215mm Block Wall adjacent unheated circulation space';
@@ -82,7 +89,7 @@ function deapWallType(cons, thick, name) {
   return c;
 }
 function job(sc) {
-  const fields = [], tables = sc.tables.map(t => Object.assign({}, t, { columns: t.columns.slice(), rows: t.rows.map(r => r.slice()) }));
+  const fields = []; let tables = sc.tables.map(t => Object.assign({}, t, { columns: t.columns.slice(), rows: t.rows.map(r => r.slice()) }));
   sc.fields.filter(f => !f.group).forEach(f => {
     if (Array.isArray(f.value)) f.value.forEach(o => fields.push({ key: f.key + '.' + slug(o), label: o, value: 'Yes', parent: f.label }));
     else fields.push({ key: f.key, label: f.label, value: f.value });
@@ -105,7 +112,13 @@ function job(sc) {
     const dyear = ((st.survey.screens.find(x => x.id === 'details') || { fields: [] }).fields.find(f => f.key === 'details.year') || {}).value || '';
     const raw = (g, k) => (grouped.find(f => f.group === g && f.key.endsWith('.' + k)) || {}).value || '';
     const val = (g, k) => k === 'name' ? g : k === 'semi' ? (/semi/i.test(g) ? 'Yes' : 'No') : k === 'cons' ? deapWallType(raw(g, 'cons'), raw(g, 'thick'), g) : raw(g, k) || (k === 'year' ? dyear : '');
-    tables.unshift({ key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => val(g, c.key))) });
+    const wt = { key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => val(g, c.key))) };
+    // room in roof knee walls go on DEAP's Walls tab (the app works them out with the roofs)
+    if (sc.id === 'walls') kneeWalls().forEach(k => {
+      const v = { name: (k.part && !/^original$/i.test(k.part) ? k.part + ' ' : '') + 'Room in roof knee walls', net: k.area, cons: 'Timber Frame', year: dyear, u: k.u, semi: 'No' };
+      wt.rows.push(cols.map(c => v[c.key] || ''));
+    });
+    tables.unshift(wt);
   }
   // extra columns DEAP's dialogs ask for that the survey holds elsewhere
   const add = (t, key, label, fn) => { if (!t.columns.some(c => c.key === key)) { t.columns.push({ key, label }); t.rows = t.rows.map((r, i) => r.concat([fn(r, i)])) } };
@@ -140,6 +153,8 @@ function job(sc) {
       }
     }
     if (t.key === 'roofs.roofs') {
+      // knee walls go in as walls, not roofs
+      { const ti = t.columns.findIndex(c => c.key === 'type'); t.rows = t.rows.filter(r => !/stud wall|knee/i.test(r[ti] || '')) }
       add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
       add(t, 'year', 'Year built', () => dwellingYear());
       // DEAP's Insulation Thickness is a list of set sizes: use the nearest one (a tie goes to the thinner)
@@ -168,7 +183,9 @@ function job(sc) {
       add(t, 'w', 'Peak power per panel W', (r, i) => calc[i].w ? String(calc[i].w) : '');
     }
     if (t.key === 'openings.windows-for-deap') {
-      add(t, 'desc', 'Description', r => [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
+      // the description names the windows in the row and the way they face ("W 1,2,3,4 East"); older files give the glazing
+      const FACE = { N: 'North', NE: 'Northeast', E: 'East', SE: 'Southeast', S: 'South', SW: 'Southwest', W: 'West', NW: 'Northwest' };
+      add(t, 'desc', 'Description', r => col(t, r, 'windows') ? (col(t, r, 'windows') + ' ' + (FACE[col(t, r, 'faces')] || col(t, r, 'faces'))).trim() : [col(t, r, 'glazing'), col(t, r, 'frame'), col(t, r, 'gap')].filter(Boolean).join(' '));
       // DEAP will not save a window without overshading and overhang, so use its usual defaults when the survey has none
       // overshading is set on each window in the app now (older surveys had one for the whole house)
       const sh = surveyValue('openings', 'openings.shading'); add(t, 'shading', 'Overshading', () => sh || 'Average or Unknown');
@@ -178,6 +195,23 @@ function job(sc) {
       { const ni = t.columns.findIndex(c => c.key === 'no'); if (ni >= 0) t.rows.forEach(r => { if (r[ni]) r[ni] = '1' }) }
       add(t, 'search', 'Library search', r => col(t, r, 'glazing'));
       add(t, 'want', 'Library match', r => [col(t, r, 'glazing'), col(t, r, 'frame')].filter(Boolean).join(' '));
+      // the words DEAP's COMMON ITEMS use for a window, e.g. "Double - Air - Wood/PVC - 12mm Gap"
+      add(t, 'common', 'Common item', r => {
+        const g = col(t, r, 'glazing'), f = col(t, r, 'frame'), gap = col(t, r, 'gap'), gas = col(t, r, 'gas') || col(t, r, 'fill');
+        return [g.replace(/low-?e/i, 'Low-E'), /^(air|argon)$/i.test(gas) ? gas : '', /^(pvc|wood)$/i.test(f) ? 'Wood/PVC' : f, (gap.match(/\d+/) || [''])[0] + (gap ? 'mm' : '')].filter(Boolean).join(' ');
+      });
+      // roof lights go in as windows with Roof Window ticked, glazed like the house's main windows
+      add(t, 'roof', 'Roof window', () => 'No');
+      const rl = tables.find(x => x.key === 'openings.rooflights');
+      if (rl && t.rows.length) {
+        const rc = k => rl.columns.findIndex(c => c.key === k), first = t.rows[0];
+        rl.rows.forEach(r => {
+          const area = (parseFloat(r[rc('w')]) || 0) * (parseFloat(r[rc('h')]) || 0) * (parseInt(r[rc('qty')]) || 1);
+          if (!area) return;
+          const v = { faces: r[rc('orient')] || 'Horizontal', no: '1', 'total-area-m2': area.toFixed(2), desc: 'Roof light', roof: 'Yes', overhang: 'NA', shading: sh || 'Average or Unknown' };
+          t.rows.push(t.columns.map((c, i) => c.key in v ? v[c.key] : /^(glazing|frame|gap|gas|fill|search|want|common|u-value)$/.test(c.key) ? first[i] : ''));
+        });
+      }
     }
     if (t.key === 'openings.doors-for-deap') {
       add(t, 'search', 'Library search', r => col(t, r, 'door-type'));
@@ -189,6 +223,8 @@ function job(sc) {
     const rows = (sc.tables.find(t => t.key === 'dims.storeys') || { rows: [] }).rows.length, n = Math.max(parseInt(surveyValue('details', 'details.storeys')) || 0, rows);
     if (n) fields.unshift({ key: 'dims.nstoreys', label: 'Number of storeys', value: String(n) });
   }
+  // roof lights were folded into the windows above
+  if (tables.some(t => t.key === 'openings.windows-for-deap')) tables = tables.filter(t => t.key !== 'openings.rooflights');
   const keys = fields.map(f => f.key).concat(tables.flatMap(t => [t.key].concat(t.columns.map(c => t.key + '.' + c.key))));
   return { fields, tables, mapping: fullMap(keys) };
 }

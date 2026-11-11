@@ -569,17 +569,18 @@
       await new Promise(r => setTimeout(r, 250));
     }
     if (!rows.length) return { error: 'No library rows seen' };
-    const W = toks(want);
+    // library names join words with slashes ("Wood/PVC"), so split them for matching
+    const ltoks = t => toks(t).flatMap(w => w.split('/')).filter(Boolean), W = ltoks(want);
     // exact: a remembered pick, so the row must be that same library item, not just share the search words
-    const score = exact ? r => { const tx = clean(textOf(r)).slice(0, 160); if (tx === want) return 1; const R = toks(tx), S = new Set(R); const both = W.filter(w => S.has(w)).length; return both / Math.max(W.length, R.length, 1) }
-      : r => { const R = new Set(toks(textOf(r))); return W.length ? W.filter(w => R.has(w)).length / W.length : 0 };
+    const score = exact ? r => { const tx = clean(textOf(r)).slice(0, 160); if (tx === want) return 1; const R = ltoks(tx), S = new Set(R); const both = W.filter(w => S.has(w)).length; return both / Math.max(W.length, R.length, 1) }
+      : r => { const R = new Set(ltoks(textOf(r))); return W.length ? W.filter(w => R.has(w)).length / W.length : 0 };
     let bi = 0, bs = -1; rows.forEach((r, i) => { const v = score(r); if (v > bs) { bs = v; bi = i } });
     if (bs < (min ?? 0.5)) return { error: 'No close match', best: clean(textOf(rows[bi])).slice(0, 120), rows: rows.length };
     // on the common items list a short word like "electric" can fit more than one row: only take it when one row fits best
     let row = rows[bi];
     if (unique) {
       // several rows hold the words: take the one with the fewest other words ("Bath" over "Bath with shower over")
-      const top = rows.filter(r => score(r) === bs), len = r => toks(textOf(r)).length, least = Math.min(...top.map(len)), best = top.filter(r => len(r) === least);
+      const top = rows.filter(r => score(r) === bs), len = r => ltoks(textOf(r)).length, least = Math.min(...top.map(len)), best = top.filter(r => len(r) === least);
       if (best.length > 1) return { error: 'More than one row fits', rows: rows.length };
       row = best[0];
     }

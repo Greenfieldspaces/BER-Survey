@@ -707,7 +707,8 @@
     "openings.windows-for-deap": {
       "dialog": true,
       "add": "ADD WINDOW",
-      "library": true
+      "library": true,
+      "common": true
     },
     "openings.windows-for-deap.desc": {
       "selector": "input[name=\"Description\"]"
@@ -819,6 +820,15 @@
       "skip": true
     },
     "heat.sources.eff": {
+      "skip": true
+    },
+    "heat.sources.pct": {
+      "selector": "input[name=\"PercentageOfHeat\"]"
+    },
+    "openings.windows-for-deap.windows": {
+      "skip": true
+    },
+    "openings.windows-for-deap.common": {
       "skip": true
     },
     "heat.sources.fuel": {
@@ -941,6 +951,12 @@
     },
     "openings.win_u": {
       "skip": true
+    },
+    "water.hpdhw": {
+      "selector": "mat-select[name=\"DomesticHotWaterStorageId\"]"
+    },
+    "openings.windows-for-deap.roof": {
+      "selector": "input[name=\"RoofWindow\"]"
     }
   },
   "transfer": [
@@ -1083,6 +1099,7 @@
       "screen": "water",
       "fields": [
         "water.storetype",
+        "water.hpdhw",
         "water.storeloss",
         "water.indoors",
         "water.distloss",

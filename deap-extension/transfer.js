@@ -22,7 +22,8 @@ function synthFields() {
     if (boiler || hp) put('heat.sub1', 'Sub category', hp ? 'Heat pumps' : /solid|biomass|range/i.test(src) && !/\boil\b|gas|lpg/i.test(src) ? 'Solid fuel boilers' : /electric/i.test(fuel) ? 'Electric boilers' : 'Gas and oil boilers');
     if (/\boil\b/i.test(src) || /\boil\b/i.test(fuel)) {
       put('heat.sub2', 'Sub category 2', 'Oil boilers');
-      put('heat.system', 'Heating system', cond ? 'Condensing' : yr >= 1998 ? 'Standard oil boiler, 1998 or later' : yr >= 1985 ? 'Standard oil boiler 1985 to 1997' : yr ? 'Standard oil boiler pre-1985' : '');
+      // most boilers are 1998 or later: only an older year installed in the survey gives an older band (never the house's age)
+      put('heat.system', 'Heating system', cond ? 'Condensing' : yr && yr < 1985 ? 'Standard oil boiler pre-1985' : yr && yr < 1998 ? 'Standard oil boiler 1985 to 1997' : 'Standard oil boiler, 1998 or later');
     } else if (/gas|lpg/i.test(src + fuel)) {
       put('heat.sub2', 'Sub category 2', !yr || yr >= 1998 ? 'Gas boilers (including LPG) 1998 or later' : /fan/i.test(v('heat.flue')) ? 'Gas boilers (including LPG) pre-1998, with fan-assisted flue' : 'Gas boilers (including LPG) pre-1998, with balanced or open flue');
       const combi = yes('water.combi');
@@ -49,7 +50,9 @@ function synthFields() {
   if (yes('water.cyl') || v('water.primins')) {
     const ins = /all accessible|fully/i.test(v('water.primins')), stat = yes('water.cylstat');
     const elec = /immersion only|instantaneous/i.test(v('water.src'));
-    put('water.storetype', 'Storage type', elec ? 'Cylinder, direct' : /heat pump/i.test(v('heat.src')) ? 'Cylinder, heat pump' : 'Cylinder, indirect');
+    put('water.storetype', 'Storage type', elec ? 'Cylinder, immersion main water heater' : 'Cylinder, indirect');
+    // a heat pump heating a separate cylinder: DEAP asks what kind of hot water store it has
+    if (/heat pump/i.test(v('heat.src')) && !elec) put('water.hpdhw', 'Heat pump hot water store', 'Separate Hot Water Storage');
     put('water.primtype', 'Primary circuit loss type', elec ? 'Electric immersion heater' : 'Boiler / heat pump with ' + (ins ? 'insulated' : 'uninsulated') + ' primary pipework and ' + (stat ? 'with' : 'no') + ' cylinder thermostat');
   }
   if (v('gen.battery')) put('gen.battery_yes', 'Is a battery present?', parseFloat(v('gen.battery')) > 0 ? 'Yes' : 'No');
@@ -67,8 +70,10 @@ function synthTables() {
   const htype = src => /heat pump/i.test(src) ? 'Heat pumps' : /storage/i.test(src) ? 'Electric storage systems' : /underfloor/i.test(src) ? 'Electric underfloor heating' : /group|district/i.test(src) ? 'Group heating systems' : /warm air/i.test(src) ? 'Warm air systems' : /stove|fire|room|heater/i.test(src) ? 'Room heaters' : /electric/i.test(src) ? 'Electric boilers' : /solid|biomass|range/i.test(src) && !/\boil\b|gas|lpg/i.test(src) ? 'Solid fuel boilers' : 'Gas and oil boilers';
   if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), v('heat.make') ? '1' : '', fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '', v('heat.make'), htype(v('heat.src'))]);
   // DEAP's library calls a plain open fire "Open fire in grate" (older surveys just say Open fire)
-  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([/^open fire$/i.test(v('heat.sec').trim()) ? 'Open fire in grate' : v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec'))]);
-  tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['exact', 'Make and model given'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water'], ['make', 'Make and model'], ['htype', 'Heat source type']], heats);
+  // DEAP's secondary dialog wants the share of heat it gives: its usual figure is 10%, or 15% beside electric storage heaters
+  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([/^open fire$/i.test(v('heat.sec').trim()) ? 'Open fire in grate' : v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec')), /storage/i.test(v('heat.src')) ? '15' : '10']);
+  if (heats[0] && heats[0].length < 8) heats[0].push('');
+  tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['exact', 'Make and model given'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water'], ['make', 'Make and model'], ['htype', 'Heat source type'], ['pct', 'Heat %']], heats);
   const vent = [['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0).map(([k, q]) => [q, String(n('vent.' + k))]);
   tbl('vent.items', 'Ventilation items', [['search', 'Library search'], ['n', 'Number of items']], vent);
   const wsc = st.survey.screens.find(x => x.id === 'water'), sh = wsc && wsc.tables.find(t => t.key === 'water.showers'), wet = [];
@@ -264,6 +269,8 @@ async function addItems(step, t) {
       }
       tx.memAsk = null;
       s = await send({ cmd: 'state' });
+      // DEAP can take a few seconds to open the item's edit box (Edit Door, Edit Fan) after it is picked
+      if (got && !s.dialog) s = (await waitState(x => !!x.dialog && !/library/i.test(x.dialog), 4000)) || await send({ cmd: 'state' });
       if (!got) { tx.log.push(step.name + ': ' + what + ' skipped'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }
       if (!s.dialog) { // added straight from the library: whatever else the survey has for it is left to enter in DEAP
         const rest = t.columns.map((c, i) => [c, t.rows[ri][i]]).filter(([c, x]) => c.key !== 'search' && x && !(c.key === 'n' && x === '1') && !((step.mapping[t.key + '.' + c.key] || {}).skip)).map(([c, x]) => c.label + ' ' + x);
@@ -274,7 +281,14 @@ async function addItems(step, t) {
       await pause(800);
     }
     await pause(600);
-    const res = await fillOn(step, { scope: 'dialog', fields: [], tables: [Object.assign({}, t, { rows: [t.rows[ri]] })] });
+    const one = Object.assign({}, t, { rows: [t.rows[ri]] });
+    let res = await fillOn(step, { scope: 'dialog', fields: [], tables: [one] });
+    // some boxes only open after another choice in the dialog (roof insulation after the roof type), so go over the rest again
+    for (let pass = 0; pass < 2 && res.some(x => /^(nomatch|norow)$/.test(x.status)); pass++) {
+      await pause(1000);
+      const again = await fillOn(step, { scope: 'dialog', fields: [], tables: [one] });
+      res = again.map(y => { const x = res.find(z => z.col === y.col); return y.status === 'same' && x && x.status === 'filled' ? x : y });
+    }
     tx.report.push({ step: step.name, item: what + (s.dialog ? ' (' + s.dialog + ')' : ''), results: res.map(x => Object.assign({ label: (t.columns.find(c => c.key === x.col) || {}).label || x.key }, x)) });
     results[step.screen] = (results[step.screen] || []).filter(x => !(x.key === t.key && x.row === ri)).concat(res.map(x => Object.assign(x, x.row != null ? { row: ri } : {})));
     res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => tx.log.push(step.name + ': ' + what + ', ' + (t.columns.find(c => c.key === x.col) || {}).label + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')));
