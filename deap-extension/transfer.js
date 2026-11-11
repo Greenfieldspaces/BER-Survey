@@ -176,6 +176,33 @@ const after = (txt, t, ri) => {
   if (miss && /\{eff\}/.test(txt)) return "check DEAP's efficiency (the survey has none)";
   return txt.replace(/\{(\w+)\}/g, (_, k) => t.rows[ri][t.columns.findIndex(c => c.key === k)] || '?');
 };
+// ---------- count check: how many of each kind the survey has against how many went into DEAP ----------
+const COUNT_NAMES = { 'dims.floors': 'Floors', 'roofs.roofs': 'Roofs', 'walls.types': 'Walls', 'openings.doors-for-deap': 'Doors', 'openings.windows-for-deap': 'Windows', 'vent.items': 'Chimneys and fans', 'heat.sources': 'Heat sources', 'water.wet': 'Showers and baths', 'water.collector': 'Solar collector', 'gen.pv': 'Solar PV arrays', evidence: 'Evidence photos' };
+function countStart(steps) {
+  tx.counts = [];
+  steps.forEach(s => {
+    if (s.kind === 'evidence') { tx.counts.push({ key: 'evidence', name: COUNT_NAMES.evidence, path: s.path, want: s.items, got: 0, short: [] }); return }
+    s.dlg.forEach(t => {
+      if (!t.rows.length) return;
+      const ni = t.columns.findIndex(c => c.key === 'name');
+      const knee = t.key === 'walls.types' && ni >= 0 ? t.rows.filter(r => /knee walls/i.test(r[ni] || '')).length : 0;
+      tx.counts.push({ key: t.key, name: COUNT_NAMES[t.key] || t.title, path: s.path, want: t.rows.length, got: 0, short: [], done: new Set(), note: knee ? 'Including ' + knee + ' room in roof knee wall' + (knee > 1 ? 's' : '') : '' });
+    });
+  });
+}
+const countFor = key => (tx.counts || []).find(c => c.key === key);
+// the name an item goes by in DEAP (its description), else "Window 3 of 12"
+function countLabel(t, ri, what) {
+  const i = ['desc', 'name'].map(k => t.columns.findIndex(c => c.key === k)).find(x => x >= 0), d = i != null ? t.rows[ri][i] : '';
+  return d || what;
+}
+function countGot(t, ri) { const c = countFor(t.key); if (c && !c.done.has(ri)) { c.done.add(ri); c.got++ } }
+function countShort(t, ri, what, why) { const c = countFor(t.key); if (c && !c.done.has(ri)) { c.done.add(ri); c.short.push(countLabel(t, ri, what) + ' ' + why) } }
+// rows a step never reached (it failed or the run was stopped) are short too
+function countRest(step, why) {
+  step.dlg.forEach(t => t.rows.forEach((r, ri) => { const c = countFor(t.key); if (c && !c.done.has(ri)) countShort(t, ri, (t.title.replace(/ \(.*\)$/, '').replace(/s$/, '')) + ' ' + (ri + 1) + ' of ' + t.rows.length, why) }));
+}
+const countLacking = () => (tx.counts || []).filter(c => c.got < c.want);
 const MAKERS = ['Glow-worm', 'Worcester Bosch', 'Worcester', 'Ideal', 'Vaillant', 'Baxi', 'Potterton', 'Alpha', 'Viessmann', 'Ferroli', 'Ariston', 'Navien', 'Intergas', 'Firebird', 'Grant', 'Warmflow', 'Boulter', 'Mitsubishi Electric', 'Mitsubishi', 'Daikin', 'Samsung', 'Panasonic', 'Nibe', 'Dimplex', 'Stokvis', 'Remeha', 'Saunier Duval', 'Main', 'Halstead', 'Biasi', 'Vokera', 'Keston', 'Atag', 'Riello', 'Thermecon', 'Mistral', 'HRM', 'Stanley', 'Waterford Stanley', 'Rayburn', 'Aga', 'Stovax', 'Henley', 'Mullberry', 'Solid Fuel'];
 async function newLibraryItem(step, t, ri, m, col, what) {
   const r = await pressWait('ADD NEW ITEM TO LIBRARY', true, 3000);
@@ -271,11 +298,12 @@ async function addItems(step, t) {
       s = await send({ cmd: 'state' });
       // DEAP can take a few seconds to open the item's edit box (Edit Door, Edit Fan) after it is picked
       if (got && !s.dialog) s = (await waitState(x => !!x.dialog && !/library/i.test(x.dialog), 4000)) || await send({ cmd: 'state' });
-      if (!got) { tx.log.push(step.name + ': ' + what + ' skipped'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }
+      if (!got) { tx.log.push(step.name + ': ' + what + ' skipped'); countShort(t, ri, what, 'skipped: no library item picked'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }
       if (!s.dialog) { // added straight from the library: whatever else the survey has for it is left to enter in DEAP
         const rest = t.columns.map((c, i) => [c, t.rows[ri][i]]).filter(([c, x]) => c.key !== 'search' && x && !(c.key === 'n' && x === '1') && !((step.mapping[t.key + '.' + c.key] || {}).skip)).map(([c, x]) => c.label + ' ' + x);
         if (rest.length) tx.log.push(step.name + ': ' + what + ' added, check in DEAP: ' + rest.join(', '));
         if (m.after) tx.log.push(step.name + ': ' + what + ', ' + after(m.after, t, ri));
+        countGot(t, ri);
         await pause(900); continue
       }
       await pause(800);
@@ -299,8 +327,9 @@ async function addItems(step, t) {
       // DEAP keeps SAVE greyed out until every required box is right: hand over to the person
       const errs = await send({ cmd: 'errors' });
       const fixed = await waitForYou('DEAP will not save ' + what + ' yet' + (errs && errs.length ? ' (' + errs.join('; ') + ')' : '') + '. Fix the red or empty boxes in the DEAP dialog and press SAVE, or press Skip this one.', x => !x.dialog);
-      if (!fixed) { tx.log.push(step.name + ': ' + what + ' skipped, DEAP would not save it' + (errs && errs.length ? ' (' + errs.join('; ') + ')' : '')); await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); await waitState(x => !x.dialog, 4000); continue }
+      if (!fixed) { tx.log.push(step.name + ': ' + what + ' skipped, DEAP would not save it' + (errs && errs.length ? ' (' + errs.join('; ') + ')' : '')); countShort(t, ri, what, 'skipped: DEAP would not save it'); await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); await waitState(x => !x.dialog, 4000); continue }
     }
+    countGot(t, ri);
     if (m.after) tx.log.push(step.name + ': ' + what + ', ' + after(m.after, t, ri));
     await pause(900);
   }
@@ -310,6 +339,7 @@ function libraryList(step, t) {
   const m = step.mapping[t.key] || {}, label = t.title.replace(/ \(.*\)$/, '').replace(/s$/, '');
   const hide = c => /^(search|exact|want)$/.test(c.key);
   t.rows.forEach((r, ri) => {
+    countShort(t, ri, label + ' ' + (ri + 1) + ' of ' + t.rows.length, 'left for you to add from the library');
     const d = t.columns.map((c, i) => [c, r[i]]).filter(([c, x]) => x && !hide(c)).map(([c, x]) => c.label + ' ' + x).join(', ');
     tx.log.push('Add from the DEAP library: ' + label + ' ' + (ri + 1) + ' of ' + t.rows.length + ' (' + d + ')' + (m.add ? ' with ' + m.add : '') + (m.after ? ', ' + after(m.after, t, ri) : ''));
   });
@@ -324,6 +354,7 @@ async function waitCount(n, ms) {
 function savePhotos(list) {
   const dir = ('BER evidence - ' + ((st.survey.survey && st.survey.survey.name) || 'survey')).replace(/[\\/:*?"<>|]+/g, '-');
   list.forEach(p => chrome.downloads && chrome.downloads.download({ url: p.data, filename: dir + '/' + p.name, conflictAction: 'uniquify' }));
+  savePhotos.dir = dir;
   return dir;
 }
 async function uploadEvidence(step) {
@@ -340,17 +371,20 @@ async function uploadEvidence(step) {
     if (s && s.dialog) await waitForYou('DEAP opened "' + s.dialog + '" for ' + ph[i].name + (ph[i].cap ? ' (' + ph[i].cap + ')' : '') + '. Fill it in and press SAVE in DEAP.', x => !x.dialog);
     if (have != null) { if (await waitCount(have + 1, 60000)) { have++; done++ } else { tx.log.push('Evidence: ' + ph[i].name + ' did not show up in DEAP. Check the Evidence screen'); have = await evCount() } }
     else done++;
+    const cc = countFor('evidence'); if (cc) cc.got = done;
   }
   if (done < ph.length) {
     const left = ph.slice(done), dir = savePhotos(left);
     tx.log.push('Evidence: ' + left.length + ' photo' + (left.length > 1 ? 's' : '') + ' saved to Downloads/' + dir + '. Drag them onto "Drop file(s) here" in DEAP');
   }
   step.note = done + ' of ' + ph.length + ' uploaded';
+  const c = countFor('evidence'); if (c) { c.got = done; if (done < ph.length) c.short.push((ph.length - done) + ' not uploaded: saved to Downloads/' + savePhotos.dir) }
 }
 async function runTransfer() {
   if (tx.running) return;
   tx.running = true; tx.stop = false; tx.log = []; tx.report = []; tx.memUsed = []; tx.memNew = []; tx.memAsk = null; tx.startedAt = new Date().toISOString();
   tx.steps = transferSteps().filter(s => tx.included[s.name] !== false);
+  countStart(tx.steps);
   (transferSteps.left || []).forEach(f => tx.log.push('Not transferred yet: ' + (f.parent ? f.parent + ', ' : '') + f.label + ' ' + f.value));
   (transferSteps.leftTables || []).forEach(k => tx.log.push('Not transferred yet: ' + k.split('.').pop().replace(/-/g, ' ') + ' list'));
   render();
@@ -416,19 +450,27 @@ async function runTransfer() {
         }
         setStep(step, step.missed ? 'partial' : 'done', step.missed ? step.missed + ' left for you, see the run report' : '');
       } catch (e) {
-        if (tx.stop) { setStep(step, 'stopped', ''); break }
+        if (tx.stop) { setStep(step, 'stopped', ''); countRest(step, 'not entered: the run was stopped'); break }
         setStep(step, 'failed', String(e.message || e));
+        countRest(step, 'not entered: ' + String(e.message || e));
         // never leave a dialog open behind a failed step, or the next screens cannot open
         try { const s = await send({ cmd: 'state' }); if (s && s.dialog) { await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); await waitState(x => !x.dialog, 4000) } } catch (x) { }
       }
     }
   } catch (e) { toast(String(e.message || e)) }
+  // steps the run never got to
+  tx.steps.filter(s => s.status === 'todo').forEach(s => countRest(s, tx.stop ? 'not entered: the run was stopped' : 'not entered: the run ended early'));
   tx.running = false; render();
 }
 
 function reportText() {
   const icon = st => /filled|same/.test(st) ? 'OK ' : /skipped/.test(st) ? '-- ' : 'XX ';
   const L = ['BER Survey DEAP Fill run report', 'Extension ' + chrome.runtime.getManifest().version + ', survey "' + ((st.survey && st.survey.survey && st.survey.survey.name) || '') + '", ' + (tx.startedAt || ''), ''];
+  if ((tx.counts || []).length) {
+    L.push('COUNT CHECK (survey items against what went into DEAP)');
+    tx.counts.forEach(c => { L.push('  ' + (c.got < c.want ? 'SHORT ' : 'OK    ') + c.name + ': ' + c.got + ' of ' + c.want); c.short.forEach(x => L.push('        ' + x)) });
+    L.push('');
+  }
   L.push('STEPS'); tx.steps.forEach(s => L.push('  ' + s.name + ': ' + s.status + (s.note ? ' (' + s.note + ')' : '')));
   L.push('', 'EVERY FIELD (OK = set, XX = not set, -- = left out)');
   (tx.report || []).forEach(r => {
@@ -448,6 +490,7 @@ function transferCard() {
   const card = h('div', { class: 'card xfer' }, h('div', { class: 'row' }, h('h2', { style: 'flex:1' }, 'Transfer whole survey'),
     tx.running ? h('button', { class: 'btn', onclick: () => { tx.stop = true; render() } }, tx.stop ? 'Stopping…' : 'Stop')
       : h('button', { class: 'btn primary', disabled: !deapTab, onclick: runTransfer }, tx.steps.length ? 'Run again' : 'Start')));
+  if (!tx.running && tx.steps.length && (tx.counts || []).length) card.append(countCard());
   if (!tx.running && !tx.steps.length) card.append(h('p', { class: 'note' }, 'Open this assessment in DEAP, then press Start. It goes through each screen, adds the walls, floors, roofs, doors and windows, and saves each one. It never publishes. Untick anything already in DEAP so it is not added twice.'));
   if (tx.waitingFor) card.append(h('div', { class: 'needs' }, h('b', null, 'Your turn: '), tx.waitingFor,
     tx.memAsk ? h('label', { class: 'chk mem' }, h('input', { type: 'checkbox', checked: mem.remember, onchange: e => { mem.remember = e.target.checked } }), h('span', null, h('b', null, 'Remember my pick for "' + tx.memAsk.said + '"'), h('br'), h('small', null, 'Next time a survey has this ' + tx.memAsk.what.toLowerCase() + ', I\'ll pick the same item myself.'))) : null,
@@ -477,10 +520,23 @@ function transferCard() {
   if (tx.log && tx.log.length && !tx.running) card.append(h('details', { open: true }, h('summary', null, tx.log.length + ' to do by hand in DEAP'), h('div', { class: 'scan' }, tx.log.join('\n')), h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => copy(tx.log.join('\n')) }, 'Copy list'))));
   if (!tx.running && tx.steps.length) {
     card.append(h('p', { class: 'note' }, 'Something wrong in DEAP? Save the run report and send it to Claude. It lists every field, what was sent and what DEAP shows now.'));
-    card.append(h('div', { class: 'row' }, h('button', { class: 'btn primary small', onclick: saveReport }, 'Save run report'), h('button', { class: 'btn small', onclick: () => copy(reportText()) }, 'Copy run report'), h('button', { class: 'btn ghost small', onclick: () => { tx.steps = []; tx.log = []; render() } }, 'Reset')));
+    card.append(h('div', { class: 'row' }, h('button', { class: 'btn primary small', onclick: saveReport }, 'Save run report'), h('button', { class: 'btn small', onclick: () => copy(reportText()) }, 'Copy run report'), h('button', { class: 'btn ghost small', onclick: () => { tx.steps = []; tx.log = []; tx.counts = []; render() } }, 'Reset')));
   }
   if (!tx.running) card.append(memoryCard());
   return card;
+}
+function countCard() {
+  const lack = countLacking();
+  const box = h('div', { class: 'cc' }, h('div', { class: 'cc-h' }, h('b', null, 'Count check'), h('span', { class: 'pill ' + (lack.length ? 'warn' : 'ok') }, lack.length ? lack.length + ' short' : 'All in')),
+    h('div', { class: 'cc-sub' }, 'Survey items against what went into DEAP'));
+  tx.counts.forEach(c => {
+    const short = c.got < c.want;
+    box.append(h('div', { class: 'cr ' + (short ? 'short' : 'ok') }, h('span', { class: 'ic' }, short ? '!' : '✓'),
+      h('span', { class: 'nm' }, c.name, ...(short ? (c.short.length ? c.short : [(c.want - c.got) + ' not entered']) : [c.note]).filter(Boolean).map(x => h('small', null, x)),
+        short && c.path ? h('button', { class: 'go', disabled: !deapTab, onclick: () => send({ cmd: 'nav', path: c.path }).catch(e => toast(String(e.message || e))) }, 'Open ' + c.name + ' in DEAP') : null),
+      h('span', { class: 'n' }, String(c.got), h('span', null, ' of '), String(c.want))));
+  });
+  return box;
 }
 // every remembered pick on this laptop: forget one, or move them to another laptop
 function memoryCard() {
