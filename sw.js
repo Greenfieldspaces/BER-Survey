@@ -6,6 +6,8 @@ self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.
 self.addEventListener('fetch',e=>{
   const req=e.request;if(req.method!=='GET')return;
   const url=new URL(req.url);
+  // the Upgrade Report app in ta/ has its own service worker and cache
+  if(url.origin===location.origin && url.pathname.includes('/ta/')) return;
   // the app itself: open the saved copy straight away (works with no or weak signal), refresh it in the background
   if(url.origin===location.origin){
     const key=req.mode==='navigate'?'index.html':req;
