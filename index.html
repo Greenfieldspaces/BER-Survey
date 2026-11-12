@@ -1077,8 +1077,9 @@ function allChecks(s){
   if(water.solar==='Yes'&&!hasVal(water.aper))add('miss','Solar aperture area','water');if(water.cyl==='Yes'){if(!hasVal(water.vol))add('miss','Cylinder volume','water');if(!hasVal(water.cylins))add('miss','Cylinder insulation','water')}
   if(!(water.showers||[]).length)add('check','No showers entered','water');
   if(!hasVal(water.solar))add('miss','Solar thermal panels (yes or no)','water');
-  if(!(gen.pv||[]).length&&!hasVal(gen.wind)&&!hasVal(gen.chp))add('check','Renewables left blank. Add PV or answer No to wind and CHP','gen');
-  (gen.pv||[]).forEach((p,i)=>{if(!n(p.kwp))add('miss','PV array '+(i+1)+' has no kWp','gen')});
+  if(!(gen.pv||[]).some(p=>Object.values(p).some(hasVal))&&!hasVal(gen.wind)&&!hasVal(gen.chp))add('check','Renewables left blank. Add PV or answer No to wind and CHP','gen');
+  // a PV row left empty is ignored; DEAP takes panels × W per panel, so kWp is only needed when those are missing
+  (gen.pv||[]).forEach((p,i)=>{if(Object.values(p).some(hasVal)&&!n(p.kwp)&&!(n(p.panels)&&n(p.wp)))add('miss','PV array '+(i+1)+' has no size (panels × W, or kWp)','gen')});
   return out;
 }
 function siteChecks(s){
@@ -1603,7 +1604,7 @@ function deapExport(s){
       if(f.type==='calc'){REPORT_CALCS[f.calc]().forEach(([k,v])=>x.fields.push({key:key+'.calc.'+slug(k),label:k,kind:'num',value:plainVal(v)}));return}
       if(f.id==='_name'){if(hasVal(s.name)&&!s.example)x.fields.push({key:key+'.address',label:f.label,kind:'text',value:s.name});return}
       const v=fieldVal(f,d,key,s);if(!hasVal(v))return;
-      if(f.type==='list'){x.tables.push({key:key+'.'+f.id,title:f.label,columns:f.cols.map(c=>({key:c.id,label:c.label,kind:c.type})),rows:v.map(r=>f.cols.map(c=>hasVal(r[c.id])?plainVal(r[c.id]):''))});return}
+      if(f.type==='list'){const rv=v.filter(r=>f.cols.some(c=>hasVal(r[c.id])));if(!rv.length)return;x.tables.push({key:key+'.'+f.id,title:f.label,columns:f.cols.map(c=>({key:c.id,label:c.label,kind:c.type})),rows:rv.map(r=>f.cols.map(c=>hasVal(r[c.id])?plainVal(r[c.id]):''))});return}
       x.fields.push({key:key+'.'+f.id,label:f.label.replace(' (if certified)','').replace(' (if known)',''),kind:f.type,value:Array.isArray(v)?v.slice():(f.type==='num'?plainVal(v):String(v)),options:f.options||undefined});
     }));
   };
