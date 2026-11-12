@@ -117,7 +117,19 @@ function transferSteps() {
   return steps;
 }
 
-function setStep(s, status, note) { s.status = status; if (note != null) s.note = note; render() }
+function setStep(s, status, note) {
+  // how long each step took, for the run time in the report
+  if (status === 'running' && !s.t0) s.t0 = Date.now();
+  if (status !== 'running' && s.t0 && !s.ms) s.ms = Date.now() - s.t0;
+  s.status = status; if (note != null) s.note = note; render();
+}
+// "4 min 05 s" from milliseconds
+const dur = ms => { const t = Math.round((ms || 0) / 1000), m = Math.floor(t / 60), x = t % 60; return m ? m + ' min ' + String(x).padStart(2, '0') + ' s' : x + ' s' };
+function runTime() {
+  if (!tx.t0) return '';
+  const all = (tx.t1 || Date.now()) - tx.t0, w = tx.waitMs || 0;
+  return 'Run time ' + dur(all) + (w >= 1000 ? ' (' + dur(w) + ' of it waiting for you, ' + dur(all - w) + ' filling)' : '');
+}
 
 async function waitState(test, ms) {
   const end = Date.now() + ms;
@@ -131,6 +143,7 @@ async function waitState(test, ms) {
 // wait for the person (library pick, or fixing a dialog DEAP refused), until done, skipped or stopped
 async function waitForYou(msg, test) {
   tx.waitingFor = msg; tx.skipWait = false; render();
+  const w0 = Date.now();
   try {
     while (true) {
       if (tx.stop) throw new Error('Stopped');
@@ -138,7 +151,7 @@ async function waitForYou(msg, test) {
       try { const s = await send({ cmd: 'state' }); if (s && test(s)) return true } catch (e) { }
       await pause(500);
     }
-  } finally { tx.waitingFor = null; render() }
+  } finally { tx.waitMs = (tx.waitMs || 0) + Date.now() - w0; tx.waitingFor = null; render() }
 }
 
 async function goTo(step) {
@@ -385,7 +398,7 @@ async function uploadEvidence(step) {
 }
 async function runTransfer() {
   if (tx.running) return;
-  tx.running = true; tx.stop = false; tx.log = []; tx.report = []; tx.memUsed = []; tx.memNew = []; tx.memAsk = null; tx.startedAt = new Date().toISOString();
+  tx.running = true; tx.stop = false; tx.log = []; tx.report = []; tx.memUsed = []; tx.memNew = []; tx.memAsk = null; tx.startedAt = new Date().toISOString(); tx.t0 = Date.now(); tx.t1 = 0; tx.waitMs = 0;
   tx.steps = transferSteps().filter(s => tx.included[s.name] !== false);
   countStart(tx.steps);
   (transferSteps.left || []).forEach(f => tx.log.push('Not transferred yet: ' + (f.parent ? f.parent + ', ' : '') + f.label + ' ' + f.value));
@@ -463,6 +476,7 @@ async function runTransfer() {
   } catch (e) { toast(String(e.message || e)) }
   // steps the run never got to
   tx.steps.filter(s => s.status === 'todo').forEach(s => countRest(s, tx.stop ? 'not entered: the run was stopped' : 'not entered: the run ended early'));
+  tx.t1 = Date.now();
   tx.running = false; render();
 }
 
@@ -474,7 +488,8 @@ function reportText() {
     tx.counts.forEach(c => { L.push('  ' + (c.got < c.want ? 'SHORT ' : 'OK    ') + c.name + ': ' + c.got + ' of ' + c.want); c.short.forEach(x => L.push('        ' + x)) });
     L.push('');
   }
-  L.push('STEPS'); tx.steps.forEach(s => L.push('  ' + s.name + ': ' + s.status + (s.note ? ' (' + s.note + ')' : '')));
+  if (tx.t0) L.push('RUN TIME', '  Started ' + new Date(tx.t0).toLocaleTimeString() + (tx.t1 ? ', finished ' + new Date(tx.t1).toLocaleTimeString() : ', still running'), '  ' + runTime(), '');
+  L.push('STEPS'); tx.steps.forEach(s => L.push('  ' + s.name + ': ' + s.status + (s.note ? ' (' + s.note + ')' : '') + (s.ms ? ', ' + dur(s.ms) : '')));
   L.push('', 'EVERY FIELD (OK = set, XX = not set, -- = left out)');
   (tx.report || []).forEach(r => {
     L.push('', r.step + (r.item ? ', ' + r.item : ''));
@@ -493,6 +508,8 @@ function transferCard() {
   const card = h('div', { class: 'card xfer' }, h('div', { class: 'row' }, h('h2', { style: 'flex:1' }, 'Transfer whole survey'),
     tx.running ? h('button', { class: 'btn', onclick: () => { tx.stop = true; render() } }, tx.stop ? 'Stopping…' : 'Stop')
       : h('button', { class: 'btn primary', disabled: !deapTab, onclick: runTransfer }, tx.steps.length ? 'Run again' : 'Start')));
+  if (tx.running && tx.t0) card.append(h('p', { class: 'runtime' }, h('b', null, 'Running for ' + dur(Date.now() - tx.t0))));
+  if (!tx.running && tx.t1) card.append(h('p', { class: 'runtime' }, h('b', null, runTime()), h('small', null, ' Started ' + new Date(tx.t0).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', finished ' + new Date(tx.t1).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))));
   if (!tx.running && tx.steps.length && (tx.counts || []).length) card.append(countCard());
   if (!tx.running && !tx.steps.length) card.append(h('p', { class: 'note' }, 'Open this assessment in DEAP, then press Start. It goes through each screen, adds the walls, floors, roofs, doors and windows, and saves each one. It never publishes. Untick anything already in DEAP so it is not added twice.'));
   if (tx.waitingFor) card.append(h('div', { class: 'needs' }, h('b', null, 'Your turn: '), tx.waitingFor,
