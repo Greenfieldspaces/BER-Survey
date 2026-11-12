@@ -436,7 +436,7 @@ const SECTIONS=[
     NOTES()]},
   {id:'gen',name:'Renewables',groups:[
     {title:'Solar PV',fields:[
-      F('pv','PV arrays',{type:'list',add:'+ PV array',cols:[N('panels','Number of panels',{int:1}),N('wp','Peak power per panel W'),N('kwp','Array peak power kWp'),S_('orient','Orientation',ORIENTS),N('pitch','Tilt °'),S_('shade','Overshading',OVERSHADE),S_('ev','Evidence',['Cert / commissioning report','Panel label','Estimated'])]}),
+      F('pv','PV arrays',{type:'list',add:'+ PV array',cols:[N('panels','Number of panels',{int:1}),N('wp','Peak power per panel W'),S_('orient','Orientation',ORIENTS),N('pitch','Tilt °'),S_('shade','Overshading',OVERSHADE),S_('ev','Evidence',['Cert / commissioning report','Panel label','Estimated'])]}),
       N('battery','Battery kWh'),F('pvmodel','Panels / inverter make')]},
     {title:'Wind',fields:[B('wind','Wind turbine'),N('windkw','Rated output kW',{show:is('wind','Yes')}),N('hub','Hub height m',{show:is('wind','Yes')})]},
     {title:'Micro-CHP',fields:[B('chp','Micro-CHP'),F('chpmodel','Make & model',{show:is('chp','Yes')}),N('chpeff','Electrical efficiency %',{show:is('chp','Yes')})]},
@@ -519,7 +519,7 @@ const net=w=>gross(w)-opsArea(w);
 // ---- ui helpers ----
 const $=s=>document.querySelector(s);
 function el(tag,attrs,...kids){const e=document.createElement(tag);for(const k in attrs||{}){const v=attrs[k];if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v)}for(const c of kids.flat(Infinity)){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(c))}return e}
-function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,1800)}
+function toast(msg,ms){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,ms||1800)}
 function numInput(id,val,label,oninput){return el('input',{id,inputmode:'decimal',value:val,placeholder:'0.00','aria-label':label,autocomplete:'off',oninput})}
 function armButton(label,onConfirm,cls){
   const b=el('button',{class:'btn small danger '+(cls||'')},label);
@@ -648,14 +648,21 @@ function groupCard(title,lines,s,extra,opts){
   card.append(el('div',{class:'warn','data-warn':lines.map(w=>w.id).join(' '),hidden:groupNet(lines)>=0},'Openings exceed the gross area'));
   return card;
 }
+// remove a whole floor card (its lines and their windows/doors). A floor listed under Dimensions > Storeys would come straight back, so point there instead.
+const inStoreys=(s,lv)=>(((s.data||{}).dims||{}).storeys||[]).some(r=>r.level===lv);
+function delFloorBtn(s,lv){
+  if(inStoreys(s,lv))return el('button',{class:'btn small danger',onclick:()=>toast(lv+' is listed in Dimensions > Storeys. Remove it there first.',4000)},'Delete floor');
+  return armButton('Delete floor',()=>{s.walls=s.walls.filter(w=>w.level!==lv);save();render();toast(lv+' deleted')});
+}
 function renderWalls(){
   const s=cur(),col=el('div',{class:'stack'});
   col.append(el('div',{class:'intro'},el('b',null,'One line per floor: room height × exposed perimeter, minus the windows and doors.'),' Room height comes from Dimensions (dashed box). Type over it if needed.'));
   const hasOld=s.walls.some(w=>!w.level&&w.shape!=='tri'&&!w.rir);
-  floorLevels(s).forEach(lv=>{
+  const levels=floorLevels(s);
+  levels.forEach(lv=>{
     let lines=s.walls.filter(w=>w.level===lv&&w.shape!=='tri'&&!w.rir);
     if(!lines.length){if(hasOld)return;lines=[addLine(s,{level:lv,name:lv,type:s.types[0]})]}
-    col.append(groupCard(lv,lines,s,el('button',{class:'btn small dashed',style:'align-self:flex-start',onclick:()=>{addLine(s,{level:lv,name:lv,type:lines[lines.length-1].type});save();render()}},'+ Another wall type on this floor')));
+    col.append(groupCard(lv,lines,s,el('button',{class:'btn small dashed',style:'align-self:flex-start',onclick:()=>{addLine(s,{level:lv,name:lv,type:lines[lines.length-1].type});save();render()}},'+ Another wall type on this floor'),{head:levels.length>1?delFloorBtn(s,lv):null}));
   });
   const tops=s.walls.filter(w=>w.shape==='tri'||w.rir);
   const gc=groupCard('Gable tops',tops,s,el('div',{class:'row'},el('span',{class:'note',style:'flex:1'},'The triangle above the top floor. Skip this if there is a room in roof: it adds its own gable ends.'),
@@ -663,7 +670,8 @@ function renderWalls(){
   col.append(gc);
   const old=s.walls.filter(w=>!w.level&&w.shape!=='tri'&&!w.rir);
   if(old.length)col.append(groupCard('Measured by wall (older survey)',old,s,el('p',{class:'note',style:'margin:0'},'This survey was measured wall by wall before the floor layout. These still count. You can delete them once the floors above are filled in.'),{delAll:true}));
-  const lv=LEVELS.filter(l=>!floorLevels(s).includes(l));
+  // offer the next floor up first; Basement is only ever an option at the end, never the default
+  const lv=LEVELS.filter(l=>l!=='Basement'&&!levels.includes(l)).concat(levels.includes('Basement')?[]:['Basement']);
   if(lv.length){const sel=el('select',{'aria-label':'Floor to add',style:'width:auto'},lv.map(l=>el('option',{value:l},l)));
     col.append(el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>{addLine(s,{level:sel.value,name:sel.value,type:s.types[0]});save();render()}},'+ Floor'),sel))}
   col.append(wallTypesEl());
@@ -1069,8 +1077,9 @@ function allChecks(s){
   if(water.solar==='Yes'&&!hasVal(water.aper))add('miss','Solar aperture area','water');if(water.cyl==='Yes'){if(!hasVal(water.vol))add('miss','Cylinder volume','water');if(!hasVal(water.cylins))add('miss','Cylinder insulation','water')}
   if(!(water.showers||[]).length)add('check','No showers entered','water');
   if(!hasVal(water.solar))add('miss','Solar thermal panels (yes or no)','water');
-  if(!(gen.pv||[]).length&&!hasVal(gen.wind)&&!hasVal(gen.chp))add('check','Renewables left blank. Add PV or answer No to wind and CHP','gen');
-  (gen.pv||[]).forEach((p,i)=>{if(!n(p.kwp))add('miss','PV array '+(i+1)+' has no kWp','gen')});
+  if(!(gen.pv||[]).some(p=>Object.values(p).some(hasVal))&&!hasVal(gen.wind)&&!hasVal(gen.chp))add('check','Renewables left blank. Add PV or answer No to wind and CHP','gen');
+  // a PV row left empty is ignored; DEAP takes number of panels × W per panel and works out the kWp itself (older surveys may only have kWp)
+  (gen.pv||[]).forEach((p,i)=>{if(Object.values(p).some(hasVal)&&!n(p.kwp)&&!(n(p.panels)&&n(p.wp)))add('miss','PV array '+(i+1)+(n(p.panels)?' has no W per panel':n(p.wp)?' has no number of panels':' has no panels or W per panel'),'gen')});
   return out;
 }
 function siteChecks(s){
@@ -1595,7 +1604,7 @@ function deapExport(s){
       if(f.type==='calc'){REPORT_CALCS[f.calc]().forEach(([k,v])=>x.fields.push({key:key+'.calc.'+slug(k),label:k,kind:'num',value:plainVal(v)}));return}
       if(f.id==='_name'){if(hasVal(s.name)&&!s.example)x.fields.push({key:key+'.address',label:f.label,kind:'text',value:s.name});return}
       const v=fieldVal(f,d,key,s);if(!hasVal(v))return;
-      if(f.type==='list'){x.tables.push({key:key+'.'+f.id,title:f.label,columns:f.cols.map(c=>({key:c.id,label:c.label,kind:c.type})),rows:v.map(r=>f.cols.map(c=>hasVal(r[c.id])?plainVal(r[c.id]):''))});return}
+      if(f.type==='list'){const rv=v.filter(r=>f.cols.some(c=>hasVal(r[c.id])));if(!rv.length)return;x.tables.push({key:key+'.'+f.id,title:f.label,columns:f.cols.map(c=>({key:c.id,label:c.label,kind:c.type})),rows:rv.map(r=>f.cols.map(c=>hasVal(r[c.id])?plainVal(r[c.id]):''))});return}
       x.fields.push({key:key+'.'+f.id,label:f.label.replace(' (if certified)','').replace(' (if known)',''),kind:f.type,value:Array.isArray(v)?v.slice():(f.type==='num'?plainVal(v):String(v)),options:f.options||undefined});
     }));
   };
