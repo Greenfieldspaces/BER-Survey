@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAypoYvhu3WQsTzpRA+7GrOw9Ui9s2KAJRuicCDVSkpcnn9wNjmHcf+MDDaq0X47YMZGATwscV/6v2VQfqgcSydsnKaM6HJYYQhr12KK7KWLABd61uvbH2i9cKzMTVzggnRN++cPlso9pt0DqFYI0bj121TBSGBycwtHT71n07Mb2WXoIoVB+Oi19e+arWGNJ+sz048Xh54QNPa3+ewMoyedTcfPojUE3DrcALX9QrVplnPw2ZWehfJF8zB0Vy8g6EwGws/zcD4Kionf72OABzGrevYYyGpEYjxNllobktNwhhZmQGl3PYYC1qvfX/38ht7R9PKky+g0fo3bedcp9ZYwIDAQAB",
   "name": "BER Survey DEAP Fill",
-  "version": "0.12.12",
+  "version": "0.12.13",
   "description": "Fills the open DEAP screen from a BER Survey transfer file. You check each screen and save it in DEAP yourself.",
   "permissions": ["storage", "unlimitedStorage", "sidePanel", "scripting", "clipboardWrite", "downloads"],
   "host_permissions": ["https://deap.seai.ie/*"],

@@ -74,7 +74,10 @@ function synthTables() {
   if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([/^open fire$/i.test(v('heat.sec').trim()) ? 'Open fire in grate' : v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec')), /storage/i.test(v('heat.src')) ? '15' : '10']);
   if (heats[0] && heats[0].length < 8) heats[0].push('');
   tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['exact', 'Make and model given'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water'], ['make', 'Make and model'], ['htype', 'Heat source type'], ['pct', 'Heat %']], heats);
-  const vent = [['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0).map(([k, q]) => [q, String(n('vent.' + k))]);
+  // DEAP adds a chimney, open flue or flueless heater straight from the library with no box for how many,
+  // so each one is added on its own; fans and vents open Edit Fan, which takes the number
+  const vent = [].concat(...[['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0)
+    .map(([k, q]) => /^(fans|vents)$/.test(k) ? [[q, String(n('vent.' + k))]] : Array.from({ length: n('vent.' + k) }, () => [q, '1'])));
   tbl('vent.items', 'Ventilation items', [['search', 'Library search'], ['n', 'Number of items']], vent);
   const wsc = st.survey.screens.find(x => x.id === 'water'), sh = wsc && wsc.tables.find(t => t.key === 'water.showers'), wet = [];
   // the word that picks each one from DEAP's common items
@@ -319,7 +322,7 @@ async function addItems(step, t) {
     }
     tx.report.push({ step: step.name, item: what + (s.dialog ? ' (' + s.dialog + ')' : ''), results: res.map(x => Object.assign({ label: (t.columns.find(c => c.key === x.col) || {}).label || x.key }, x)) });
     results[step.screen] = (results[step.screen] || []).filter(x => !(x.key === t.key && x.row === ri)).concat(res.map(x => Object.assign(x, x.row != null ? { row: ri } : {})));
-    res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => tx.log.push(step.name + ': ' + what + ', ' + (t.columns.find(c => c.key === x.col) || {}).label + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '')));
+    res.filter(x => !/filled|same|skipped/.test(x.status)).forEach(x => tx.log.push(step.name + ': ' + what + ', ' + (t.columns.find(c => c.key === x.col) || {}).label + ' by hand' + (x.detail ? ' (' + x.detail + ')' : '') + (t.key === 'roofs.roofs' && x.col === 'ins' && !t.rows[ri][t.columns.findIndex(c => c.key === 'type')] ? ': the survey has no roof type for this roof, and DEAP only shows Insulation Thickness once a roof type is picked' : '')));
     await pause(500);
     const sv = await pressWait('SAVE', true, 3000);
     const closed = !(sv && sv.error) && await waitState(x => !x.dialog, 8000);

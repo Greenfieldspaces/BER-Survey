@@ -1033,7 +1033,7 @@ function allChecks(s){
     w.ops.forEach(o=>{if(!(opArea(o)>0))add('miss',nm+': a '+o.kind+' has no size','building','walls')})});
   const roofs=fieldVal({id:'roofs'},D('roofs'),'roofs',s),floors=D('dims').floors||[];
   if(!roofs.length&&!noRoof)add('miss','Roof details','building','roofs');
-  roofs.forEach((r,i)=>{if(!n(r.area))add('miss','Roof '+(i+1)+' has no area','building','roofs');if(!hasVal(r.ins)&&!hasVal(r.u))add('miss','Roof '+(i+1)+' has no insulation thickness or U-value','building','roofs')});
+  roofs.forEach((r,i)=>{if(!n(r.area))add('miss','Roof '+(i+1)+' has no area','building','roofs');if(!hasVal(r.type))add('miss','Roof '+(i+1)+' has no roof type','building','roofs');if(!hasVal(r.ins)&&!hasVal(r.u))add('miss','Roof '+(i+1)+' has no insulation thickness or U-value','building','roofs')});
   if(!floors.length&&!noFloor)add('miss','Heat loss floors','building','dims');
   floors.forEach((r,i)=>{if(!n(r.area))add('miss','Floor '+(i+1)+' has no area','building','dims');if(/Solid|Suspended/.test(r.type||'')&&!n(r.perim))add('miss','Floor '+(i+1)+' has no exposed perimeter','building','dims')});
   const gf=st.find(x=>/Ground/.test(x.level||'')),top=st[st.length-1];
