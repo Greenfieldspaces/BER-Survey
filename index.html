@@ -436,7 +436,7 @@ const SECTIONS=[
     NOTES()]},
   {id:'gen',name:'Renewables',groups:[
     {title:'Solar PV',fields:[
-      F('pv','PV arrays',{type:'list',add:'+ PV array',cols:[N('panels','Number of panels',{int:1}),N('wp','Peak power per panel W'),N('kwp','Array peak power kWp'),S_('orient','Orientation',ORIENTS),N('pitch','Tilt °'),S_('shade','Overshading',OVERSHADE),S_('ev','Evidence',['Cert / commissioning report','Panel label','Estimated'])]}),
+      F('pv','PV arrays',{type:'list',add:'+ PV array',cols:[N('panels','Number of panels',{int:1}),N('wp','Peak power per panel W'),S_('orient','Orientation',ORIENTS),N('pitch','Tilt °'),S_('shade','Overshading',OVERSHADE),S_('ev','Evidence',['Cert / commissioning report','Panel label','Estimated'])]}),
       N('battery','Battery kWh'),F('pvmodel','Panels / inverter make')]},
     {title:'Wind',fields:[B('wind','Wind turbine'),N('windkw','Rated output kW',{show:is('wind','Yes')}),N('hub','Hub height m',{show:is('wind','Yes')})]},
     {title:'Micro-CHP',fields:[B('chp','Micro-CHP'),F('chpmodel','Make & model',{show:is('chp','Yes')}),N('chpeff','Electrical efficiency %',{show:is('chp','Yes')})]},
@@ -1078,8 +1078,8 @@ function allChecks(s){
   if(!(water.showers||[]).length)add('check','No showers entered','water');
   if(!hasVal(water.solar))add('miss','Solar thermal panels (yes or no)','water');
   if(!(gen.pv||[]).some(p=>Object.values(p).some(hasVal))&&!hasVal(gen.wind)&&!hasVal(gen.chp))add('check','Renewables left blank. Add PV or answer No to wind and CHP','gen');
-  // a PV row left empty is ignored; DEAP takes panels × W per panel, so kWp is only needed when those are missing
-  (gen.pv||[]).forEach((p,i)=>{if(Object.values(p).some(hasVal)&&!n(p.kwp)&&!(n(p.panels)&&n(p.wp)))add('miss','PV array '+(i+1)+' has no size (panels × W, or kWp)','gen')});
+  // a PV row left empty is ignored; DEAP takes number of panels × W per panel and works out the kWp itself (older surveys may only have kWp)
+  (gen.pv||[]).forEach((p,i)=>{if(Object.values(p).some(hasVal)&&!n(p.kwp)&&!(n(p.panels)&&n(p.wp)))add('miss','PV array '+(i+1)+(n(p.panels)?' has no W per panel':n(p.wp)?' has no number of panels':' has no panels or W per panel'),'gen')});
   return out;
 }
 function siteChecks(s){
