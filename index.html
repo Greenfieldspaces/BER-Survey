@@ -519,7 +519,7 @@ const net=w=>gross(w)-opsArea(w);
 // ---- ui helpers ----
 const $=s=>document.querySelector(s);
 function el(tag,attrs,...kids){const e=document.createElement(tag);for(const k in attrs||{}){const v=attrs[k];if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v)}for(const c of kids.flat(Infinity)){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(c))}return e}
-function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,1800)}
+function toast(msg,ms){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,ms||1800)}
 function numInput(id,val,label,oninput){return el('input',{id,inputmode:'decimal',value:val,placeholder:'0.00','aria-label':label,autocomplete:'off',oninput})}
 function armButton(label,onConfirm,cls){
   const b=el('button',{class:'btn small danger '+(cls||'')},label);
@@ -648,14 +648,21 @@ function groupCard(title,lines,s,extra,opts){
   card.append(el('div',{class:'warn','data-warn':lines.map(w=>w.id).join(' '),hidden:groupNet(lines)>=0},'Openings exceed the gross area'));
   return card;
 }
+// remove a whole floor card (its lines and their windows/doors). A floor listed under Dimensions > Storeys would come straight back, so point there instead.
+const inStoreys=(s,lv)=>(((s.data||{}).dims||{}).storeys||[]).some(r=>r.level===lv);
+function delFloorBtn(s,lv){
+  if(inStoreys(s,lv))return el('button',{class:'btn small danger',onclick:()=>toast(lv+' is listed in Dimensions > Storeys. Remove it there first.',4000)},'Delete floor');
+  return armButton('Delete floor',()=>{s.walls=s.walls.filter(w=>w.level!==lv);save();render();toast(lv+' deleted')});
+}
 function renderWalls(){
   const s=cur(),col=el('div',{class:'stack'});
   col.append(el('div',{class:'intro'},el('b',null,'One line per floor: room height × exposed perimeter, minus the windows and doors.'),' Room height comes from Dimensions (dashed box). Type over it if needed.'));
   const hasOld=s.walls.some(w=>!w.level&&w.shape!=='tri'&&!w.rir);
-  floorLevels(s).forEach(lv=>{
+  const levels=floorLevels(s);
+  levels.forEach(lv=>{
     let lines=s.walls.filter(w=>w.level===lv&&w.shape!=='tri'&&!w.rir);
     if(!lines.length){if(hasOld)return;lines=[addLine(s,{level:lv,name:lv,type:s.types[0]})]}
-    col.append(groupCard(lv,lines,s,el('button',{class:'btn small dashed',style:'align-self:flex-start',onclick:()=>{addLine(s,{level:lv,name:lv,type:lines[lines.length-1].type});save();render()}},'+ Another wall type on this floor')));
+    col.append(groupCard(lv,lines,s,el('button',{class:'btn small dashed',style:'align-self:flex-start',onclick:()=>{addLine(s,{level:lv,name:lv,type:lines[lines.length-1].type});save();render()}},'+ Another wall type on this floor'),{head:levels.length>1?delFloorBtn(s,lv):null}));
   });
   const tops=s.walls.filter(w=>w.shape==='tri'||w.rir);
   const gc=groupCard('Gable tops',tops,s,el('div',{class:'row'},el('span',{class:'note',style:'flex:1'},'The triangle above the top floor. Skip this if there is a room in roof: it adds its own gable ends.'),
@@ -663,7 +670,8 @@ function renderWalls(){
   col.append(gc);
   const old=s.walls.filter(w=>!w.level&&w.shape!=='tri'&&!w.rir);
   if(old.length)col.append(groupCard('Measured by wall (older survey)',old,s,el('p',{class:'note',style:'margin:0'},'This survey was measured wall by wall before the floor layout. These still count. You can delete them once the floors above are filled in.'),{delAll:true}));
-  const lv=LEVELS.filter(l=>!floorLevels(s).includes(l));
+  // offer the next floor up first; Basement is only ever an option at the end, never the default
+  const lv=LEVELS.filter(l=>l!=='Basement'&&!levels.includes(l)).concat(levels.includes('Basement')?[]:['Basement']);
   if(lv.length){const sel=el('select',{'aria-label':'Floor to add',style:'width:auto'},lv.map(l=>el('option',{value:l},l)));
     col.append(el('div',{class:'row'},el('button',{class:'btn primary',onclick:()=>{addLine(s,{level:sel.value,name:sel.value,type:s.types[0]});save();render()}},'+ Floor'),sel))}
   col.append(wallTypesEl());
