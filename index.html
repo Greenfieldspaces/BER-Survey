@@ -402,7 +402,7 @@ const SECTIONS=[
       B('fluefan','Gas boiler flue fan',{show:d=>/Mains gas|LPG/.test(d.fuel||'')}),
       B('warmair','Warm air heating or fan coil radiators')]},
     {title:'Secondary heating system',fields:[
-      S_('sec','Secondary system',['None','Open fire in grate','Open fire with back boiler','Closed stove','Gas fire','Electric heater','Flueless gas heater','Other']),
+      S_('sec','Secondary system',['None','Open fire in grate','Open fire with back boiler','Closed room heater','Gas fire','Electric heater','Flueless gas heater','Other']),
       S_('secfuel','Fuel',FUELS,{show:d=>d.sec&&d.sec!=='None'}),N('seceff','Efficiency %',{show:d=>d.sec&&d.sec!=='None'})]},
     NOTES()]},
   {id:'water',name:'Water heating',groups:[
@@ -1033,7 +1033,7 @@ function allChecks(s){
     w.ops.forEach(o=>{if(!(opArea(o)>0))add('miss',nm+': a '+o.kind+' has no size','building','walls')})});
   const roofs=fieldVal({id:'roofs'},D('roofs'),'roofs',s),floors=D('dims').floors||[];
   if(!roofs.length&&!noRoof)add('miss','Roof details','building','roofs');
-  roofs.forEach((r,i)=>{if(!n(r.area))add('miss','Roof '+(i+1)+' has no area','building','roofs');if(!hasVal(r.ins)&&!hasVal(r.u))add('miss','Roof '+(i+1)+' has no insulation thickness or U-value','building','roofs')});
+  roofs.forEach((r,i)=>{if(!n(r.area))add('miss','Roof '+(i+1)+' has no area','building','roofs');if(!hasVal(r.type))add('miss','Roof '+(i+1)+' has no roof type','building','roofs');if(!hasVal(r.ins)&&!hasVal(r.u))add('miss','Roof '+(i+1)+' has no insulation thickness or U-value','building','roofs')});
   if(!floors.length&&!noFloor)add('miss','Heat loss floors','building','dims');
   floors.forEach((r,i)=>{if(!n(r.area))add('miss','Floor '+(i+1)+' has no area','building','dims');if(/Solid|Suspended/.test(r.type||'')&&!n(r.perim))add('miss','Floor '+(i+1)+' has no exposed perimeter','building','dims')});
   const gf=st.find(x=>/Ground/.test(x.level||'')),top=st[st.length-1];
@@ -1491,6 +1491,8 @@ function migrateOps(s){
   const d=s.data.openings||(s.data.openings={});
   // secondary heating 'Open fire' is now 'Open fire in grate', DEAP's name for it
   if(s.data.heat&&s.data.heat.sec==='Open fire')s.data.heat.sec='Open fire in grate';
+  // 'Closed stove' is now 'Closed room heater', DEAP's name for it
+  if(s.data.heat&&s.data.heat.sec==='Closed stove')s.data.heat.sec='Closed room heater';
   // window overshading used to be one setting for the whole house: put it on each window
   if(hasVal(d.shading)){s.walls.forEach(w=>w.ops.forEach(o=>{if(o.kind!=='door'&&!o.shade)o.shade=OLD_SHADE[d.shading]||d.shading}));delete d.shading}
   // openings now take an area only: turn old width × height into an area
