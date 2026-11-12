@@ -71,7 +71,7 @@ function synthTables() {
   if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), v('heat.make') ? '1' : '', fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '', v('heat.make'), htype(v('heat.src'))]);
   // DEAP's library calls a plain open fire "Open fire in grate" (older surveys just say Open fire)
   // DEAP's secondary dialog wants the share of heat it gives: its usual figure is 10%, or 15% beside electric storage heaters
-  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([/^open fire$/i.test(v('heat.sec').trim()) ? 'Open fire in grate' : v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec')), /storage/i.test(v('heat.src')) ? '15' : '10']);
+  if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([/^open fire$/i.test(v('heat.sec').trim()) ? 'Open fire in grate' : /^closed stove$/i.test(v('heat.sec').trim()) ? 'Closed room heater' : v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec')), /storage/i.test(v('heat.src')) ? '15' : '10']);
   if (heats[0] && heats[0].length < 8) heats[0].push('');
   tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['exact', 'Make and model given'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water'], ['make', 'Make and model'], ['htype', 'Heat source type'], ['pct', 'Heat %']], heats);
   // DEAP adds a chimney, open flue or flueless heater straight from the library with no box for how many,

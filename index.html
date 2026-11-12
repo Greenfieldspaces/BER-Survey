@@ -402,7 +402,7 @@ const SECTIONS=[
       B('fluefan','Gas boiler flue fan',{show:d=>/Mains gas|LPG/.test(d.fuel||'')}),
       B('warmair','Warm air heating or fan coil radiators')]},
     {title:'Secondary heating system',fields:[
-      S_('sec','Secondary system',['None','Open fire in grate','Open fire with back boiler','Closed stove','Gas fire','Electric heater','Flueless gas heater','Other']),
+      S_('sec','Secondary system',['None','Open fire in grate','Open fire with back boiler','Closed room heater','Gas fire','Electric heater','Flueless gas heater','Other']),
       S_('secfuel','Fuel',FUELS,{show:d=>d.sec&&d.sec!=='None'}),N('seceff','Efficiency %',{show:d=>d.sec&&d.sec!=='None'})]},
     NOTES()]},
   {id:'water',name:'Water heating',groups:[
@@ -1491,6 +1491,8 @@ function migrateOps(s){
   const d=s.data.openings||(s.data.openings={});
   // secondary heating 'Open fire' is now 'Open fire in grate', DEAP's name for it
   if(s.data.heat&&s.data.heat.sec==='Open fire')s.data.heat.sec='Open fire in grate';
+  // 'Closed stove' is now 'Closed room heater', DEAP's name for it
+  if(s.data.heat&&s.data.heat.sec==='Closed stove')s.data.heat.sec='Closed room heater';
   // window overshading used to be one setting for the whole house: put it on each window
   if(hasVal(d.shading)){s.walls.forEach(w=>w.ops.forEach(o=>{if(o.kind!=='door'&&!o.shade)o.shade=OLD_SHADE[d.shading]||d.shading}));delete d.shading}
   // openings now take an area only: turn old width × height into an area
