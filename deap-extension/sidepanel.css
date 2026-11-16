@@ -95,3 +95,4 @@ ol.steps{margin:0;padding-left:18px;color:var(--muted);font-size:13px}
 .cr .n{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
 .cr .n span{color:var(--muted);font-weight:500}
 .cr .go{border:0;background:none;color:var(--accent);font-weight:600;font-size:12px;padding:0;margin-top:2px;display:block}
+.runtime{margin:8px 0;font-size:13px}.runtime small{color:var(--muted);margin-left:6px}

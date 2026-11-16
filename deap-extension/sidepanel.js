@@ -126,7 +126,7 @@ function job(sc) {
   tables.forEach(t => {
     if (t.key === 'dims.floors') {
       add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
-      add(t, 'loc', 'Floor location', r => /ground|solid|suspended/i.test(col(t, r, 'type')) ? 'Storey 1' : '');
+      add(t, 'loc', 'Floor location', r => /ground|solid|suspended/i.test(col(t, r, 'type')) || !col(t, r, 'type') ? 'Storey 1' : '');
       add(t, 'year', 'Year built', () => dwellingYear());
       // a room in roof storey goes into DEAP as its own floor with Room in Roof ticked
       add(t, 'inroof', 'Room in roof', () => '');
