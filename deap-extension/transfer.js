@@ -74,10 +74,8 @@ function synthTables() {
   if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([/^open fire$/i.test(v('heat.sec').trim()) ? 'Open fire in grate' : /^closed stove$/i.test(v('heat.sec').trim()) ? 'Closed room heater' : v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec')), /storage/i.test(v('heat.src')) ? '15' : '10']);
   if (heats[0] && heats[0].length < 8) heats[0].push('');
   tbl('heat.sources', 'Heat sources', [['search', 'Library search'], ['exact', 'Make and model given'], ['fuel', 'Fuel type'], ['eff', 'Efficiency %'], ['water', 'Heats water'], ['make', 'Make and model'], ['htype', 'Heat source type'], ['pct', 'Heat %']], heats);
-  // DEAP adds a chimney, open flue or flueless heater straight from the library with no box for how many,
-  // so each one is added on its own; fans and vents open Edit Fan, which takes the number
-  const vent = [].concat(...[['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0)
-    .map(([k, q]) => /^(fans|vents)$/.test(k) ? [[q, String(n('vent.' + k))]] : Array.from({ length: n('vent.' + k) }, () => [q, '1'])));
+  // each opens DEAP's Edit Fan box, which takes how many (it can be slow to open, see addItems)
+  const vent = [['chimneys', 'chimney'], ['flues', 'open flue'], ['fans', 'intermittent fan'], ['vents', 'passive vent'], ['flueless', 'flueless']].filter(([k]) => n('vent.' + k) > 0).map(([k, q]) => [q, String(n('vent.' + k))]);
   tbl('vent.items', 'Ventilation items', [['search', 'Library search'], ['n', 'Number of items']], vent);
   const wsc = st.survey.screens.find(x => x.id === 'water'), sh = wsc && wsc.tables.find(t => t.key === 'water.showers'), wet = [];
   // the word that picks each one from DEAP's common items
@@ -314,6 +312,10 @@ async function addItems(step, t) {
       s = await send({ cmd: 'state' });
       // DEAP can take a few seconds to open the item's edit box (Edit Door, Edit Fan) after it is picked
       if (got && !s.dialog) s = (await waitState(x => !!x.dialog && !/library/i.test(x.dialog), 4000)) || await send({ cmd: 'state' });
+      // sometimes it is slower still: when the survey has more for this item (a door's area, a fan count),
+      // give the edit box a few more seconds before leaving it for you (items with nothing more, like a bath, don't wait)
+      if (got && !s.dialog && t.columns.some((c, i) => c.key !== 'search' && t.rows[ri][i] && !(c.key === 'n' && t.rows[ri][i] === '1') && !((step.mapping[t.key + '.' + c.key] || {}).skip)))
+        s = (await waitState(x => !!x.dialog && !/library/i.test(x.dialog), 6000)) || await send({ cmd: 'state' });
       if (!got) { tx.log.push(step.name + ': ' + what + ' skipped'); countShort(t, ri, what, 'skipped: no library item picked'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }
       if (!s.dialog) { // added straight from the library: whatever else the survey has for it is left to enter in DEAP
         const rest = t.columns.map((c, i) => [c, t.rows[ri][i]]).filter(([c, x]) => c.key !== 'search' && x && !(c.key === 'n' && x === '1') && !((step.mapping[t.key + '.' + c.key] || {}).skip)).map(([c, x]) => c.label + ' ' + x);

@@ -1035,7 +1035,7 @@ function allChecks(s){
   if(!roofs.length&&!noRoof)add('miss','Roof details','building','roofs');
   roofs.forEach((r,i)=>{if(!n(r.area))add('miss','Roof '+(i+1)+' has no area','building','roofs');if(!hasVal(r.type))add('miss','Roof '+(i+1)+' has no roof type','building','roofs');if(!hasVal(r.ins)&&!hasVal(r.u))add('miss','Roof '+(i+1)+' has no insulation thickness or U-value','building','roofs')});
   if(!floors.length&&!noFloor)add('miss','Heat loss floors','building','dims');
-  floors.forEach((r,i)=>{if(!n(r.area))add('miss','Floor '+(i+1)+' has no area','building','dims');if(/Solid|Suspended/.test(r.type||'')&&!n(r.perim))add('miss','Floor '+(i+1)+' has no exposed perimeter','building','dims')});
+  floors.forEach((r,i)=>{if(!n(r.area))add('miss','Floor '+(i+1)+' has no area','building','dims');if(!hasVal(r.type))add('miss','Floor '+(i+1)+' has no floor type','building','dims');if(/Solid|Suspended/.test(r.type||'')&&!n(r.perim))add('miss','Floor '+(i+1)+' has no exposed perimeter','building','dims')});
   const gf=st.find(x=>/Ground/.test(x.level||'')),top=st[st.length-1];
   const fA=floors.reduce((a,x)=>a+n(x.area),0),rA=roofs.reduce((a,x)=>a+n(x.area),0);
   if(gf&&n(gf.area)&&fA&&Math.abs(fA-n(gf.area))/n(gf.area)>0.15)add('check','Floor area ('+f2(fA)+' m²) differs from the ground floor area ('+f2(n(gf.area))+' m²) by more than 15%','building','dims');
