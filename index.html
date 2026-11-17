@@ -97,7 +97,12 @@ input.auto{border-style:dashed;background:var(--bg)}
 .ftbl{display:flex;flex-direction:column;gap:6px}
 #rirSec{scroll-margin-top:200px}
 .oprow{display:grid;grid-template-columns:minmax(0,1fr) 58px 150px 62px 78px 74px 46px minmax(0,1.3fr) 54px 32px;gap:6px;align-items:center}
-.oprow.inw{grid-template-columns:minmax(0,1fr) 54px 146px 58px 70px 64px 42px minmax(0,1.2fr) minmax(0,.8fr) 52px 30px}
+.oprow.inw{grid-template-columns:minmax(0,.9fr) 54px 130px 58px 64px 64px 42px minmax(0,1fr) minmax(0,1.1fr) 52px 30px}
+.bytype{display:flex;flex-direction:column;gap:2px;border-top:1px dashed var(--line);padding-top:8px}
+.btrow{display:grid;grid-template-columns:minmax(0,1fr) auto 110px;gap:10px;align-items:baseline;font-size:15px}
+.btrow .btname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btrow .num:last-child{text-align:right}
+.btrow.bad .num:last-child{color:var(--danger);font-weight:600}
 .oprow select,.oprow input{min-height:40px;padding:6px 6px}
 .oph{font-family:var(--f-body);font-weight:500;font-size:13px;color:var(--muted)}
 .oprow .r{text-align:right}
@@ -551,6 +556,11 @@ const LEVELS=['Basement','Ground floor','First floor','Second floor','Third floo
 const levelH=(s,lv)=>{const r=(((s.data||{}).dims||{}).storeys||[]).find(x=>x.level===lv);return r?n(r.height):0};
 const opDir=(o,w)=>o.orient||w.orient||'';
 const lastOp={};
+// a room called "Porch" goes in the "Porch 2026" wall, "Kitchen extension" in "Extension 2018"
+const TYPE_STOP=/^(wall|walls|cavity|solid|timber|frame|stud|block|hollow|stone|brick|concrete|insulated|insulation|filled|fill|dry|lined|drylined|external|internal|unknown|type|new|old|the|and|with|of|in|on|to|mm|room|roof)$/i;
+const typeWords=t=>String(t||'').toLowerCase().split(/[^a-z]+/).filter(x=>x.length>2&&!TYPE_STOP.test(x));
+const lineForRoom=(lines,room)=>{const r=String(room||'').toLowerCase();if(!r)return null;return lines.find(w=>typeWords(w.type).some(x=>new RegExp('\\b'+x).test(r)))||null};
+const lineLabel=x=>x.level||x.shape==='tri'?x.type:x.name||x.type;
 function floorLevels(s){
   const st=(((s.data||{}).dims||{}).storeys||[]).map(r=>r.level).filter(l=>l&&!/roof/i.test(l));
   const used=s.walls.filter(w=>w.level).map(w=>w.level);
@@ -612,10 +622,12 @@ function opsEl(lines,s,dir){
   rows.forEach(([w,o])=>{
     const u=k=>e=>{o[k]=e.target.value;save();refresh()};
     const ts=opTypes(o.kind);
+    // moving an opening keeps the row where it is until the next redraw, so typing carries on
+    const inw=multi?el('select',{'aria-label':'In wall',class:'inwall',onchange:e=>{const to=lines.find(x=>x.id===e.target.value),at=lines.find(x=>x.ops.includes(o));if(to&&at&&to!==at){at.ops=at.ops.filter(x=>x!==o);to.ops.push(o);lastOp['in'+lines[0].id]=to.id;save();refresh()}}},lines.map(x=>el('option',{value:x.id,selected:x===w},lineLabel(x)))):null;
     const tsel=el('select',{'aria-label':'Type',onchange:e=>{if(e.target.value==='__new'){const t=newOpType(o.kind);o.t=t.id;toast('Type '+t.code+' added. Describe it on Windows & doors')}else o.t=e.target.value;lastOp[o.kind+'t']=o.t;save();render()}},
       ts.map(t=>el('option',{value:t.id,selected:o.t===t.id},typeLabel(t,o.kind))),el('option',{value:'__new'},'+ New type'));
     box.append(el('div',{class:'oprow'+(multi?' inw':''),'data-op':o.id},
-      el('input',{value:o.name||'',placeholder:'Room','aria-label':'Room',oninput:e=>{o.name=e.target.value;save()}}),
+      el('input',{value:o.name||'',placeholder:'Room','aria-label':'Room',oninput:e=>{o.name=e.target.value;save()},onchange:multi?()=>{const to=lineForRoom(lines,o.name),at=lines.find(x=>x.ops.includes(o));if(to&&at&&to!==at){at.ops=at.ops.filter(x=>x!==o);to.ops.push(o);lastOp['in'+lines[0].id]=to.id;if(inw)inw.value=to.id;save();refresh();toast('In wall set to '+lineLabel(to))}}:null}),
       el('select',{'aria-label':'Faces',onchange:e=>{o.orient=e.target.value;lastOp.orient=o.orient;save();refresh()}},el('option',{value:''},'–'),ORIENTS.map(d=>el('option',{value:d,selected:opDir(o,w)===d},d))),
       o.kind==='door'?el('span',{class:'muted'},''):el('select',{'aria-label':'Overshading',onchange:e=>{o.shade=e.target.value;lastOp.shade=o.shade;save();refresh()}},el('option',{value:''},'–'),WIN_SHADE.map(d=>el('option',{value:d,selected:o.shade===d},d))),
       el('span',{class:o.kind==='door'?'kind door':'kind'},o.kind==='door'?'Door':'Window'),
@@ -623,21 +635,26 @@ function opsEl(lines,s,dir){
       el('input',{inputmode:'numeric',value:o.open||'',placeholder:'–','aria-label':'Openings on each',oninput:u('open')}),
       el('input',{inputmode:'numeric',value:o.qty,'aria-label':'How many',oninput:u('qty')}),
       tsel,
-      multi?el('select',{'aria-label':'In wall',onchange:e=>{const to=lines.find(x=>x.id===e.target.value);if(to&&to!==w){w.ops=w.ops.filter(x=>x!==o);to.ops.push(o);save();render()}}},lines.map(x=>el('option',{value:x.id,selected:x===w},x.level||x.shape==='tri'?x.type:x.name||x.type))):null,
+      inw,
       el('span',{class:'r num','data-oa':o.id},f2(opArea(o))),
-      el('button',{class:'x','aria-label':'Remove '+o.kind,onclick:()=>{w.ops=w.ops.filter(x=>x!==o);save();render()}},'×')));
+      el('button',{class:'x','aria-label':'Remove '+o.kind,onclick:()=>{lines.forEach(x=>{x.ops=x.ops.filter(y=>y!==o)});save();render()}},'×')));
   });
   const add=kind=>()=>{
-    const w=lines[0],ts=opTypes(kind);
+    const w=lines.find(x=>x.id===lastOp['in'+lines[0].id])||lines[0],ts=opTypes(kind);
     const t=ts.find(x=>x.id===lastOp[kind+'t'])||ts[0]||newOpType(kind);
     const o=blankOp(kind,Object.assign({t:t.id,orient:lastOp.orient||dir||''},kind==='window'?{shade:lastOp.shade||'Average or Unknown'}:{}));w.ops.push(o);save();render();
     setTimeout(()=>{const i=document.getElementById('oa-'+o.id);i&&i.focus()},40);
   };
   box.append(el('div',{class:'row'},el('button',{class:'btn small',onclick:add('window')},'+ Window'),el('button',{class:'btn small',onclick:add('door')},'+ Door'),
     el('span',{style:'flex:1'}),el('span',{class:'note num','data-gcalc':lines.map(w=>w.id).join(' ')},groupCalc(lines))));
+  if(multi)box.append(el('div',{class:'bytype','data-bytype':lines.map(w=>w.id).join(' ')},...byTypeRows(lines)));
   return box;
 }
 const groupCalc=ls=>{const k=ls.reduce((a,w)=>a+w.ops.reduce((b,o)=>b+opOpenings(o),0),0);return f2(ls.reduce((a,w)=>a+gross(w),0))+' gross − '+f2(ls.reduce((a,w)=>a+opsArea(w),0))+' windows & doors · '+k+' openings'};
+// each wall type on the floor loses only the windows and doors that sit in it (the In wall column)
+const byTypeRows=ls=>ls.map(w=>el('div',{class:'btrow'+(net(w)<0?' bad':'')},el('span',{class:'btname'},lineLabel(w)),
+  el('span',{class:'num muted'},f2(gross(w))+' − '+f2(opsArea(w))+' windows & doors'),
+  el('span',{class:'num'},'= '+f2(net(w))+' net')));
 const groupNet=ls=>ls.reduce((a,w)=>a+net(w),0);
 function groupCard(title,lines,s,extra,opts){
   const card=el('section',{class:'wall floor'},
@@ -645,7 +662,7 @@ function groupCard(title,lines,s,extra,opts){
   lines.forEach(w=>card.append(...lineEl(w,s,{del:lines.length>1||(opts&&opts.delAll)})));
   if(extra)card.append(extra);
   if(lines.length)card.append(opsEl(lines,s,opts&&opts.dir));
-  card.append(el('div',{class:'warn','data-warn':lines.map(w=>w.id).join(' '),hidden:groupNet(lines)>=0},'Openings exceed the gross area'));
+  card.append(el('div',{class:'warn','data-warn':lines.map(w=>w.id).join(' '),hidden:!lines.some(w=>net(w)<0)},lines.length>1?'Windows and doors are more than the gross area of one wall type. Check the In wall column.':'Openings exceed the gross area'));
   return card;
 }
 function renderWalls(){
@@ -1029,7 +1046,10 @@ function allChecks(s){
   if(!s.walls.some(w=>gross(w)>0))add('miss','Wall measurements','building','walls');
   usedTypes(s).forEach(t=>{const d=(s.data.walltypes||{})[t]||{};if(!hasVal(d.cons))add('miss',t+': construction not recorded','building','walls');else if(!hasVal(d.ins)&&!hasVal(d.u))add('miss',t+': insulation or U-value not recorded','building','walls')});
   {const nd=s.walls.reduce((a,w)=>a+w.ops.filter(o=>!opDir(o,w)).length,0);if(nd)add('miss',nd+' window'+(nd>1?'s or doors have':' or door has')+' no direction','building','walls')}
-  s.walls.forEach((w,i)=>{const nm=w.name||'Wall '+(i+1);
+  {const lv=[...new Set(s.walls.filter(w=>w.level&&w.shape!=='tri'&&!w.rir).map(w=>w.level))];
+   lv.forEach(l=>{const ls=s.walls.filter(w=>w.level===l&&w.shape!=='tri'&&!w.rir);if(ls.length<2||!ls.some(w=>w.ops.length))return;
+     ls.forEach(w=>{if(gross(w)>0&&!w.ops.length)add('check',l+': no windows or doors are in the '+w.type+' wall. Set In wall for the ones that sit in it','building','walls')})})}
+  s.walls.forEach((w,i)=>{const nm=w.level&&s.walls.filter(x=>x.level===w.level&&x.shape!=='tri'&&!x.rir).length>1?w.level+', '+w.type:w.name||'Wall '+(i+1);
     if(!(gross(w)>0))add('miss',nm+' has no dimensions','building','walls');
     else if(net(w)<0)add('check',nm+': openings are bigger than the wall','building','walls');
     w.ops.forEach(o=>{if(!(opArea(o)>0))add('miss',nm+': a '+o.kind+' has no size','building','walls')})});
@@ -1695,7 +1715,8 @@ function refresh(){
   document.querySelectorAll('[data-gross]').forEach(e=>{const w=s.walls.find(x=>x.id===e.dataset.gross);if(w)e.textContent=f2(gross(w))});
   document.querySelectorAll('[data-gnet]').forEach(e=>e.textContent=f2(groupNet(ws(e.dataset.gnet))));
   document.querySelectorAll('[data-gcalc]').forEach(e=>e.textContent=groupCalc(ws(e.dataset.gcalc)));
-  document.querySelectorAll('[data-warn]').forEach(e=>e.hidden=groupNet(ws(e.dataset.warn))>=0);
+  document.querySelectorAll('[data-bytype]').forEach(e=>e.replaceChildren(...byTypeRows(ws(e.dataset.bytype))));
+  document.querySelectorAll('[data-warn]').forEach(e=>e.hidden=!ws(e.dataset.warn).some(w=>net(w)<0));
   s.walls.forEach(w=>w.ops.forEach(o=>{const e=document.querySelector('[data-oa="'+o.id+'"]');if(e)e.textContent=f2(opArea(o))}));
   const p=$('#panel');if(p)p.replaceWith(summaryPanel(true));
   document.querySelectorAll('[data-fcalc]').forEach(e=>{const fn=CALCS[e.dataset.fcalc];if(fn)e.textContent=fn()});
