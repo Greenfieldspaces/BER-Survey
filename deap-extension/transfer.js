@@ -407,6 +407,11 @@ async function uploadEvidence(step) {
   step.note = done + ' of ' + ph.length + ' uploaded';
   const c = countFor('evidence'); if (c) { c.got = done; if (done < ph.length) c.short.push((ph.length - done) + ' not uploaded: saved to Downloads/' + savePhotos.dir) }
 }
+// a new survey loaded (or Change pressed): the last run's card belongs to the old survey, so clear it
+function resetRun() {
+  if (tx.running) return;
+  Object.assign(tx, { steps: [], log: [], report: [], counts: [], memUsed: [], memNew: [], memAsk: null, startedAt: null, t0: 0, t1: 0, waitMs: 0, waitingFor: null, included: {} });
+}
 async function runTransfer() {
   if (tx.running) return;
   tx.running = true; tx.stop = false; tx.log = []; tx.report = []; tx.memUsed = []; tx.memNew = []; tx.memAsk = null; tx.startedAt = new Date().toISOString(); tx.t0 = Date.now(); tx.t1 = 0; tx.waitMs = 0;
