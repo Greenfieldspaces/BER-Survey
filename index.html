@@ -316,7 +316,7 @@ const SECTIONS=[
       F('eircode','Eircode'),F('county','County'),
       S_('dtype','Dwelling type',['Ground-floor apartment','Mid-floor apartment','Top-floor apartment','End of terrace house','Mid-terrace house','Semi-detached house','Detached house','Maisonette','Basement apartment']),
       N('year','Dwelling age (year built)',{int:1}),
-      B('ext','Is there an extension?'),F('extyear','Extension age (year built)',{show:is('ext','Yes'),hint:'List each, e.g. 1995, 2008'}),
+      B('ext','Is there an extension?'),F('extyear','Extension age (year built)',{show:is('ext','Yes'),hint:'List each in order, e.g. 2018, 2026. Roofs and floors marked Extension 1 get the first year in DEAP, Extension 2 the second.'}),
       N('storeys','No. of storeys',{int:1}),N('rooms','No. of habitable rooms',{int:1})]},
     {title:'Rating',fields:[
       S_('purpose','Purpose of rating',['Sale','Letting','Grant support','New dwelling for owner occupation','Other']),
@@ -672,7 +672,9 @@ function renderWalls(){
 // construction details are recorded once per wall type in use (DEAP takes a U-value per wall type)
 const usedTypes=s=>[...new Set(s.walls.filter(w=>gross(w)>0||w.ops.length).map(w=>w.type))];
 // most walls are entered as Unknown, so a new wall type starts there
-const wtData=t=>{const d=dataFor('walltypes');return d[t]||(d[t]={cons:'Unknown',ins:'Unknown'})};
+// a year in the wall type's name ("extension 2018") is its year built, until one is typed in
+const nameYear=t=>{const m=/\b(1[89]\d\d|20\d\d)\b/.exec(String(t||''));return m?m[1]:''};
+const wtData=t=>{const d=dataFor('walltypes'),x=d[t]||(d[t]={cons:'Unknown',ins:'Unknown'});if(!hasVal(x.year)&&nameYear(t))x.year=nameYear(t);return x};
 function wallTypesEl(){
   const s=cur(),types=usedTypes(s);
   const wh={sec:'building',sub:'walls',grp:'Wall construction'};

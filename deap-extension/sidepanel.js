@@ -68,6 +68,9 @@ function fullMap(keys) { const m = {}; keys.forEach(k => { const v = mapFor(k); 
 // Multi-choice answers become one Yes per ticked option; wall types become a table (one row per type)
 const surveyValue = (screen, key) => ((st.survey.screens.find(x => x.id === screen) || { fields: [] }).fields.find(f => f.key === key) || {}).value || '';
 const dwellingYear = () => surveyValue('details', 'details.year');
+// the year for a part of the house: "Extension 2" takes the second year from the dwelling's extension ages, else the house's year
+const partYear = part => { const m = /extension\s*(\d)/i.exec(part || ''), ys = String(surveyValue('details', 'details.extyear') || '').match(/\b(1[89]\d\d|20\d\d)\b/g) || []; return m && ys[m[1] - 1] || dwellingYear() };
+const nameYear = t => (/\b(1[89]\d\d|20\d\d)\b/.exec(String(t || '')) || [])[1] || '';
 // the survey's wall construction in DEAP's Wall Type wording
 // the room in roof knee wall rows the app adds to the roofs table
 function kneeWalls() {
@@ -111,7 +114,7 @@ function job(sc) {
     cols.push({ key: 'semi', label: 'Semi-exposed' });
     const dyear = ((st.survey.screens.find(x => x.id === 'details') || { fields: [] }).fields.find(f => f.key === 'details.year') || {}).value || '';
     const raw = (g, k) => (grouped.find(f => f.group === g && f.key.endsWith('.' + k)) || {}).value || '';
-    const val = (g, k) => k === 'name' ? g : k === 'semi' ? (/semi/i.test(g) ? 'Yes' : 'No') : k === 'cons' ? deapWallType(raw(g, 'cons'), raw(g, 'thick'), g) : raw(g, k) || (k === 'year' ? dyear : '');
+    const val = (g, k) => k === 'name' ? g : k === 'semi' ? (/semi/i.test(g) ? 'Yes' : 'No') : k === 'cons' ? deapWallType(raw(g, 'cons'), raw(g, 'thick'), g) : raw(g, k) || (k === 'year' ? nameYear(g) || dyear : '');
     const wt = { key: sc.id + '.types', title: 'Wall types', columns: cols, rows: groups.map(g => cols.map(c => val(g, c.key))) };
     // room in roof knee walls go on DEAP's Walls tab (the app works them out with the roofs)
     if (sc.id === 'walls') kneeWalls().forEach(k => {
@@ -127,7 +130,7 @@ function job(sc) {
     if (t.key === 'dims.floors') {
       add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
       add(t, 'loc', 'Floor location', r => /ground|solid|suspended/i.test(col(t, r, 'type')) || !col(t, r, 'type') ? 'Storey 1' : '');
-      add(t, 'year', 'Year built', () => dwellingYear());
+      add(t, 'year', 'Year built', r => partYear(col(t, r, 'part')));
       // a room in roof storey goes into DEAP as its own floor with Room in Roof ticked
       add(t, 'inroof', 'Room in roof', () => '');
       const stt = sc.tables.find(x => x.key === 'dims.storeys');
@@ -156,7 +159,7 @@ function job(sc) {
       // knee walls go in as walls, not roofs
       { const ti = t.columns.findIndex(c => c.key === 'type'); t.rows = t.rows.filter(r => !/stud wall|knee/i.test(r[ti] || '')) }
       add(t, 'name', 'Description', r => [col(t, r, 'part'), col(t, r, 'type')].filter(Boolean).join(' '));
-      add(t, 'year', 'Year built', () => dwellingYear());
+      add(t, 'year', 'Year built', r => partYear(col(t, r, 'part')));
       // DEAP's Insulation Thickness is a list of set sizes: use the nearest one (a tie goes to the thinner)
       const ii = t.columns.findIndex(c => c.key === 'ins'), SIZES = [0, 12, 25, 50, 75, 100, 150, 200, 250, 300];
       if (ii >= 0) t.rows.forEach(r => {
