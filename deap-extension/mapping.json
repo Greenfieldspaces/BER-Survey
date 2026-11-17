@@ -696,7 +696,8 @@
     "openings.doors-for-deap": {
       "dialog": true,
       "add": "ADD DOOR",
-      "library": true
+      "library": true,
+      "editAfter": true
     },
     "openings.doors-for-deap.door-type": {
       "selector": "input[name=\"Description\"]"

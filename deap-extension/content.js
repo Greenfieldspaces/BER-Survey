@@ -524,6 +524,20 @@
     if (a) a.click(); else location.assign(want);
     return { ok: true };
   }
+  // the last row of the list on the page (an item just added): open it for editing with its edit button,
+  // or by clicking the row. Never a delete, copy or other button that is not plainly edit.
+  function editLast() {
+    if (topDialog()) return { error: 'A dialog is open' };
+    const rows = [...document.querySelectorAll('mat-row,.mat-mdc-row,tbody tr,[role=row]')].filter(r => visible(r) && !r.closest(DIALOGS) && !r.closest('#bsdf-ui') && !r.closest('thead') && !r.matches('.mat-mdc-header-row,mat-header-row') && !r.querySelector('mat-row,.mat-mdc-row,tr'));
+    const row = rows.pop(); if (!row) return { error: 'No rows seen' };
+    const label = b => clean([textOf(b), b.getAttribute('aria-label'), b.getAttribute('title'), b.getAttribute('mattooltip')].filter(Boolean).join(' '));
+    const btns = [...row.querySelectorAll('button,a,[role=button]')].filter(visible);
+    const ed = btns.find(b => /\bedit\b|\bcreate\b|pencil/i.test(label(b)) && !FORBIDDEN.test(label(b)));
+    if (ed) { ed.click(); return { ok: true, how: 'edit button', row: clean(textOf(row)).slice(0, 80) } }
+    const cell = [...row.querySelectorAll('mat-cell,.mat-mdc-cell,td')].find(c => visible(c) && !c.querySelector('button,a,[role=button],input'));
+    if (!cell) return { error: 'No plain cell to click' };
+    cell.click(); return { ok: true, how: 'row', row: clean(textOf(row)).slice(0, 80) };
+  }
   function press(text, inDialog) {
     if (FORBIDDEN.test(text)) return { error: 'Not allowed: ' + text };
     const scope = inDialog ? topDialog() : document;
@@ -608,6 +622,7 @@
     if (msg.cmd === 'nav') { reply(nav(msg.path)); return }
     if (msg.cmd === 'press') { reply(press(msg.text, msg.inDialog)); return }
     if (msg.cmd === 'errors') { reply(dialogErrors()); return }
+    if (msg.cmd === 'editlast') { reply(editLast()); return }
     if (msg.cmd === 'libsearch') { libSearch(msg.text).then(reply); return true }
     if (msg.cmd === 'liblast') { reply({ picked: lastLib }); if (msg.reset) lastLib = null; return }
     if (msg.cmd === 'libpick') { libPick(msg.text, msg.min, msg.exact, msg.unique).then(reply, e => reply({ error: String(e.message || e) })); return true }

@@ -68,7 +68,8 @@ function synthTables() {
   const heats = [];
   // DEAP's library heat source types, for a boiler that has to be added to the library
   const htype = src => /heat pump/i.test(src) ? 'Heat pumps' : /storage/i.test(src) ? 'Electric storage systems' : /underfloor/i.test(src) ? 'Electric underfloor heating' : /group|district/i.test(src) ? 'Group heating systems' : /warm air/i.test(src) ? 'Warm air systems' : /stove|fire|room|heater/i.test(src) ? 'Room heaters' : /electric/i.test(src) ? 'Electric boilers' : /solid|biomass|range/i.test(src) && !/\boil\b|gas|lpg/i.test(src) ? 'Solid fuel boilers' : 'Gas and oil boilers';
-  if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), v('heat.make') ? '1' : '', fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '', v('heat.make'), htype(v('heat.src'))]);
+  // a heat pump's Edit Primary Heat Source box has no Fuel Type (it is electric), so none is sent
+  if (v('heat.src')) heats.push([v('heat.make') || v('heat.src'), v('heat.make') ? '1' : '', /heat pump/i.test(v('heat.src')) ? '' : fuel(v('heat.fuel')), v('heat.eff'), /same as main/i.test(v('water.src')) || yes('water.combi') ? 'Yes' : v('water.src') ? 'No' : '', v('heat.make'), htype(v('heat.src'))]);
   // DEAP's library calls a plain open fire "Open fire in grate" (older surveys just say Open fire)
   // DEAP's secondary dialog wants the share of heat it gives: its usual figure is 10%, or 15% beside electric storage heaters
   if (v('heat.sec') && v('heat.sec') !== 'None') heats.push([/^open fire$/i.test(v('heat.sec').trim()) ? 'Open fire in grate' : /^closed stove$/i.test(v('heat.sec').trim()) ? 'Closed room heater' : v('heat.sec'), '', fuel(v('heat.secfuel')), v('heat.seceff'), '', '', htype(v('heat.sec')), /storage/i.test(v('heat.src')) ? '15' : '10']);
@@ -316,6 +317,14 @@ async function addItems(step, t) {
       // give the edit box a few more seconds before leaving it for you (items with nothing more, like a bath, don't wait)
       if (got && !s.dialog && t.columns.some((c, i) => c.key !== 'search' && t.rows[ri][i] && !(c.key === 'n' && t.rows[ri][i] === '1') && !((step.mapping[t.key + '.' + c.key] || {}).skip)))
         s = (await waitState(x => !!x.dialog && !/library/i.test(x.dialog), 6000)) || await send({ cmd: 'state' });
+      // DEAP adds some items (doors) without opening their edit box: open the new row ourselves
+      if (got && !s.dialog && m.editAfter) {
+        const ed = await send({ cmd: 'editlast' });
+        if (ed && ed.ok) {
+          s = (await waitState(x => !!x.dialog, 4000)) || await send({ cmd: 'state' });
+          if (s.dialog && !/edit/i.test(s.dialog)) { await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); await waitState(x => !x.dialog, 3000); s = await send({ cmd: 'state' }) }
+        }
+      }
       if (!got) { tx.log.push(step.name + ': ' + what + ' skipped'); countShort(t, ri, what, 'skipped: no library item picked'); if (s.dialog) await send({ cmd: 'press', text: 'CANCEL', inDialog: true }); continue }
       if (!s.dialog) { // added straight from the library: whatever else the survey has for it is left to enter in DEAP
         const rest = t.columns.map((c, i) => [c, t.rows[ri][i]]).filter(([c, x]) => c.key !== 'search' && x && !(c.key === 'n' && x === '1') && !((step.mapping[t.key + '.' + c.key] || {}).skip)).map(([c, x]) => c.label + ' ' + x);
@@ -397,6 +406,11 @@ async function uploadEvidence(step) {
   }
   step.note = done + ' of ' + ph.length + ' uploaded';
   const c = countFor('evidence'); if (c) { c.got = done; if (done < ph.length) c.short.push((ph.length - done) + ' not uploaded: saved to Downloads/' + savePhotos.dir) }
+}
+// a new survey loaded (or Change pressed): the last run's card belongs to the old survey, so clear it
+function resetRun() {
+  if (tx.running) return;
+  Object.assign(tx, { steps: [], log: [], report: [], counts: [], memUsed: [], memNew: [], memAsk: null, startedAt: null, t0: 0, t1: 0, waitMs: 0, waitingFor: null, included: {} });
 }
 async function runTransfer() {
   if (tx.running) return;

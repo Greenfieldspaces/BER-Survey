@@ -241,7 +241,7 @@ function loadText(txt) {
   if (d && Array.isArray(d.walls)) { toast('That is a survey Backup, not the transfer file.' + want); return }
   if (d && d.format === 'deap-fields-recorded' || d && d.recorded) { toast('That is a DEAP recording, not the transfer file.' + want); return }
   if (!d || d.format !== 'ber-survey-deap' || !Array.isArray(d.screens)) { toast('That is not the transfer file.' + want); return }
-  st.survey = d; results = {};
+  st.survey = d; results = {}; resetRun();
   st.screen = (deapTab && screenForUrl(deapTab.url)) || d.screens[0]?.id;
   save(); render(); toast('Loaded ' + d.survey.name);
 }
@@ -308,7 +308,7 @@ function render() {
   if (!st.survey) { main.replaceChildren(recordCard(), loadCard(true), helpCard(), toolsCard()); return }
   const sv = st.survey.survey;
   bar.append(h('div', { class: 'row' }, h('div', { style: 'flex:1;min-width:0' }, h('b', null, sv.name), h('div', { class: 'note' }, [sv.eircode, sv.date].filter(Boolean).join(' · ') || 'Exported ' + new Date(st.survey.exported).toLocaleString('en-IE'))),
-    h('button', { class: 'btn ghost', onclick: () => { st.survey = null; save(); render() } }, 'Change')));
+    h('button', { class: 'btn ghost', onclick: () => { st.survey = null; resetRun(); save(); render() } }, 'Change')));
   const sc = cur();
   bar.append(h('div', { class: 'chips' }, st.survey.screens.map(x => {
     const r = results[x.id], bad = r ? r.filter(q => /nomatch|norow|nooption|error/.test(q.status)).length : 0;
