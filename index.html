@@ -158,6 +158,13 @@ tr.tot td{font-weight:600;border-bottom:0}
 .types{display:flex;flex-direction:column;gap:6px}
 .types .row input{flex:1}
 .note{font-size:14px;color:var(--muted)}
+.pk-back{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}
+.pk-sheet{background:var(--surface);color:var(--ink);border-radius:12px;width:100%;max-width:420px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.pk-head{padding:14px 16px;font-weight:700;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pk-list{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.pk-opt{display:flex;justify-content:space-between;width:100%;text-align:left;min-height:48px;padding:0 16px;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer;font-size:17px}
+.pk-opt.on{color:var(--accent);font-weight:700}
+.pk-opt:disabled{color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:600;z-index:10}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:10px;max-width:760px}
 textarea{min-height:140px;font-family:var(--f-num);font-size:13px}
@@ -1251,6 +1258,37 @@ function imagesEl(){
   return card;
 }
 
+// ---- app pick lists: for iPads where the built-in dropdowns won't open (setting kept per device) ----
+const PK_KEY='ber-picklists';
+let pkOn=false;try{pkOn=localStorage.getItem(PK_KEY)==='1'}catch(e){}
+function pkSet(on){pkOn=on;try{on?localStorage.setItem(PK_KEY,'1'):localStorage.removeItem(PK_KEY)}catch(e){}}
+function pkLabel(sel){const l=sel.id&&document.querySelector('label[for="'+sel.id+'"]');return(l&&l.textContent.trim())||sel.getAttribute('aria-label')||'Pick one'}
+function pkOpen(sel){
+  if(document.querySelector('.pk-back'))return;
+  const back=el('div',{class:'pk-back'});
+  const close=()=>{back.remove();document.removeEventListener('keydown',esc)};
+  const esc=e=>{if(e.key==='Escape')close()};
+  const list=el('div',{class:'pk-list'},[...sel.options].map(o=>{
+    const b=el('button',{type:'button',class:'pk-opt'+(o.selected?' on':''),disabled:o.disabled},el('span',{},o.textContent),o.selected?el('span',{},'✓'):null);
+    b.addEventListener('click',()=>{close();if(sel.value!==o.value){sel.value=o.value;sel.dispatchEvent(new Event('input',{bubbles:true}));sel.dispatchEvent(new Event('change',{bubbles:true}))}});
+    return b}));
+  back.append(el('div',{class:'pk-sheet',role:'dialog','aria-label':pkLabel(sel)},
+    el('div',{class:'pk-head'},el('span',{},pkLabel(sel)),el('button',{type:'button',class:'btn small ghost',onclick:close},'Close')),list));
+  back.addEventListener('click',e=>{if(e.target===back)close()});
+  document.addEventListener('keydown',esc);
+  document.body.append(back);
+  const on=list.querySelector('.on');if(on)on.scrollIntoView({block:'center'});
+}
+let pkTouch=null;
+const pkSel=t=>t&&t.closest&&t.closest('select:not([disabled])');
+document.addEventListener('touchstart',e=>{const t=e.touches[0];pkTouch=pkOn&&pkSel(e.target)?{x:t.clientX,y:t.clientY}:null},{capture:true,passive:true});
+document.addEventListener('touchend',e=>{
+  if(!pkOn||!pkTouch)return;const sel=pkSel(e.target);const t=e.changedTouches[0];
+  const moved=Math.abs(t.clientX-pkTouch.x)>10||Math.abs(t.clientY-pkTouch.y)>10;pkTouch=null;
+  if(!sel||moved)return;e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();pkOpen(sel)},{capture:true,passive:false});
+document.addEventListener('mousedown',e=>{if(!pkOn)return;const sel=pkSel(e.target);if(!sel)return;e.preventDefault();pkOpen(sel)},true);
+document.addEventListener('keydown',e=>{if(!pkOn)return;const sel=pkSel(e.target);if(sel&&(e.key==='Enter'||e.key===' ')){e.preventDefault();pkOpen(sel)}},true);
+
 // ---- backup ----
 function renderBackup(){
   const s=cur();
@@ -1268,6 +1306,10 @@ function renderBackup(){
       db.surveys[d.id]=d;db.current=d.id;db.tab='details';save();render();toast(fail?'Survey restored, but '+fail+' photos could not be saved':'Survey restored')}},'Restore as new survey')),msg));
   box.append(el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Delete this survey'),el('p',{class:'note',style:'margin:0'},'Removes "'+(s.name||'Untitled')+'" from this device.'),
     el('div',{class:'row'},armButton('Delete survey',()=>{(s.images||[]).forEach(m=>imgDel(m.id));delete db.surveys[s.id];if(!Object.keys(db.surveys).length){const n2=newSurvey();db.surveys[n2.id]=n2}db.current=Object.keys(db.surveys)[0];db.tab='details';save();render()}))));
+  const pkBtn=el('button',{class:'btn'+(pkOn?' primary':''),onclick:()=>{pkSet(!pkOn);render();toast(pkOn?'App pick lists on for this device':'Built-in dropdowns back on')}},pkOn?'App pick lists: On':'App pick lists: Off');
+  box.append(el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Dropdowns won\'t open?'),
+    el('p',{class:'note',style:'margin:0'},'On some iPads the dropdown boxes don\'t open. Turn this on and every dropdown opens the app\'s own list instead. It only changes this device, and your surveys are not touched.'),
+    el('div',{class:'row'},pkBtn)));
   return box;
 }
 // ---- generic DEAP sections ----
