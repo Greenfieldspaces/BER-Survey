@@ -763,7 +763,7 @@ function renderSummary(){
   const s=cur(),S=summarise(s);
   const box=el('div',{class:'stack'});
   box.append(checksEl(s));
-  box.append(el('div',{class:'row'},el('button',{class:'btn primary',onclick:e=>sharePDF(s,e.currentTarget)},'Share PDF report'),el('button',{class:'btn',onclick:()=>copyReport(s)},'Copy as text'),el('span',{class:'note'},'Share PDF report makes a neat A4 sheet with tick boxes, open items and your sketches. Pick Mail to send it to the desk.')));
+  box.append(el('div',{class:'row'},el('button',{class:'btn primary',onclick:e=>sharePDF(s,e.currentTarget)},'Share PDF report'),(s.images||[]).length?el('button',{class:'btn',onclick:e=>sharePDF(s,e.currentTarget,{photos:false})},'PDF without photos'):null,el('button',{class:'btn',onclick:()=>copyReport(s)},'Copy as text'),el('span',{class:'note'},'Share PDF report makes a neat A4 sheet with tick boxes, open items and your sketches. Pick Mail to send it to the desk.'+((s.images||[]).length?' PDF without photos is the same sheet with no photo pages, for printing.':''))));
   box.append(reportEl(s));
   const tc=el('div',{class:'card'},el('h2',{style:'font-size:20px'},'Wall types for this survey'),el('p',{class:'note',style:'margin:0'},'Rename these to match the wall types you set up in DEAP. Walls using a renamed type follow the new name.'));
   const list=el('div',{class:'types'});
@@ -954,8 +954,9 @@ async function pdfLibs(){
 // the built-in PDF fonts only cover Western European characters
 const PDFOK='–—‘’“”•…€›‹';
 const pdfTxt=v=>String(v==null?'':v).replace(/[≥≤✓☐×]/g,c=>({'≥':'>=','≤':'<=','✓':'Yes','☐':'','×':'x'}[c])).replace(/[^\x00-\xff]/g,c=>PDFOK.includes(c)?c:'');
-function pdfName(s){const d=s.data.details||{};return ('BER survey - '+(s.name||'Untitled')+(d.date?' - '+d.date:'')).replace(/[\\/:*?"<>|]+/g,'-')+'.pdf'}
-async function buildPDF(s){
+function pdfName(s,o){const d=s.data.details||{};return ('BER survey - '+(s.name||'Untitled')+(d.date?' - '+d.date:'')+(o&&o.photos===false?' - no photos':'')).replace(/[\\/:*?"<>|]+/g,'-')+'.pdf'}
+async function buildPDF(s,o){
+  const withPhotos=!(o&&o.photos===false);
   const jsPDF=await pdfLibs();
   const doc=new jsPDF({unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),M=14,GREEN=[11,122,69],SOFT=[232,239,235],INK=[22,35,29],MUTED=[90,107,99],WARN=[181,71,8];
@@ -992,7 +993,7 @@ async function buildPDF(s){
     room(16);doc.setFillColor(253,235,217);doc.rect(M,y,W-2*M,7,'F');doc.setTextColor(...WARN);doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.text('Open items from site ('+oc.length+')',M+2,y+4.8);y+=8;
     doc.autoTable(Object.assign({},TBL,{startY:y,body:oc.map(x=>[chkLbl(x),pdfTxt(x.t),pdfTxt(secName(x.tab,x.sub))]),
       columnStyles:{0:{cellWidth:18,fontStyle:'bold',textColor:WARN},2:{cellWidth:52,textColor:MUTED}}}));after();y+=2}
-  const ims=imgOrder(s).filter(m=>imgGet(m.id));
+  const ims=withPhotos?imgOrder(s).filter(m=>imgGet(m.id)):[];
   if(ims.length){doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...MUTED);doc.text(ims.length+' sketch'+(ims.length>1?'es/photos':'/photo')+' at the end of this report.',M,y+3);y+=7}
   reportModel(s).forEach(sec=>{
     room(34);y+=2;
@@ -1020,10 +1021,10 @@ async function buildPDF(s){
     doc.text(pdfTxt((s.name||'BER survey')),M,H-8);doc.text('Page '+i+' of '+np,W-M,H-8,{align:'right'})}
   return doc;
 }
-async function sharePDF(s,btn){
+async function sharePDF(s,btn,o){
   const lbl=btn&&btn.textContent;if(btn){btn.disabled=true;btn.textContent='Making PDF…'}
   try{
-    const doc=await buildPDF(s),name=pdfName(s),blob=doc.output('blob'),file=new File([blob],name,{type:'application/pdf'});
+    const doc=await buildPDF(s,o),name=pdfName(s,o),blob=doc.output('blob'),file=new File([blob],name,{type:'application/pdf'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){
       try{await navigator.share({files:[file],title:name.replace(/\.pdf$/,'')})}catch(e){if(e&&e.name!=='AbortError')throw e}
     }else{
